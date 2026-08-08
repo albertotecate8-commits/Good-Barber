@@ -74,7 +74,7 @@ function weekKey(d){return monday(d)}
 function weekEnd(s){let d=new Date(s+"T12:00:00");d.setDate(d.getDate()+5);return d.toISOString().slice(0,10)}
 function inCurrent(e){let s=weekKey(new Date().toISOString().slice(0,10));return e.date>=s&&e.date<=weekEnd(s)}
 function total(e){return S.prices.reduce((a,p,i)=>a+(e.q[i]||0)*p[1],0)}
-function enter(){let u=lu.value,p=lp.value;if(u===S.user&&p===S.pass){localStorage.setItem("gb_login","1");open()}else alert("Datos incorrectos")}
+function enter(){let u=lu.value.trim(),p=lp.value;if(u==="admin"&&p==="1234"){localStorage.setItem("gb_login","1");open()}else{alert("Usuario o contraseña incorrectos")}}
 function open(){login.classList.add("hidden");app.classList.remove("hidden");render()}
 function logout(){localStorage.removeItem("gb_login");location.reload()}
 function show(id){["home","register","history","staff","settings"].forEach(x=>document.getElementById(x).classList.toggle("hidden",x!==id));render()}
