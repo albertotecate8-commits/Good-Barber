@@ -138,9 +138,10 @@ async function cargarBarberos(){
     .order("nombre");
 
   if(error){
-    console.error(error);
-    alert("Error al cargar los barberos: "+error.message);
-    return;
+  console.error("SUPABASE ERROR:", error);
+  alert("ERROR SUPABASE: " + JSON.stringify(error));
+  return;
+}
   }
 
   S.barbers=data.map(b=>b.nombre);
