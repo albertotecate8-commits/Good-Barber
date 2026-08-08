@@ -60,13 +60,10 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;p
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-const SUPABASE_URL = "https://smswcsbxefeeuugabqfb.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_IyoPemj_PIq71ykyF5LHoA_RJEvFKTb";
+const SUPABASE_URL = "";
+const SUPABASE_ANON_KEY = "";
 
-const supabase = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY
-);
+const supabase = null;
 const K="goodbarber_final_v1";
 let S=JSON.parse(localStorage.getItem(K)||"null")||{user:"admin",pass:"1234",pb:60,ps:40,barbers:["Barbero 1"],prices:[["Corte",120],["Barba",50],["Ceja",30],["Corte + barba",170],["Corte + cejas",150],["Corte + barba + cejas",199]],entries:[],closed:[]};
 let role="admin";
