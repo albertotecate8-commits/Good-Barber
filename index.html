@@ -57,9 +57,16 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;p
  <section id="history" class="hidden"><div class="card"><h2>Historial</h2><label>Mes</label><input id="month" type="month" onchange="history()"><div id="hist"></div></div></section>
  <section id="staff" class="hidden"><div class="card"><h2>Barberos</h2><div id="staffList"></div><input id="newName" placeholder="Nombre del barbero"><button style="margin-top:9px" onclick="addStaff()">Agregar barbero</button></div></section>
  <section id="settings" class="hidden"><div class="card"><h2>Ajustes</h2><label>Porcentaje barbero</label><input id="pb" type="number"><label>Porcentaje Good Barber</label><input id="ps" type="number"><p class="muted">Deben sumar 100%.</p><div id="prices"></div><button onclick="settings()">Guardar ajustes</button></div></section>
-</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
+const SUPABASE_URL = "https://smswcsbxefeeuugabqfb.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_IyoPemj_PIq71ykyF5LHoA_RJEvFKTb";
+
+const supabase = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY
+);
 const K="goodbarber_final_v1";
 let S=JSON.parse(localStorage.getItem(K)||"null")||{user:"admin",pass:"1234",pb:60,ps:40,barbers:["Barbero 1"],prices:[["Corte",120],["Barba",50],["Ceja",30],["Corte + barba",170],["Corte + cejas",150],["Corte + barba + cejas",199]],entries:[],closed:[]};
 let role="admin";
