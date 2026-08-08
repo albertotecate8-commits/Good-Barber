@@ -48,11 +48,74 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;p
  </section>
 
  <section id="register" class="hidden">
-  <div class="card"><h2>Registrar servicios</h2><label>Barbero</label><select id="rb"></select><label>Fecha</label><input id="rd" type="date"><div id="svc"></div>
-  <div style="text-align:right;font-size:20px;font-weight:900;margin:14px 0">Total: <span id="rt">$0</span></div>
-  <label>Forma de pago</label><select id="pay"><option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option></select>
-  <label>Nota</label><input id="rn" placeholder="Opcional"><button style="width:100%;margin-top:12px" onclick="save()">Guardar</button></div>
- </section>
+  <div class="card">
+    <h2>Registrar semana</h2>
+
+    <label>Barbero</label>
+    <select id="rb"></select>
+
+    <label>Semana</label>
+    <input id="rd" type="date">
+
+    <h3 style="margin-top:20px">Cortes por día</h3>
+
+    <div class="grid">
+      <div class="card">
+        <b>Lunes</b>
+        <input id="q0" type="number" min="0" value="0" placeholder="Cortes">
+      </div>
+
+      <div class="card">
+        <b>Martes</b>
+        <input id="q1" type="number" min="0" value="0" placeholder="Cortes">
+      </div>
+
+      <div class="card">
+        <b>Miércoles</b>
+        <input id="q2" type="number" min="0" value="0" placeholder="Cortes">
+      </div>
+
+      <div class="card">
+        <b>Jueves</b>
+        <input id="q3" type="number" min="0" value="0" placeholder="Cortes">
+      </div>
+
+      <div class="card">
+        <b>Viernes</b>
+        <input id="q4" type="number" min="0" value="0" placeholder="Cortes">
+      </div>
+
+      <div class="card">
+        <b>Sábado</b>
+        <input id="q5" type="number" min="0" value="0" placeholder="Cortes">
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:15px">
+      <h3>Resumen</h3>
+      <p><b>Total de cortes:</b> <span id="weeklyCuts">0</span></p>
+      <p><b>Total generado:</b> <span id="weeklyTotal">$0</span></p>
+      <p><b>60% Barbero:</b> <span id="weeklyBarber">$0</span></p>
+      <p><b>40% Good Barber:</b> <span id="weeklyShop">$0</span></p>
+    </div>
+
+    <label>Forma de pago</label>
+    <select id="pay">
+      <option>Efectivo</option>
+      <option>Transferencia</option>
+      <option>Tarjeta</option>
+    </select>
+
+    <label>Nota</label>
+    <input id="rn" placeholder="Opcional">
+
+    <button
+      style="width:100%;margin-top:15px"
+      onclick="save()">
+      Guardar semana
+    </button>
+  </div>
+</section>
 
  <section id="history" class="hidden"><div class="card"><h2>Historial</h2><label>Mes</label><input id="month" type="month" onchange="history()"><div id="hist"></div></div></section>
  <section id="staff" class="hidden"><div class="card"><h2>Barberos</h2><div id="staffList"></div><input id="newName" placeholder="Nombre del barbero"><button style="margin-top:9px" onclick="addStaff()">Agregar barbero</button></div></section>
@@ -86,9 +149,62 @@ function render(){
 }
 function rtotal(){let t=0;S.prices.forEach((p,i)=>{let q=+(document.getElementById("q"+i)?.value||0),v=q*p[1];t+=v;if(document.getElementById("l"+i))document.getElementById("l"+i).textContent=money(v)});rt.textContent=money(t)}
 function save(){
- let wk=weekKey(rd.value);if(S.closed.includes(wk))return alert("Esta semana está cerrada.");
- let q=S.prices.map((_,i)=>+(document.getElementById("q"+i).value||0));if(!q.some(x=>x>0))return alert("Agrega un servicio.");
- S.entries.push({id:Date.now(),barber:rb.value,date:rd.value,q,pay:pay.value,note:rn.value});saveS();alert("Registro guardado");document.querySelectorAll("#svc input").forEach(x=>x.value=0);rn.value="";rtotal();render()
+  let wk=weekKey(rd.value);
+
+  if(!rd.value){
+    alert("Selecciona la semana.");
+    return;
+  }
+
+  if(!rb.value){
+    alert("Selecciona un barbero.");
+    return;
+  }
+
+  if(S.closed.includes(wk)){
+    alert("Esta semana ya está cerrada.");
+    return;
+  }
+
+  let q=[
+    +(document.getElementById("q0").value||0),
+    +(document.getElementById("q1").value||0),
+    +(document.getElementById("q2").value||0),
+    +(document.getElementById("q3").value||0),
+    +(document.getElementById("q4").value||0),
+    +(document.getElementById("q5").value||0)
+  ];
+
+  let cortes=q.reduce((a,b)=>a+b,0);
+
+  if(cortes<=0){
+    alert("Registra al menos un corte.");
+    return;
+  }
+
+  let total=S.prices.reduce((a,p,i)=>a+(q[i]||0)*p,0);
+  let barber=total*0.60;
+  let shop=total*0.40;
+
+  S.entries.push({
+    id:Date.now(),
+    barber:rb.value,
+    date:rd.value,
+    q:q,
+    pay:pay.value,
+    note:rn.value,
+    total:total
+  });
+
+  saveS();
+
+  document.getElementById("weeklyCuts").textContent=cortes;
+  document.getElementById("weeklyTotal").textContent=money(total);
+  document.getElementById("weeklyBarber").textContent=money(barber);
+  document.getElementById("weeklyShop").textContent=money(shop);
+
+  alert("Semana guardada correctamente.");
+  render();
 }
 function closeWeek(){let wk=weekKey(new Date().toISOString().slice(0,10));if(!S.closed.includes(wk))S.closed.push(wk);saveS();render()}
 function reopenWeek(){let wk=weekKey(new Date().toISOString().slice(0,10));S.closed=S.closed.filter(x=>x!==wk);saveS();render()}
