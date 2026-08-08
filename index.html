@@ -126,6 +126,33 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;p
 const K="goodbarber_final_v1";
  let S=JSON.parse(localStorage.getItem(K)||"null");
  let role="admin";
+const SUPABASE_URL="https://smswcsbxefeeugabqfb.supabase.co";
+const SUPABASE_KEY="sb_publishable_IyoPemj_PIq71ykyF5LHoA_RJEvFKTb";
+ 
+ const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+async function cargarBarberos(){
+  const {data,error}=await db
+    .from("barberos")
+    .select("id,nombre")
+    .order("nombre");
+
+  if(error){
+    console.error(error);
+    alert("Error al cargar los barberos: "+error.message);
+    return;
+  }
+
+  S.barbers=data.map(b=>b.nombre);
+
+  rb.innerHTML='<option value="">Selecciona un barbero</option>'+
+    data.map(b=>`<option value="${b.nombre}">${b.nombre}</option>`).join("");
+
+
+  saveS();
+  render();
+}
+ cargarBarberos();
 function saveS(){localStorage.setItem(K,JSON.stringify(S))}
 function money(n){return "$"+Math.round(n||0).toLocaleString("es-MX")}
 function monday(s){let d=new Date(s+"T12:00:00"),n=d.getDay();d.setDate(d.getDate()+(n===0?-6:1-n));return d.toISOString().slice(0,10)}
