@@ -1,357 +1,362 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Good Barber</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0b0c">
+<title>Good Barber</title>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="./supabase-config.js"></script>
+<style>
+:root{
+  --bg:#f3f3f5;
+  --card:#fff;
+  --text:#111;
+  --muted:#737373;
+  --line:#e6e6e8;
+  --dark:#0b0b0c;
+  --soft:#ededee;
+  --ok:#16834a;
+  --danger:#b42318;
+  --warn:#9a6700
+}
 
-  <style>
-    * {
-      box-sizing: border-box;
-      -webkit-tap-highlight-color: transparent;
-    }
+*{box-sizing:border-box}
 
-    body {
-      margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #f3f3f3;
-      color: #111;
-    }
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif
+}
 
-    button, input, select {
-      font: inherit;
-    }
+.app{
+  max-width:760px;
+  margin:auto;
+  padding:16px 14px 90px
+}
 
-    .container {
-      max-width: 850px;
-      margin: auto;
-      padding: 18px;
-    }
+.top{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:14px
+}
 
-    .header {
-      background: white;
-      border-radius: 28px;
-      padding: 24px;
-      margin-bottom: 18px;
-      box-shadow: 0 3px 18px rgba(0,0,0,.06);
-    }
+.brand{
+  font-size:24px;
+  font-weight:900;
+  letter-spacing:-.8px
+}
 
-    h1 {
-      margin: 0;
-      font-size: 38px;
-      font-weight: 800;
-    }
+.sub{
+  font-size:12px;
+  color:var(--muted);
+  margin-top:2px
+}
 
-    .subtitle {
-      color: #777;
-      font-size: 18px;
-      margin-top: 6px;
-    }
+.card{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:20px;
+  padding:16px;
+  margin:12px 0;
+  box-shadow:0 4px 18px #00000007
+}
 
-    .top-controls {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-top: 20px;
-    }
+.hero{
+  background:var(--dark);
+  color:white;
+  border:0
+}
 
-    select, input {
-      width: 100%;
-      border: 1px solid #ddd;
-      background: white;
-      border-radius: 16px;
-      padding: 15px;
-      outline: none;
-    }
+.hero .sub{
+  color:#bdbdbd
+}
 
-    button {
-      border: 0;
-      border-radius: 16px;
-      padding: 15px 20px;
-      background: #111;
-      color: white;
-      font-weight: 700;
-      cursor: pointer;
-    }
+.grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:9px
+}
 
-    button.secondary {
-      background: #e9e9e9;
-      color: #111;
-    }
+.metric{
+  background:#f7f7f8;
+  border-radius:15px;
+  padding:13px
+}
 
-    .tabs {
-      display: grid;
-      grid-template-columns: repeat(3,1fr);
-      gap: 10px;
-      margin-bottom: 18px;
-    }
+.hero .metric{
+  background:#1b1b1d
+}
 
-    .tabs button.active {
-      background: #111;
-      color: white;
-    }
+.metric small{
+  display:block;
+  color:var(--muted);
+  font-size:11px
+}
 
-    .card {
-      background: white;
-      border-radius: 26px;
-      padding: 22px;
-      margin-bottom: 18px;
-      box-shadow: 0 3px 18px rgba(0,0,0,.05);
-    }
+.hero .metric small{
+  color:#aaa
+}
 
-    .summary {
-      background: #111;
-      color: white;
-    }
+.metric b{
+  display:block;
+  font-size:19px;
+  margin-top:5px
+}
 
-    .summary-grid {
-      display: grid;
-      grid-template-columns: repeat(3,1fr);
-      gap: 12px;
-    }
+button{
+  border:0;
+  border-radius:12px;
+  padding:11px 14px;
+  background:var(--dark);
+  color:#fff;
+  font-weight:800;
+  font-size:14px
+}
 
-    .summary-box {
-      background: #1d1d1d;
-      border-radius: 18px;
-      padding: 18px;
-    }
+button.soft{
+  background:var(--soft);
+  color:#111
+}
 
-    .summary-label {
-      color: #aaa;
-      font-size: 15px;
-    }
+button.green{
+  background:var(--ok)
+}
 
-    .summary-value {
-      font-size: 30px;
-      font-weight: 800;
-      margin-top: 8px;
-    }
+button.red{
+  background:var(--danger)
+}
 
-    .day {
-      border: 1px solid #e1e1e1;
-      border-radius: 24px;
-      padding: 20px;
-      margin-bottom: 18px;
-    }
+button:disabled{
+  opacity:.45
+}
 
-    .day-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 18px;
-    }
+.tabs{
+  display:flex;
+  gap:7px;
+  overflow:auto;
+  margin:10px 0
+}
 
-    .day-header h2 {
-      margin: 0;
-      font-size: 27px;
-    }
+.tabs button{
+  white-space:nowrap
+}
 
-    .day-total {
-      font-size: 24px;
-      font-weight: 800;
-    }
+.hidden{
+  display:none
+}
 
-    .service {
-      display: grid;
-      grid-template-columns: 1fr 90px;
-      gap: 12px;
-      align-items: center;
-      padding: 14px 0;
-      border-bottom: 1px solid #eee;
-    }
+label{
+  display:block;
+  font-size:12px;
+  color:var(--muted);
+  margin:10px 0 5px
+}
 
-    .service:last-of-type {
-      border-bottom: 0;
-    }
+input,select{
+  width:100%;
+  padding:12px;
+  border:1px solid #ddd;
+  border-radius:12px;
+  background:#fff;
+  font-size:15px
+}
 
-    .service-name {
-      font-weight: 700;
-      font-size: 17px;
-    }
+.row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  padding:11px 0;
+  border-bottom:1px solid var(--line)
+}
 
-    .service-price {
-      color: #777;
-      margin-top: 4px;
-    }
+.row:last-child{
+  border-bottom:0
+}
 
-    .promo {
-      margin-top: 18px;
-      padding: 16px;
-      border-radius: 18px;
-      background: #f5f5f5;
-    }
+.muted{
+  color:var(--muted);
+  font-size:12px
+}
 
-    .promo label {
-      display: block;
-      font-weight: 700;
-      margin-bottom: 8px;
-    }
+.day{
+  display:grid;
+  grid-template-columns:1fr 110px;
+  gap:10px;
+  align-items:center;
+  padding:10px 0;
+  border-bottom:1px solid var(--line)
+}
 
-    .promo small {
-      color: #777;
-      display: block;
-      margin-top: 6px;
-    }
+.day:last-child{
+  border-bottom:0
+}
 
-    .save {
-      margin-top: 18px;
-      width: 100%;
-    }
+.day b{
+  display:block
+}
 
-    .cut-card {
-      border: 2px solid #111;
-      border-radius: 24px;
-      padding: 20px;
-    }
+.day small{
+  color:var(--muted)
+}
 
-    .cut-number {
-      font-size: 35px;
-      font-weight: 800;
-      margin: 8px 0 18px;
-    }
+.login{
+  max-width:390px;
+  margin:12vh auto
+}
 
-    .history-item {
-      border: 1px solid #ddd;
-      border-radius: 20px;
-      padding: 18px;
-      margin-bottom: 12px;
-    }
+.login .card{
+  text-align:left
+}
 
-    .history-item h3 {
-      margin: 0 0 10px;
-    }
+h2{
+  font-size:19px;
+  margin:4px 0 12px
+}
 
-    .history-grid {
-      display: grid;
-      grid-template-columns: repeat(3,1fr);
-      gap: 10px;
-    }
+h3{
+  font-size:16px;
+  margin:4px 0 10px
+}
 
-    .history-box {
-      background: #f4f4f4;
-      padding: 12px;
-      border-radius: 14px;
-    }
+table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:13px
+}
 
-    .status {
-      padding: 14px 16px;
-      border-radius: 16px;
-      margin-bottom: 18px;
-      background: #fff4d5;
-      color: #725800;
-      display: none;
-    }
+th,td{
+  text-align:left;
+  padding:9px 4px;
+  border-bottom:1px solid var(--line)
+}
 
-    .status.show {
-      display: block;
-    }
+th{
+  color:var(--muted)
+}
 
-    .status.ok {
-      background: #dcf8e6;
-      color: #145b31;
-    }
+.status{
+  position:fixed;
+  left:50%;
+  bottom:16px;
+  transform:translateX(-50%);
+  background:#111;
+  color:#fff;
+  padding:10px 14px;
+  border-radius:999px;
+  font-size:12px;
+  display:none;
+  z-index:10;
+  max-width:90%;
+  text-align:center
+}
 
-    .status.error {
-      background: #ffe1e1;
-      color: #8b1d1d;
-    }
+.notice{
+  padding:11px 12px;
+  border-radius:12px;
+  background:#fff5d9;
+  color:#6d4c00;
+  font-size:12px;
+  margin:10px 0
+}
 
-    .hidden {
-      display: none !important;
-    }
+.ok{
+  color:var(--ok);
+  font-weight:800
+}
 
-    @media(max-width:650px) {
-      .summary-grid {
-        grid-template-columns: 1fr;
-      }
+@media(max-width:480px){
+  .grid{
+    grid-template-columns:1fr 1fr
+  }
 
-      .top-controls {
-        grid-template-columns: 1fr;
-      }
+  .grid .metric:last-child{
+    grid-column:span 2
+  }
 
-      .history-grid {
-        grid-template-columns: 1fr;
-      }
+  .day{
+    grid-template-columns:1fr 95px
+  }
 
-      h1 {
-        font-size: 32px;
-      }
-    }
-  </style>
+  table{
+    font-size:11px
+  }
+}
+</style>
 </head>
 
 <body>
 
-<div class="container">
+<div id="status" class="status"></div>
 
-  <div class="header">
-    <h1>GOOD BARBER</h1>
-    <div class="subtitle">Administración · Supabase</div>
+<div id="login" class="app login">
+  <div class="card">
+    <div class="brand">GOOD BARBER</div>
+    <div class="sub">Control de barbería</div>
 
-    <div class="top-controls">
-      <select id="barbero">
-        <option value="">Selecciona un trabajador</option>
-        <option value="Alberto">Alberto</option>
-        <option value="Joaquín">Joaquín</option>
-      </select>
+    <label>Usuario</label>
+    <input id="lu" value="admin" autocomplete="username">
 
-      <button onclick="nuevaSemana()">Nueva semana</button>
+    <label>Contraseña</label>
+    <input id="lp" type="password" value="1234" autocomplete="current-password">
+
+    <button id="loginBtn" style="width:100%;margin-top:12px" onclick="enter()">
+      Entrar
+    </button>
+
+    <p class="muted">Acceso de demostración: admin / 1234</p>
+  </div>
+</div>
+
+<div id="app" class="app hidden">
+
+  <div class="top">
+    <div>
+      <div class="brand">GOOD BARBER</div>
+      <div class="sub">Administración · Supabase</div>
     </div>
+
+    <button class="soft" onclick="logout()">Salir</button>
   </div>
 
-  <div id="status" class="status"></div>
+  <div id="connectionNotice" class="notice hidden"></div>
 
   <div class="tabs">
-    <button id="tabSemana" class="active" onclick="mostrarTab('semana')">
-      Semana
-    </button>
-
-    <button id="tabResumen" onclick="mostrarTab('resumen')">
-      Resumen
-    </button>
-
-    <button id="tabCorte" onclick="mostrarTab('corte')">
-      Corte sábado
-    </button>
+    <button onclick="show('home')">Inicio</button>
+    <button onclick="show('register')">Semana</button>
+    <button onclick="show('sale')">Venta</button>
+    <button onclick="show('history')">Historial</button>
   </div>
 
-  <!-- SEMANA -->
-  <section id="semana">
+  <!-- INICIO -->
 
-    <div class="card">
-      <h2>Semana actual</h2>
-      <p id="fechaSemana" class="subtitle"></p>
-    </div>
+  <section id="home">
 
-    <div id="dias"></div>
+    <div class="card hero">
 
-  </section>
+      <div class="sub">Semana actual</div>
 
-  <!-- RESUMEN -->
-  <section id="resumen" class="hidden">
+      <h2 style="font-size:23px;margin:4px 0 14px">
+        Resumen
+      </h2>
 
-    <div class="card summary">
+      <div class="grid">
 
-      <h2>Resumen semanal</h2>
-
-      <div class="summary-grid">
-
-        <div class="summary-box">
-          <div class="summary-label">Total</div>
-          <div id="resTotal" class="summary-value">$0</div>
+        <div class="metric">
+          <small>Total</small>
+          <b id="wSales">$0</b>
         </div>
 
-        <div class="summary-box">
-          <div class="summary-label">60% trabajador</div>
-          <div id="resTrabajador" class="summary-value">$0</div>
+        <div class="metric">
+          <small>60% barbero</small>
+          <b id="wBarber">$0</b>
         </div>
 
-        <div class="summary-box">
-          <div class="summary-label">40% Good Barber</div>
-          <div id="resBarberia" class="summary-value">$0</div>
+        <div class="metric">
+          <small>40% Good Barber</small>
+          <b id="wShop">$0</b>
         </div>
 
       </div>
@@ -359,1011 +364,1311 @@
     </div>
 
     <div class="card">
-      <h2>Detalle de la semana</h2>
-      <div id="detalle"></div>
+      <h3>Por barbero</h3>
+      <div id="byBarber">
+        <p class="muted">Cargando…</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Últimos registros</h3>
+      <div id="recent">
+        <p class="muted">Cargando…</p>
+      </div>
     </div>
 
   </section>
 
-  <!-- CORTE -->
-  <section id="corte" class="hidden">
+
+  <!-- SEMANA -->
+
+  <section id="register" class="hidden">
 
     <div class="card">
 
-      <h2>Corte del sábado</h2>
+      <h2>Registrar semana</h2>
 
-      <p class="subtitle">
-        Aquí puedes revisar cuánto corresponde pagar al trabajador
-        y cuánto corresponde a Good Barber.
+      <p class="muted">
+        Registra de lunes a sábado.
+        El pago del sábado corresponde automáticamente al 60% del total semanal.
       </p>
 
-      <div class="cut-card">
+      <label>Barbero</label>
+      <select id="wb"></select>
 
-        <h2 id="corteNombre">Trabajador</h2>
+      <label>Semana (elige el lunes)</label>
+      <input id="weekDate" type="date" onchange="normalizeWeek()">
 
-        <label>Pago extra / ajuste</label>
-        <input
-          id="pagoExtra"
-          type="number"
-          value="0"
-          step="0.01"
-          oninput="calcularCorte()"
-        >
+      <label>Servicio</label>
+      <select id="ws" onchange="updateWeekTotal()"></select>
 
-        <div class="card">
-          <div class="subtitle">Total semanal</div>
-          <div id="corteTotal" class="cut-number">$0</div>
+      <div id="days" style="margin-top:10px">
+
+        <div class="day">
+          <div>
+            <b>Lunes</b>
+            <small id="d0date"></small>
+          </div>
+          <input id="q0" type="number" min="0" value="0" oninput="updateWeekTotal()">
         </div>
 
-        <div class="card">
-          <div class="subtitle">60% trabajador</div>
-          <div id="corte60" class="cut-number">$0</div>
+        <div class="day">
+          <div>
+            <b>Martes</b>
+            <small id="d1date"></small>
+          </div>
+          <input id="q1" type="number" min="0" value="0" oninput="updateWeekTotal()">
         </div>
 
-        <div class="card">
-          <div class="subtitle">40% Good Barber</div>
-          <div id="corte40" class="cut-number">$0</div>
+        <div class="day">
+          <div>
+            <b>Miércoles</b>
+            <small id="d2date"></small>
+          </div>
+          <input id="q2" type="number" min="0" value="0" oninput="updateWeekTotal()">
         </div>
 
-        <button onclick="guardarCorte()" class="save">
-          Guardar corte del sábado
-        </button>
+        <div class="day">
+          <div>
+            <b>Jueves</b>
+            <small id="d3date"></small>
+          </div>
+          <input id="q3" type="number" min="0" value="0" oninput="updateWeekTotal()">
+        </div>
+
+        <div class="day">
+          <div>
+            <b>Viernes</b>
+            <small id="d4date"></small>
+          </div>
+          <input id="q4" type="number" min="0" value="0" oninput="updateWeekTotal()">
+        </div>
+
+        <div class="day">
+          <div>
+            <b>Sábado</b>
+            <small id="d5date"></small>
+          </div>
+          <input id="q5" type="number" min="0" value="0" oninput="updateWeekTotal()">
+        </div>
 
       </div>
+
+
+      <div class="card" style="margin:15px 0 0">
+
+        <h3>Resumen semanal</h3>
+
+        <div class="row">
+          <span>Total de cortes</span>
+          <b id="weeklyCuts">0</b>
+        </div>
+
+        <div class="row">
+          <span>Total generado</span>
+          <b id="weeklyTotal">$0</b>
+        </div>
+
+        <div class="row">
+          <span>Pago al barbero · 60%</span>
+          <b id="weeklyBarber">$0</b>
+        </div>
+
+        <div class="row">
+          <span>Good Barber · 40%</span>
+          <b id="weeklyShop">$0</b>
+        </div>
+
+      </div>
+
+
+      <label>Forma de pago registrada</label>
+
+      <select id="wpay">
+        <option value="efectivo">Efectivo</option>
+        <option value="transferencia">Transferencia</option>
+        <option value="tarjeta">Tarjeta</option>
+      </select>
+
+
+      <label>Nota</label>
+
+      <input id="wn" placeholder="Opcional">
+
+
+      <button
+        id="weekBtn"
+        class="green"
+        style="width:100%;margin-top:12px"
+        onclick="saveWeek()">
+
+        Guardar semana
+
+      </button>
 
     </div>
 
   </section>
 
-  <!-- HISTORIAL -->
-  <section id="historial">
+
+  <!-- VENTA -->
+
+  <section id="sale" class="hidden">
 
     <div class="card">
-      <h2>Historial de semanas</h2>
-      <div id="historialLista">Cargando...</div>
+
+      <h2>Nueva venta</h2>
+
+      <label>Barbero</label>
+      <select id="rb"></select>
+
+      <label>Servicio</label>
+      <select id="rs" onchange="updateTotal()"></select>
+
+      <label>Fecha</label>
+      <input id="saleDate" type="date">
+
+      <label>Cantidad</label>
+      <input
+        id="rq"
+        type="number"
+        min="1"
+        value="1"
+        inputmode="numeric"
+        oninput="updateTotal()">
+
+      <div
+        style="text-align:right;font-size:22px;font-weight:900;margin:16px 0">
+
+        Total:
+        <span id="rt">$0</span>
+
+      </div>
+
+      <label>Forma de pago</label>
+
+      <select id="pay">
+        <option value="efectivo">Efectivo</option>
+        <option value="transferencia">Transferencia</option>
+        <option value="tarjeta">Tarjeta</option>
+      </select>
+
+      <label>Nota</label>
+
+      <input id="rn" placeholder="Opcional">
+
+      <button
+        class="green"
+        style="width:100%;margin-top:12px"
+        onclick="saveSale()">
+
+        Registrar venta
+
+      </button>
+
+    </div>
+
+  </section>
+
+
+  <!-- HISTORIAL -->
+
+  <section id="history" class="hidden">
+
+    <div class="card">
+
+      <h2>Historial</h2>
+
+      <label>Mes</label>
+
+      <input
+        id="month"
+        type="month"
+        onchange="loadHistory()">
+
+      <div id="hist">
+        <p class="muted">Cargando…</p>
+      </div>
+
     </div>
 
   </section>
 
 </div>
 
+
 <script>
 
-const SERVICIOS = [
-  {
-    id: "corte",
-    nombre: "Corte de cabello",
-    precio: 120
-  },
-  {
-    id: "barba",
-    nombre: "Arreglo de barba",
-    precio: 50
-  },
-  {
-    id: "ceja",
-    nombre: "Arreglo de ceja",
-    precio: 30
-  },
-  {
-    id: "corte_barba",
-    nombre: "Corte + barba",
-    precio: 170
-  },
-  {
-    id: "corte_cejas",
-    nombre: "Corte + cejas",
-    precio: 150
-  },
-  {
-    id: "corte_barba_cejas",
-    nombre: "Corte + barba + cejas",
-    precio: 199
-  }
-];
+const SUPABASE_URL="https://smswcsbxefeeuugabqfb.supabase.co";
 
-const DIAS = [
-  "Lunes",
-  "Martes",
-  "Miércoles",
-  "Jueves",
-  "Viernes",
-  "Sábado"
-];
+const SUPABASE_KEY="sb_publishable_IyoPemj_PIq71ykyF5LHoA_RJEvFKTb";
 
-let semana = {};
-let semanaId = null;
+const API=SUPABASE_URL+"/rest/v1";
 
-function dinero(valor) {
-  return new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN"
-  }).format(Number(valor || 0));
+const HEAD={
+  "apikey":SUPABASE_KEY,
+  "Authorization":"Bearer "+SUPABASE_KEY,
+  "Content-Type":"application/json",
+  "Prefer":"return=representation"
+};
+
+let barbers=[];
+let services=[];
+let sales=[];
+let currentTab="home";
+let online=false;
+
+
+const $=id=>document.getElementById(id);
+
+
+function money(n){
+  return "$"+Math.round(Number(n||0)).toLocaleString("es-MX")
 }
 
-function mostrarStatus(texto, tipo = "") {
 
-  const box = document.getElementById("status");
-
-  box.textContent = texto;
-  box.className = "status show " + tipo;
-
-  setTimeout(() => {
-    box.classList.remove("show");
-  }, 4000);
+function today(){
+  return new Date().toISOString().slice(0,10)
 }
 
-function fechaInicioSemana() {
 
-  const ahora = new Date();
-  const dia = ahora.getDay();
+function toast(msg){
 
-  const diferencia = dia === 0 ? -6 : 1 - dia;
+  let s=$("status");
 
-  const lunes = new Date(ahora);
+  s.textContent=msg;
 
-  lunes.setDate(ahora.getDate() + diferencia);
-  lunes.setHours(0,0,0,0);
+  s.style.display="block";
 
-  return lunes;
+  clearTimeout(window._toast);
+
+  window._toast=setTimeout(
+    ()=>s.style.display="none",
+    2800
+  );
+
 }
 
-function fechaTexto(fecha) {
 
-  return fecha.toLocaleDateString("es-MX", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric"
-  });
+function esc(v){
+
+  return String(v??"").replace(
+    /[&<>"']/g,
+    m=>({
+      "&":"&amp;",
+      "<":"&lt;",
+      ">":"&gt;",
+      '"':"&quot;",
+      "'":"&#39;"
+    }[m])
+  );
+
 }
 
-function crearSemanaLocal() {
 
-  semana = {};
-
-  DIAS.forEach(dia => {
-
-    semana[dia] = {
-      servicios: {},
-      promocion: 0,
-      guardado: false
-    };
-
-    SERVICIOS.forEach(servicio => {
-      semana[dia].servicios[servicio.id] = 0;
-    });
-
-  });
-
-  semanaId = null;
-
-  document.getElementById("fechaSemana").textContent =
-    fechaTexto(fechaInicioSemana());
-
-  renderDias();
-  actualizarResumen();
-}
-
-function renderDias() {
-
-  const contenedor = document.getElementById("dias");
-
-  contenedor.innerHTML = "";
-
-  DIAS.forEach(dia => {
-
-    const datos = semana[dia];
-
-    let html = `
-      <div class="day">
-
-        <div class="day-header">
-          <div>
-            <h2>${dia}</h2>
-            <div class="subtitle">Servicios del día</div>
-          </div>
-
-          <div id="total-${dia}" class="day-total">
-            $0
-          </div>
-        </div>
-    `;
-
-    SERVICIOS.forEach(servicio => {
-
-      html += `
-        <div class="service">
-
-          <div>
-            <div class="service-name">
-              ${servicio.nombre}
-            </div>
-
-            <div class="service-price">
-              Precio normal: ${dinero(servicio.precio)}
-            </div>
-          </div>
-
-          <input
-            type="number"
-            min="0"
-            value="${datos.servicios[servicio.id]}"
-            onchange="cambiarServicio('${dia}','${servicio.id}',this.value)"
-          >
-
-        </div>
-      `;
-
-    });
-
-    html += `
-        <div class="promo">
-
-          <label>
-            Promoción / descuento del día
-          </label>
-
-          <input
-            type="number"
-            value="${datos.promocion}"
-            step="0.01"
-            onchange="cambiarPromocion('${dia}',this.value)"
-          >
-
-          <small>
-            Si ese día cobraron más barato, escribe aquí el descuento
-            total del día. Ejemplo: 50.
-          </small>
-
-        </div>
-
-        <button
-          class="save"
-          onclick="guardarDia('${dia}')"
-        >
-          Guardar ${dia}
-        </button>
-
-      </div>
-    `;
-
-    contenedor.innerHTML += html;
-
-    calcularDia(dia);
-
-  });
-}
-
-function cambiarServicio(dia, servicio, cantidad) {
-
-  semana[dia].servicios[servicio] =
-    Math.max(0, Number(cantidad || 0));
-
-  calcularDia(dia);
-  actualizarResumen();
-}
-
-function cambiarPromocion(dia, valor) {
-
-  semana[dia].promocion =
-    Number(valor || 0);
-
-  calcularDia(dia);
-  actualizarResumen();
-}
-
-function calcularDia(dia) {
-
-  let total = 0;
-
-  SERVICIOS.forEach(servicio => {
-
-    const cantidad =
-      Number(semana[dia].servicios[servicio.id] || 0);
-
-    total += cantidad * servicio.precio;
-
-  });
-
-  total -= Number(semana[dia].promocion || 0);
-
-  if (total < 0) {
-    total = 0;
-  }
-
-  semana[dia].total = total;
-
-  const elemento =
-    document.getElementById("total-" + dia);
-
-  if (elemento) {
-    elemento.textContent = dinero(total);
-  }
-
-  return total;
-}
-
-function obtenerTotalSemana() {
-
-  let total = 0;
-
-  DIAS.forEach(dia => {
-    total += calcularDia(dia);
-  });
-
-  return total;
-}
-
-function actualizarResumen() {
-
-  const total = obtenerTotalSemana();
-
-  const trabajador = total * .60;
-  const barberia = total * .40;
-
-  document.getElementById("resTotal").textContent =
-    dinero(total);
-
-  document.getElementById("resTrabajador").textContent =
-    dinero(trabajador);
-
-  document.getElementById("resBarberia").textContent =
-    dinero(barberia);
-
-  renderDetalle();
-  calcularCorte();
-}
-
-function renderDetalle() {
-
-  const contenedor =
-    document.getElementById("detalle");
-
-  let html = `
-    <div style="overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse">
-        <thead>
-          <tr>
-            <th style="text-align:left;padding:12px">Día</th>
-            <th style="padding:12px">Servicios</th>
-            <th style="padding:12px">Total</th>
-            <th style="padding:12px">60%</th>
-            <th style="padding:12px">40%</th>
-          </tr>
-        </thead>
-        <tbody>
-  `;
-
-  DIAS.forEach(dia => {
-
-    let servicios = 0;
-
-    SERVICIOS.forEach(servicio => {
-      servicios += Number(
-        semana[dia].servicios[servicio.id] || 0
-      );
-    });
-
-    const total = calcularDia(dia);
-
-    html += `
-      <tr>
-        <td style="padding:12px;border-top:1px solid #ddd">
-          ${dia}
-        </td>
-
-        <td style="padding:12px;border-top:1px solid #ddd;text-align:center">
-          ${servicios}
-        </td>
-
-        <td style="padding:12px;border-top:1px solid #ddd;text-align:center">
-          ${dinero(total)}
-        </td>
-
-        <td style="padding:12px;border-top:1px solid #ddd;text-align:center">
-          ${dinero(total * .60)}
-        </td>
-
-        <td style="padding:12px;border-top:1px solid #ddd;text-align:center">
-          ${dinero(total * .40)}
-        </td>
-      </tr>
-    `;
-
-  });
-
-  html += `
-        </tbody>
-      </table>
-    </div>
-  `;
-
-  contenedor.innerHTML = html;
-}
-
-async function obtenerBarberoId(nombre) {
-
-  const { data, error } = await supabase
-    .from("barberos")
-    .select("id,nombre")
-    .eq("nombre", nombre)
-    .maybeSingle();
-
-  if (error) {
-    console.error(error);
-    return null;
-  }
-
-  return data ? data.id : null;
-}
-
-async function guardarDia(dia) {
-
-  const trabajador =
-    document.getElementById("barbero").value;
-
-  if (!trabajador) {
-
-    mostrarStatus(
-      "Selecciona primero un trabajador.",
-      "error"
-    );
-
-    return;
-  }
-
-  try {
-
-    const barberoId =
-      await obtenerBarberoId(trabajador);
-
-    if (!barberoId) {
-      throw new Error("No se encontró el trabajador.");
-    }
-
-    const fecha = fechaInicioSemana();
-
-    const fechaISO =
-      fecha.toISOString().slice(0,10);
-
-    const total =
-      calcularDia(dia);
-
-    const registro = {
-
-      barbero_id: barberoId,
-
-      semana_inicio: fechaISO,
-
-      dia: dia,
-
-      corte: Number(
-        semana[dia].servicios.corte || 0
-      ),
-
-      barba: Number(
-        semana[dia].servicios.barba || 0
-      ),
-
-      ceja: Number(
-        semana[dia].servicios.ceja || 0
-      ),
-
-      corte_barba: Number(
-        semana[dia].servicios.corte_barba || 0
-      ),
-
-      corte_cejas: Number(
-        semana[dia].servicios.corte_cejas || 0
-      ),
-
-      corte_barba_cejas: Number(
-        semana[dia].servicios.corte_barba_cejas || 0
-      ),
-
-      promocion: Number(
-        semana[dia].promocion || 0
-      ),
-
-      total: total
-
-    };
-
-    const { error } = await supabase
-      .from("registros_diarios")
-      .upsert(
-        registro,
-        {
-          onConflict:
-            "barbero_id,semana_inicio,dia"
-        }
-      );
-
-    if (error) {
-      throw error;
-    }
-
-    semana[dia].guardado = true;
-
-    mostrarStatus(
-      `${dia} guardado correctamente en Supabase.`,
-      "ok"
-    );
-
-    await cargarHistorial();
-
-  } catch (error) {
-
-    console.error(error);
-
-    mostrarStatus(
-      "No se pudo guardar en Supabase: " +
-      error.message,
-      "error"
-    );
-
-  }
-}
-
-async function cargarSemanaDesdeSupabase() {
-
-  const trabajador =
-    document.getElementById("barbero").value;
-
-  if (!trabajador) {
-    return;
-  }
-
-  try {
-
-    const barberoId =
-      await obtenerBarberoId(trabajador);
-
-    if (!barberoId) return;
-
-    const fecha =
-      fechaInicioSemana()
-        .toISOString()
-        .slice(0,10);
-
-    const { data, error } =
-      await supabase
-        .from("registros_diarios")
-        .select("*")
-        .eq("barbero_id", barberoId)
-        .eq("semana_inicio", fecha);
-
-    if (error) throw error;
-
-    crearSemanaLocal();
-
-    (data || []).forEach(registro => {
-
-      if (!semana[registro.dia]) {
-        return;
+async function api(path,opts={}){
+
+  const controller=new AbortController();
+
+  const timer=setTimeout(
+    ()=>controller.abort(),
+    10000
+  );
+
+  try{
+
+    const r=await fetch(
+      API+path,
+      {
+        method:opts.method||"GET",
+        headers:HEAD,
+        body:opts.body,
+        signal:controller.signal,
+        cache:"no-store",
+        mode:"cors"
       }
-
-      semana[registro.dia].servicios.corte =
-        Number(registro.corte || 0);
-
-      semana[registro.dia].servicios.barba =
-        Number(registro.barba || 0);
-
-      semana[registro.dia].servicios.ceja =
-        Number(registro.ceja || 0);
-
-      semana[registro.dia].servicios.corte_barba =
-        Number(registro.corte_barba || 0);
-
-      semana[registro.dia].servicios.corte_cejas =
-        Number(registro.corte_cejas || 0);
-
-      semana[registro.dia].servicios.corte_barba_cejas =
-        Number(registro.corte_barba_cejas || 0);
-
-      semana[registro.dia].promocion =
-        Number(registro.promocion || 0);
-
-      semana[registro.dia].guardado = true;
-
-    });
-
-    renderDias();
-    actualizarResumen();
-
-  } catch (error) {
-
-    console.error(error);
-
-    mostrarStatus(
-      "No se pudo cargar la semana desde Supabase.",
-      "error"
     );
+
+    const text=await r.text();
+
+    if(!r.ok)
+      throw new Error(text||("HTTP "+r.status));
+
+    return text?JSON.parse(text):[];
+
+  }finally{
+
+    clearTimeout(timer);
 
   }
-}
-
-function calcularCorte() {
-
-  const total =
-    obtenerTotalSemana();
-
-  const extra =
-    Number(
-      document.getElementById("pagoExtra")?.value || 0
-    );
-
-  const totalFinal =
-    total + extra;
-
-  const trabajador =
-    totalFinal * .60;
-
-  const barberia =
-    totalFinal * .40;
-
-  const nombre =
-    document.getElementById("barbero").value ||
-    "Trabajador";
-
-  document.getElementById("corteNombre").textContent =
-    nombre;
-
-  document.getElementById("corteTotal").textContent =
-    dinero(totalFinal);
-
-  document.getElementById("corte60").textContent =
-    dinero(trabajador);
-
-  document.getElementById("corte40").textContent =
-    dinero(barberia);
 
 }
 
-async function guardarCorte() {
 
-  const trabajador =
-    document.getElementById("barbero").value;
+function setConnection(ok,msg=""){
 
-  if (!trabajador) {
+  online=ok;
 
-    mostrarStatus(
-      "Selecciona un trabajador.",
-      "error"
+  $("connectionNotice")
+    .classList
+    .toggle("hidden",ok);
+
+  if(!ok)
+    $("connectionNotice").textContent=
+      msg||
+      "Sin conexión con Supabase. Puedes revisar la configuración y reintentar.";
+
+}
+
+
+async function loadData(){
+
+  try{
+
+    const result=await Promise.all([
+
+      api(
+        "/barberos?select=id,nombre,activo&activo=eq.true&order=nombre"
+      ),
+
+      api(
+        "/servicios?select=id,nombre,precio,activo&activo=eq.true&order=id"
+      )
+
+    ]);
+
+    barbers=result[0]||[];
+
+    services=result[1]||[];
+
+    setConnection(true);
+
+    fillSelects();
+
+    await refreshDashboard();
+
+    toast("Conectado a Good Barber");
+
+  }catch(e){
+
+    console.error("Supabase:",e);
+
+    setConnection(
+      false,
+      "No se pudo conectar con Supabase. El inicio de sesión sigue funcionando. Revisa Data API/RLS y toca Reintentar."
     );
 
-    return;
+    $("connectionNotice").innerHTML=
+      esc(
+        "No se pudo conectar con Supabase. El inicio de sesión sigue funcionando."
+      )+
+      ' <button class="soft" style="margin-left:6px" onclick="loadData()">Reintentar</button>';
+
+    toast("Good Barber abrió; falta conexión con Supabase");
+
   }
 
-  try {
+}
 
-    const barberoId =
-      await obtenerBarberoId(trabajador);
 
-    if (!barberoId) {
-      throw new Error("No se encontró el trabajador.");
+function fillSelects(){
+
+  const bopts=
+    barbers
+      .map(
+        b=>
+        `<option value="${esc(b.id)}">${esc(b.nombre)}</option>`
+      )
+      .join("");
+
+  $("rb").innerHTML=
+    bopts||
+    '<option value="">Sin barberos</option>';
+
+  $("wb").innerHTML=
+    bopts||
+    '<option value="">Sin barberos</option>';
+
+
+  const sopts=
+    services
+      .map(
+        s=>
+        `<option value="${esc(s.id)}">${esc(s.nombre)} — ${money(s.precio)}</option>`
+      )
+      .join("");
+
+  $("rs").innerHTML=
+    sopts||
+    '<option value="">Sin servicios</option>';
+
+  $("ws").innerHTML=
+    sopts||
+    '<option value="">Sin servicios</option>';
+
+
+  updateTotal();
+
+  updateWeekTotal();
+
+}
+
+
+function updateTotal(){
+
+  const s=
+    services.find(
+      x=>String(x.id)===String($("rs").value)
+    );
+
+  const q=
+    Math.max(
+      1,
+      parseInt($("rq").value||1)
+    );
+
+  $("rt").textContent=
+    money(
+      (s?s.precio:0)*q
+    );
+
+}
+
+
+function monday(date){
+
+  let x=
+    new Date(
+      date+"T12:00:00"
+    );
+
+  let n=x.getDay();
+
+  x.setDate(
+    x.getDate()+
+    (n===0?-6:1-n)
+  );
+
+  return x
+    .toISOString()
+    .slice(0,10);
+
+}
+
+
+function addDays(date,n){
+
+  const x=
+    new Date(
+      date+"T12:00:00"
+    );
+
+  x.setDate(
+    x.getDate()+n
+  );
+
+  return x
+    .toISOString()
+    .slice(0,10);
+
+}
+
+
+function weekEnd(s){
+  return addDays(s,5)
+}
+
+
+function inCurrentWeek(date){
+
+  const s=monday(today());
+
+  return date>=s &&
+         date<=weekEnd(s);
+
+}
+
+
+function formatDate(d){
+
+  return new Date(
+    d+"T12:00:00"
+  ).toLocaleDateString(
+    "es-MX",
+    {
+      day:"2-digit",
+      month:"2-digit"
     }
+  );
 
-    const fecha =
-      fechaInicioSemana()
-        .toISOString()
-        .slice(0,10);
+}
 
-    const total =
-      obtenerTotalSemana();
 
-    const extra =
-      Number(
-        document.getElementById("pagoExtra").value || 0
+function normalizeWeek(){
+
+  const v=$("weekDate").value;
+
+  if(!v)return;
+
+  const m=monday(v);
+
+  $("weekDate").value=m;
+
+  for(
+    let i=0;
+    i<6;
+    i++
+  ){
+
+    $("d"+i+"date").textContent=
+      formatDate(
+        addDays(m,i)
       );
 
-    const totalFinal =
-      total + extra;
-
-    const registro = {
-
-      barbero_id: barberoId,
-
-      semana_inicio: fecha,
-
-      pago_extra: extra,
-
-      total_semanal: totalFinal,
-
-      trabajador_60: totalFinal * .60,
-
-      barberia_40: totalFinal * .40
-
-    };
-
-    const { error } =
-      await supabase
-        .from("cortes_sabado")
-        .upsert(
-          registro,
-          {
-            onConflict:
-              "barbero_id,semana_inicio"
-          }
-        );
-
-    if (error) {
-      throw error;
-    }
-
-    await guardarHistorial();
-
-    mostrarStatus(
-      "Corte del sábado guardado correctamente.",
-      "ok"
-    );
-
-    await cargarHistorial();
-
-  } catch (error) {
-
-    console.error(error);
-
-    mostrarStatus(
-      "No se pudo guardar el corte: " +
-      error.message,
-      "error"
-    );
-
   }
+
+  updateWeekTotal();
+
 }
 
-async function guardarHistorial() {
 
-  const trabajador =
-    document.getElementById("barbero").value;
+function updateWeekTotal(){
 
-  if (!trabajador) return;
+  const s=
+    services.find(
+      x=>String(x.id)===String($("ws").value)
+    );
 
-  const barberoId =
-    await obtenerBarberoId(trabajador);
+  const price=
+    Number(s?.precio||0);
 
-  if (!barberoId) return;
+  let total=0;
 
-  const fecha =
-    fechaInicioSemana()
-      .toISOString()
-      .slice(0,10);
+  let cuts=0;
 
-  const total =
-    obtenerTotalSemana();
+  for(
+    let i=0;
+    i<6;
+    i++
+  ){
 
-  const registro = {
+    let q=
+      Math.max(
+        0,
+        parseInt(
+          $("q"+i).value||0
+        )
+      );
 
-    barbero_id: barberoId,
+    cuts+=q;
 
-    semana_inicio: fecha,
+    total+=q*price;
 
-    total: total,
+  }
 
-    trabajador_60: total * .60,
+  $("weeklyCuts").textContent=cuts;
 
-    barberia_40: total * .40
+  $("weeklyTotal").textContent=
+    money(total);
 
-  };
+  $("weeklyBarber").textContent=
+    money(total*.60);
 
-  const { error } =
-    await supabase
-      .from("historial_semanas")
-      .upsert(
-        registro,
+  $("weeklyShop").textContent=
+    money(total*.40);
+
+}
+
+
+async function saveWeek(){
+
+  if(!online)
+    return alert(
+      "Good Barber no está conectado a Supabase. Pulsa Reintentar primero."
+    );
+
+  const barber=$("wb").value;
+
+  const service=
+    services.find(
+      x=>String(x.id)===String($("ws").value)
+    );
+
+  let start=
+    monday(
+      $("weekDate").value||today()
+    );
+
+  if(!barber||!service)
+    return alert(
+      "Selecciona barbero y servicio."
+    );
+
+  const quantities=[];
+
+  let cuts=0;
+
+  for(
+    let i=0;
+    i<6;
+    i++
+  ){
+
+    let q=
+      Math.max(
+        0,
+        parseInt(
+          $("q"+i).value||0
+        )
+      );
+
+    quantities.push(q);
+
+    cuts+=q;
+
+  }
+
+  if(cuts===0)
+    return alert(
+      "Registra al menos un corte."
+    );
+
+
+  const btn=$("weekBtn");
+
+  btn.disabled=true;
+
+  btn.textContent="Guardando…";
+
+
+  try{
+
+    for(
+      let i=0;
+      i<6;
+      i++
+    ){
+
+      const q=quantities[i];
+
+      if(!q)continue;
+
+      await api(
+        "/ventas",
         {
-          onConflict:
-            "barbero_id,semana_inicio"
+          method:"POST",
+          body:JSON.stringify({
+
+            barbero_id:barber,
+
+            servicio_id:service.id,
+
+            fecha:addDays(start,i),
+
+            cantidad:q,
+
+            precio_unitario:service.precio,
+
+            metodo_pago:$("wpay").value,
+
+            notas:$("wn").value||null
+
+          })
         }
       );
 
-  if (error) {
-    throw error;
+    }
+
+
+    toast(
+      "Semana guardada correctamente"
+    );
+
+
+    for(
+      let i=0;
+      i<6;
+      i++
+    )
+      $("q"+i).value=0;
+
+
+    $("wn").value="";
+
+    await refreshDashboard();
+
+    show("home");
+
+
+  }catch(e){
+
+    console.error(e);
+
+    alert(
+      "No se pudo guardar la semana. Revisa las políticas RLS de la tabla ventas."
+    );
+
+  }finally{
+
+    btn.disabled=false;
+
+    btn.textContent=
+      "Guardar semana";
+
   }
 
 }
 
-async function cargarHistorial() {
 
-  const contenedor =
-    document.getElementById("historialLista");
+async function refreshDashboard(){
 
-  try {
+  if(!online)return;
 
-    const { data, error } =
-      await supabase
-        .from("historial_semanas")
-        .select("*")
-        .order(
-          "semana_inicio",
-          { ascending:false }
+  try{
+
+    sales=
+      await api(
+        "/ventas?select=id,barbero_id,servicio_id,fecha,hora,cantidad,precio_unitario,total,metodo_pago,notas,creado_en&order=creado_en.desc&limit=1000"
+      );
+
+
+    const week=
+      sales.filter(
+        x=>inCurrentWeek(x.fecha)
+      );
+
+
+    const total=
+      week.reduce(
+        (a,x)=>
+          a+
+          Number(x.total||0),
+        0
+      );
+
+
+    $("wSales").textContent=
+      money(total);
+
+    $("wBarber").textContent=
+      money(total*.60);
+
+    $("wShop").textContent=
+      money(total*.40);
+
+
+    const by={};
+
+
+    week.forEach(x=>{
+
+      const b=
+        barbers.find(
+          b=>
+          String(b.id)===
+          String(x.barbero_id)
         );
 
-    if (error) throw error;
+      const n=
+        b?
+        b.nombre:
+        "Barbero";
 
-    if (!data || data.length === 0) {
-
-      contenedor.innerHTML =
-        "<p>No hay semanas guardadas todavía.</p>";
-
-      return;
-    }
-
-    contenedor.innerHTML = "";
-
-    data.forEach(item => {
-
-      contenedor.innerHTML += `
-        <div class="history-item">
-
-          <h3>
-            Semana del ${item.semana_inicio}
-          </h3>
-
-          <div class="history-grid">
-
-            <div class="history-box">
-              <strong>Total</strong><br>
-              ${dinero(item.total)}
-            </div>
-
-            <div class="history-box">
-              <strong>60%</strong><br>
-              ${dinero(item.trabajador_60)}
-            </div>
-
-            <div class="history-box">
-              <strong>40%</strong><br>
-              ${dinero(item.barberia_40)}
-            </div>
-
-          </div>
-
-        </div>
-      `;
+      by[n]=
+        (by[n]||0)+
+        Number(x.total||0);
 
     });
 
-  } catch (error) {
 
-    console.error(error);
+    $("byBarber").innerHTML=
+      Object.entries(by)
+      .map(
+        ([n,v])=>
+        `<div class="row">
+          <span>${esc(n)}</span>
+          <b>
+            ${money(v)}
+            <span class="muted">
+              · 60% ${money(v*.60)}
+            </span>
+          </b>
+        </div>`
+      )
+      .join("")
+      ||
+      '<p class="muted">Sin ventas esta semana.</p>';
 
-    contenedor.innerHTML =
-      "<p>No se pudo cargar el historial.</p>";
+
+    $("recent").innerHTML=
+      week
+      .slice(0,8)
+      .map(x=>{
+
+        const b=
+          barbers.find(
+            b=>
+            String(b.id)===
+            String(x.barbero_id)
+          );
+
+        const s=
+          services.find(
+            s=>
+            String(s.id)===
+            String(x.servicio_id)
+          );
+
+        return `
+        <div class="row">
+
+          <span>
+
+            <b>
+              ${esc(
+                b?
+                b.nombre:
+                "Barbero"
+              )}
+            </b>
+
+            <br>
+
+            <span class="muted">
+              ${esc(x.fecha)}
+              ·
+              ${esc(
+                s?
+                s.nombre:
+                "Servicio"
+              )}
+              ·
+              ${esc(x.metodo_pago)}
+            </span>
+
+          </span>
+
+          <strong>
+            ${money(x.total)}
+          </strong>
+
+        </div>`;
+
+      })
+      .join("")
+      ||
+      '<p class="muted">Sin registros esta semana.</p>';
+
+
+  }catch(e){
+
+    console.error(e);
+
+    toast(
+      "No se pudo actualizar el resumen"
+    );
 
   }
-}
-
-function nuevaSemana() {
-
-  const confirmar =
-    confirm(
-      "¿Quieres comenzar una nueva semana? " +
-      "La semana anterior permanecerá guardada en el historial."
-    );
-
-  if (!confirmar) return;
-
-  crearSemanaLocal();
-
-  document.getElementById("pagoExtra").value = 0;
-
-  mostrarTab("semana");
-
-  mostrarStatus(
-    "Nueva semana iniciada. El historial anterior permanece guardado.",
-    "ok"
-  );
 
 }
 
-function mostrarTab(tab) {
 
-  document
-    .getElementById("semana")
-    .classList.toggle(
-      "hidden",
-      tab !== "semana"
+async function saveSale(){
+
+  if(!online)
+    return alert(
+      "Good Barber no está conectado a Supabase. Pulsa Reintentar primero."
     );
 
-  document
-    .getElementById("resumen")
-    .classList.toggle(
-      "hidden",
-      tab !== "resumen"
+
+  const s=
+    services.find(
+      x=>String(x.id)===
+      String($("rs").value)
     );
 
-  document
-    .getElementById("corte")
-    .classList.toggle(
-      "hidden",
-      tab !== "corte"
+  const q=
+    Math.max(
+      1,
+      parseInt(
+        $("rq").value||1
+      )
     );
 
-  document
-    .getElementById("tabSemana")
-    .classList.toggle(
-      "active",
-      tab === "semana"
+
+  if(!s||!$("rb").value)
+    return alert(
+      "Selecciona barbero y servicio."
     );
 
-  document
-    .getElementById("tabResumen")
-    .classList.toggle(
-      "active",
-      tab === "resumen"
+
+  try{
+
+    await api(
+      "/ventas",
+      {
+        method:"POST",
+        body:JSON.stringify({
+
+          barbero_id:$("rb").value,
+
+          servicio_id:s.id,
+
+          fecha:
+            $("saleDate").value||
+            today(),
+
+          cantidad:q,
+
+          precio_unitario:
+            s.precio,
+
+          metodo_pago:
+            $("pay").value,
+
+          notas:
+            $("rn").value||
+            null
+
+        })
+      }
     );
 
-  document
-    .getElementById("tabCorte")
-    .classList.toggle(
-      "active",
-      tab === "corte"
+
+    toast(
+      "Venta registrada"
     );
+
+    $("rq").value=1;
+
+    $("rn").value="";
+
+    await refreshDashboard();
+
+    show("home");
+
+
+  }catch(e){
+
+    console.error(e);
+
+    alert(
+      "No se pudo registrar la venta. Revisa las políticas RLS de ventas."
+    );
+
+  }
 
 }
 
-async function probarConexion() {
 
-  try {
+function nextMonth(m){
 
-    if (
-      typeof supabase === "undefined" ||
-      !supabase
-    ) {
-      throw new Error(
-        "Supabase no fue inicializado."
+  let [y,mo]=
+    m.split("-")
+     .map(Number);
+
+  let d=
+    new Date(
+      y,
+      mo,
+      1
+    );
+
+  return d
+    .toISOString()
+    .slice(0,10);
+
+}
+
+
+async function loadHistory(){
+
+  if(!online){
+
+    $("hist").innerHTML=
+      '<p class="muted">Sin conexión con Supabase.</p>';
+
+    return;
+
+  }
+
+
+  const m=
+    $("month").value||
+    new Date()
+      .toISOString()
+      .slice(0,7);
+
+
+  try{
+
+    const es=
+      await api(
+        `/ventas?select=id,barbero_id,servicio_id,fecha,cantidad,total,metodo_pago&fecha=gte.${m}-01&fecha=lt.${nextMonth(m)}&order=fecha.desc,creado_en.desc`
       );
-    }
 
-    const { error } =
-      await supabase
-        .from("barberos")
-        .select("id,nombre")
-        .limit(1);
 
-    if (error) throw error;
+    const t=
+      es.reduce(
+        (a,e)=>
+          a+
+          Number(e.total||0),
+        0
+      );
 
-    mostrarStatus(
-      "Conectado correctamente con Supabase.",
-      "ok"
-    );
 
-    await cargarHistorial();
+    $("hist").innerHTML=
+      `<p>
+        <b>Total ${money(t)}</b>
+        · Barberos ${money(t*.60)}
+        · Good Barber ${money(t*.40)}
+      </p>`
+      +
 
-  } catch (error) {
+      (
+        es.length?
 
-    console.error(
-      "ERROR SUPABASE:",
-      error
-    );
+        `<table>
 
-    mostrarStatus(
-      "No se pudo conectar con Supabase.",
-      "error"
+          <tr>
+            <th>Fecha</th>
+            <th>Barbero</th>
+            <th>Servicio</th>
+            <th>Pago</th>
+            <th>Total</th>
+          </tr>
+
+          ${
+            es.map(e=>{
+
+              const b=
+                barbers.find(
+                  b=>
+                  String(b.id)===
+                  String(e.barbero_id)
+                );
+
+              const s=
+                services.find(
+                  s=>
+                  String(s.id)===
+                  String(e.servicio_id)
+                );
+
+              return `
+              <tr>
+
+                <td>
+                  ${esc(e.fecha)}
+                </td>
+
+                <td>
+                  ${esc(
+                    b?
+                    b.nombre:
+                    "-"
+                  )}
+                </td>
+
+                <td>
+                  ${esc(
+                    s?
+                    s.nombre:
+                    "-"
+                  )}
+                </td>
+
+                <td>
+                  ${esc(e.metodo_pago)}
+                </td>
+
+                <td>
+                  ${money(e.total)}
+                </td>
+
+              </tr>`;
+
+            }).join("")
+          }
+
+        </table>`
+
+        :
+
+        '<p class="muted">Sin registros.</p>'
+      );
+
+
+  }catch(e){
+
+    console.error(e);
+
+    toast(
+      "Error cargando historial"
     );
 
   }
+
 }
 
-document
-  .getElementById("barbero")
-  .addEventListener(
-    "change",
-    async () => {
 
-      crearSemanaLocal();
+function show(id){
 
-      await cargarSemanaDesdeSupabase();
-
-      calcularCorte();
-
-    }
+  [
+    "home",
+    "register",
+    "sale",
+    "history"
+  ]
+  .forEach(
+    x=>
+    $(x)
+    .classList
+    .toggle(
+      "hidden",
+      x!==id
+    )
   );
 
-crearSemanaLocal();
-probarConexion();
+
+  currentTab=id;
+
+
+  if(id==="history")
+    loadHistory();
+
+
+  if(id==="register"){
+
+    normalizeWeek();
+
+    fillSelects();
+
+  }
+
+
+  if(id==="sale"){
+
+    fillSelects();
+
+    $("saleDate").value=
+      $("saleDate").value||
+      today();
+
+  }
+
+}
+
+
+function enter(){
+
+  const u=
+    $("lu").value.trim();
+
+  const p=
+    $("lp").value;
+
+
+  if(
+    u!=="admin"||
+    p!=="1234"
+  )
+    return alert(
+      "Usuario o contraseña incorrectos."
+    );
+
+
+  localStorage.setItem(
+    "gb_login",
+    "1"
+  );
+
+
+  openApp();
+
+}
+
+
+function openApp(){
+
+  $("login")
+    .classList
+    .add("hidden");
+
+  $("app")
+    .classList
+    .remove("hidden");
+
+
+  $("month").value=
+    new Date()
+    .toISOString()
+    .slice(0,7);
+
+
+  $("saleDate").value=
+    today();
+
+
+  $("weekDate").value=
+    monday(today());
+
+
+  normalizeWeek();
+
+  loadData();
+
+}
+
+
+function logout(){
+
+  localStorage.removeItem(
+    "gb_login"
+  );
+
+  $("app")
+    .classList
+    .add("hidden");
+
+  $("login")
+    .classList
+    .remove("hidden");
+
+}
+
+
+window.addEventListener(
+  "online",
+  ()=>loadData()
+);
+
+
+window.addEventListener(
+  "offline",
+  ()=>
+    setConnection(
+      false,
+      "El dispositivo está sin internet."
+    )
+);
+
+
+if(
+  localStorage.getItem(
+    "gb_login"
+  )==="1"
+)
+  openApp();
+
+else
+  $("lp").addEventListener(
+    "keydown",
+    e=>{
+      if(e.key==="Enter")
+        enter();
+    }
+  );
 
 </script>
 
