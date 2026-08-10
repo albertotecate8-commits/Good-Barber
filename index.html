@@ -381,7 +381,6 @@
 
   </div>
 
-
   <!-- SEMANA -->
 
   <section id="semana">
@@ -400,7 +399,6 @@
     <div id="dias"></div>
 
   </section>
-
 
   <!-- RESUMEN -->
 
@@ -428,7 +426,6 @@
 
         </div>
 
-
         <div class="summary-box">
 
           <div class="summary-label">
@@ -442,7 +439,6 @@
           </div>
 
         </div>
-
 
         <div class="summary-box">
 
@@ -462,7 +458,6 @@
 
     </div>
 
-
     <div class="card">
 
       <h2>
@@ -474,7 +469,6 @@
     </div>
 
   </section>
-
 
   <!-- CORTE -->
 
@@ -493,13 +487,11 @@
         y cuánto corresponde a Good Barber.
       </p>
 
-
       <div class="cut-card">
 
         <h2 id="corteNombre">
           Barbero
         </h2>
-
 
         <label>
           Pago extra / ajuste
@@ -512,7 +504,6 @@
           step="0.01"
           oninput="calcularCorte()"
         >
-
 
         <div class="card">
 
@@ -528,7 +519,6 @@
 
         </div>
 
-
         <div class="card">
 
           <div class="subtitle">
@@ -542,7 +532,6 @@
           </div>
 
         </div>
-
 
         <div class="card">
 
@@ -558,7 +547,6 @@
 
         </div>
 
-
         <button
           onclick="guardarCorte()"
           class="save">
@@ -572,7 +560,6 @@
     </div>
 
   </section>
-
 
   <!-- HISTORIAL -->
 
@@ -599,9 +586,7 @@
 
 </div>
 
-
 <script>
-
 
 /* =========================
    SERVICIOS
@@ -647,7 +632,6 @@ const SERVICIOS = [
 
 ];
 
-
 const DIAS = [
 
   "Lunes",
@@ -659,11 +643,9 @@ const DIAS = [
 
 ];
 
-
 let semana = {};
 
 let semanaId = null;
-
 
 /* =========================
    DINERO
@@ -680,7 +662,6 @@ function dinero(valor) {
   ).format(Number(valor || 0));
 
 }
-
 
 /* =========================
    STATUS
@@ -706,7 +687,6 @@ function mostrarStatus(
   }, 4000);
 
 }
-
 
 /* =========================
    FECHA INICIO SEMANA
@@ -743,7 +723,6 @@ function fechaInicioSemana() {
 
 }
 
-
 /* =========================
    FECHA FIN SEMANA
 ========================= */
@@ -771,7 +750,6 @@ function fechaFinSemana() {
 
 }
 
-
 /* =========================
    FECHA TEXTO
 ========================= */
@@ -788,7 +766,6 @@ function fechaTexto(fecha) {
   );
 
 }
-
 
 /* =========================
    FECHA SQL
@@ -812,7 +789,6 @@ function fechaSQL(fecha) {
   return `${año}-${mes}-${dia}`;
 
 }
-
 
 /* =========================
    CREAR SEMANA LOCAL
@@ -847,9 +823,7 @@ function crearSemanaLocal() {
 
   });
 
-
   semanaId = null;
-
 
   document
     .getElementById(
@@ -862,13 +836,11 @@ function crearSemanaLocal() {
         fechaFinSemana()
       )}`;
 
-
   renderDias();
 
   actualizarResumen();
 
 }
-
 
 /* =========================
    RENDER DIAS
@@ -883,12 +855,10 @@ function renderDias() {
 
   contenedor.innerHTML = "";
 
-
   DIAS.forEach(dia => {
 
     const datos =
       semana[dia];
-
 
     let html = `
 
@@ -920,7 +890,6 @@ function renderDias() {
 
     `;
 
-
     SERVICIOS.forEach(
       servicio => {
 
@@ -947,7 +916,6 @@ function renderDias() {
 
             </div>
 
-
             <input
               type="number"
               min="0"
@@ -971,7 +939,6 @@ function renderDias() {
 
       }
     );
-
 
     html += `
 
@@ -1002,7 +969,6 @@ function renderDias() {
 
         </div>
 
-
         <button
           class="save"
           onclick="
@@ -1013,21 +979,17 @@ function renderDias() {
 
         </button>
 
-
       </div>
 
     `;
 
-
     contenedor.innerHTML += html;
-
 
     calcularDia(dia);
 
   });
 
 }
-
 
 /* =========================
    CAMBIAR SERVICIO
@@ -1052,7 +1014,6 @@ function cambiarServicio(
 
 }
 
-
 /* =========================
    CAMBIAR PROMOCION
 ========================= */
@@ -1075,7 +1036,6 @@ function cambiarPromocion(
 
 }
 
-
 /* =========================
    CALCULAR DIA
 ========================= */
@@ -1083,7 +1043,6 @@ function cambiarPromocion(
 function calcularDia(dia) {
 
   let total = 0;
-
 
   SERVICIOS.forEach(
     servicio => {
@@ -1103,26 +1062,21 @@ function calcularDia(dia) {
     }
   );
 
-
   total -= Number(
     semana[dia].promocion || 0
   );
-
 
   if (total < 0) {
     total = 0;
   }
 
-
   semana[dia].total =
     total;
-
 
   const elemento =
     document.getElementById(
       "total-" + dia
     );
-
 
   if (elemento) {
 
@@ -1131,11 +1085,9 @@ function calcularDia(dia) {
 
   }
 
-
   return total;
 
 }
-
 
 /* =========================
    TOTAL SEMANA
@@ -1145,7 +1097,6 @@ function obtenerTotalSemana() {
 
   let total = 0;
 
-
   DIAS.forEach(dia => {
 
     total +=
@@ -1153,11 +1104,9 @@ function obtenerTotalSemana() {
 
   });
 
-
   return total;
 
 }
-
 
 /* =========================
    RESUMEN
@@ -1168,14 +1117,11 @@ function actualizarResumen() {
   const total =
     obtenerTotalSemana();
 
-
   const barbero =
     total * 0.60;
 
-
   const barberia =
     total * 0.40;
-
 
   document
     .getElementById(
@@ -1184,14 +1130,12 @@ function actualizarResumen() {
     .textContent =
       dinero(total);
 
-
   document
     .getElementById(
       "resTrabajador"
     )
     .textContent =
       dinero(barbero);
-
 
   document
     .getElementById(
@@ -1200,13 +1144,11 @@ function actualizarResumen() {
     .textContent =
       dinero(barberia);
 
-
   renderDetalle();
 
   calcularCorte();
 
 }
-
 
 /* =========================
    DETALLE
@@ -1218,7 +1160,6 @@ function renderDetalle() {
     document.getElementById(
       "detalle"
     );
-
 
   let html = `
 
@@ -1248,11 +1189,9 @@ function renderDetalle() {
 
   `;
 
-
   DIAS.forEach(dia => {
 
     let servicios = 0;
-
 
     SERVICIOS.forEach(
       servicio => {
@@ -1267,10 +1206,8 @@ function renderDetalle() {
       }
     );
 
-
     const total =
       calcularDia(dia);
-
 
     html += `
 
@@ -1306,7 +1243,6 @@ function renderDetalle() {
 
   });
 
-
   html += `
 
         </tbody>
@@ -1317,12 +1253,10 @@ function renderDetalle() {
 
   `;
 
-
   contenedor.innerHTML =
     html;
 
 }
-
 
 /* =========================
    OBTENER ID BARBERO
@@ -1350,7 +1284,6 @@ async function obtenerBarberoId(
 
     .maybeSingle();
 
-
   if (error) {
 
     console.error(
@@ -1361,13 +1294,11 @@ async function obtenerBarberoId(
 
   }
 
-
   return data
     ? data.id
     : null;
 
 }
-
 
 /* =========================
    GUARDAR DIA
@@ -1382,7 +1313,6 @@ async function guardarDia(
       "barbero"
     ).value;
 
-
   if (!barbero) {
 
     mostrarStatus(
@@ -1394,14 +1324,12 @@ async function guardarDia(
 
   }
 
-
   try {
 
     const barberoId =
       await obtenerBarberoId(
         barbero
       );
-
 
     if (!barberoId) {
 
@@ -1411,16 +1339,13 @@ async function guardarDia(
 
     }
 
-
     const fecha =
       fechaSQL(
         fechaInicioSemana()
       );
 
-
     const total =
       calcularDia(dia);
-
 
     const registro = {
 
@@ -1481,7 +1406,6 @@ async function guardarDia(
 
     };
 
-
     const {
       error
     } = await supabase
@@ -1498,23 +1422,19 @@ async function guardarDia(
         }
       );
 
-
     if (error) {
 
       throw error;
 
     }
 
-
     semana[dia]
       .guardado = true;
-
 
     mostrarStatus(
       `${dia} guardado correctamente.`,
       "ok"
     );
-
 
     await cargarHistorial();
 
@@ -1526,7 +1446,6 @@ async function guardarDia(
       error
     );
 
-
     mostrarStatus(
       "No se pudo guardar: " +
       error.message,
@@ -1536,7 +1455,6 @@ async function guardarDia(
   }
 
 }
-
 
 /* =========================
    CARGAR SEMANA
@@ -1549,11 +1467,9 @@ async function cargarSemanaDesdeSupabase() {
       "barbero"
     ).value;
 
-
   if (!barbero) {
     return;
   }
-
 
   try {
 
@@ -1562,17 +1478,14 @@ async function cargarSemanaDesdeSupabase() {
         barbero
       );
 
-
     if (!barberoId) {
       return;
     }
-
 
     const fecha =
       fechaSQL(
         fechaInicioSemana()
       );
-
 
     const {
       data,
@@ -1595,14 +1508,11 @@ async function cargarSemanaDesdeSupabase() {
         fecha
       );
 
-
     if (error) {
       throw error;
     }
 
-
     crearSemanaLocal();
-
 
     (data || []).forEach(
       registro => {
@@ -1615,14 +1525,12 @@ async function cargarSemanaDesdeSupabase() {
           return;
         }
 
-
         semana[
           registro.dia
         ].servicios.corte =
           Number(
             registro.corte || 0
           );
-
 
         semana[
           registro.dia
@@ -1631,14 +1539,12 @@ async function cargarSemanaDesdeSupabase() {
             registro.barba || 0
           );
 
-
         semana[
           registro.dia
         ].servicios.ceja =
           Number(
             registro.ceja || 0
           );
-
 
         semana[
           registro.dia
@@ -1647,14 +1553,12 @@ async function cargarSemanaDesdeSupabase() {
             registro.corte_barba || 0
           );
 
-
         semana[
           registro.dia
         ].servicios.corte_cejas =
           Number(
             registro.corte_cejas || 0
           );
-
 
         semana[
           registro.dia
@@ -1663,7 +1567,6 @@ async function cargarSemanaDesdeSupabase() {
             registro.corte_barba_cejas || 0
           );
 
-
         semana[
           registro.dia
         ].promocion =
@@ -1671,14 +1574,12 @@ async function cargarSemanaDesdeSupabase() {
             registro.promocion || 0
           );
 
-
         semana[
           registro.dia
         ].guardado = true;
 
       }
     );
-
 
     renderDias();
 
@@ -1692,7 +1593,6 @@ async function cargarSemanaDesdeSupabase() {
       error
     );
 
-
     mostrarStatus(
       "No se pudo cargar la semana desde Supabase.",
       "error"
@@ -1701,7 +1601,6 @@ async function cargarSemanaDesdeSupabase() {
   }
 
 }
-
 
 /* =========================
    CALCULAR CORTE
@@ -1712,7 +1611,6 @@ function calcularCorte() {
   const total =
     obtenerTotalSemana();
 
-
   const extra =
     Number(
       document.getElementById(
@@ -1720,25 +1618,20 @@ function calcularCorte() {
       )?.value || 0
     );
 
-
   const totalFinal =
     total + extra;
-
 
   const barbero =
     totalFinal * 0.60;
 
-
   const barberia =
     totalFinal * 0.40;
-
 
   const nombre =
     document.getElementById(
       "barbero"
     ).value ||
     "Barbero";
-
 
   document
     .getElementById(
@@ -1747,7 +1640,6 @@ function calcularCorte() {
     .textContent =
       nombre;
 
-
   document
     .getElementById(
       "corteTotal"
@@ -1755,14 +1647,12 @@ function calcularCorte() {
     .textContent =
       dinero(totalFinal);
 
-
   document
     .getElementById(
       "corte60"
     )
     .textContent =
       dinero(barbero);
-
 
   document
     .getElementById(
@@ -1772,7 +1662,6 @@ function calcularCorte() {
       dinero(barberia);
 
 }
-
 
 /* =========================
    GUARDAR CORTE
@@ -1785,7 +1674,6 @@ async function guardarCorte() {
       "barbero"
     ).value;
 
-
   if (!barbero) {
 
     mostrarStatus(
@@ -1797,14 +1685,12 @@ async function guardarCorte() {
 
   }
 
-
   try {
 
     const barberoId =
       await obtenerBarberoId(
         barbero
       );
-
 
     if (!barberoId) {
 
@@ -1814,16 +1700,13 @@ async function guardarCorte() {
 
     }
 
-
     const fecha =
       fechaSQL(
         fechaInicioSemana()
       );
 
-
     const total =
       obtenerTotalSemana();
-
 
     const extra =
       Number(
@@ -1832,10 +1715,8 @@ async function guardarCorte() {
         ).value || 0
       );
 
-
     const totalFinal =
       total + extra;
-
 
     const registro = {
 
@@ -1859,7 +1740,6 @@ async function guardarCorte() {
 
     };
 
-
     const {
       error
     } = await supabase
@@ -1876,20 +1756,14 @@ async function guardarCorte() {
         }
       );
 
-
     if (error) {
       throw error;
     }
-
-
-    await guardarHistorial();
-
 
     mostrarStatus(
       "Corte del sábado guardado correctamente.",
       "ok"
     );
-
 
     await cargarHistorial();
 
@@ -1901,7 +1775,6 @@ async function guardarCorte() {
       error
     );
 
-
     mostrarStatus(
       "No se pudo guardar el corte: " +
       error.message,
@@ -1911,205 +1784,6 @@ async function guardarCorte() {
   }
 
 }
-
-
-/* =========================
-   GUARDAR HISTORIAL
-========================= */
-
-async function guardarHistorial() {
-
-  const barbero =
-    document.getElementById(
-      "barbero"
-    ).value;
-
-
-  if (!barbero) {
-    return;
-  }
-
-
-  const barberoId =
-    await obtenerBarberoId(
-      barbero
-    );
-
-
-  if (!barberoId) {
-    return;
-  }
-
-
-  const inicio =
-    fechaSQL(
-      fechaInicioSemana()
-    );
-
-
-  const fin =
-    fechaSQL(
-      fechaFinSemana()
-    );
-
-
-  const total =
-    obtenerTotalSemana();
-
-
-  const trabajador60 =
-    total * 0.60;
-
-
-  const goodBarber40 =
-    total * 0.40;
-
-
-  /*
-    Primero buscamos si ya existe
-    el historial de este barbero
-    para esta semana.
-  */
-
-  const {
-    data: existente,
-    error: errorBusqueda
-  } = await supabase
-
-    .from(
-      "historial_semanas"
-    )
-
-    .select(
-      "id"
-    )
-
-    .eq(
-      "barbero_id",
-      barberoId
-    )
-
-    .eq(
-      "fecha_inicio",
-      inicio
-    )
-    
-    .maybeSingle();
-
-
-  if (errorBusqueda) {
-
-    console.error(
-      errorBusqueda
-    );
-
-    throw errorBusqueda;
-
-  }
-
-
-  /*
-    Si existe, actualizamos.
-  */
-
-  if (existente) {
-
-    const {
-      error
-    } = await supabase
-
-      .from(
-        "historial_semanas"
-      )
-
-      .update({
-
-        fecha_fin:
-          fin,
-
-        total:
-          total,
-
-        trabajador_60:
-          trabajador60,
-
-        good_barber_40:
-          goodBarber40,
-
-        fecha_cierre:
-          new Date().toISOString()
-
-      })
-
-      .eq(
-        "id",
-        existente.id
-      );
-
-
-    if (error) {
-
-      throw error;
-
-    }
-
-
-    return;
-
-  }
-
-
-  /*
-    Si no existe, creamos uno nuevo.
-  */
-
-  const registro = {
-
-    barbero_id:
-      barberoId,
-
-    fecha_inicio:
-      inicio,
-
-    fecha_fin:
-      fin,
-
-    total:
-      total,
-
-    trabajador_60:
-      trabajador60,
-
-    good_barber_40:
-      goodBarber40,
-
-    fecha_cierre:
-      new Date().toISOString()
-
-  };
-
-
-  const {
-    error
-  } = await supabase
-
-    .from(
-      "historial_semanas"
-    )
-
-    .insert(
-      registro
-    );
-
-
-  if (error) {
-
-    throw error;
-
-  }
-
-}
-
 
 /* =========================
    OBTENER NOMBRE BARBERO
@@ -2139,7 +1813,6 @@ async function obtenerNombreBarbero(
 
     .maybeSingle();
 
-
   if (error) {
 
     console.error(
@@ -2150,15 +1823,13 @@ async function obtenerNombreBarbero(
 
   }
 
-
   return data?.nombre ||
     "Barbero";
 
 }
 
-
 /* =========================
-   CARGAR HISTORIAL
+   CARGAR HISTORIAL DINAMICO
 ========================= */
 
 async function cargarHistorial() {
@@ -2168,236 +1839,166 @@ async function cargarHistorial() {
       "historialLista"
     );
 
-
   contenedor.innerHTML =
     "Cargando...";
 
-
   try {
 
+    // 1. Extraemos TODOS los días guardados
     const {
-      data,
-      error
+      data: registros,
+      error: errRegistros
     } = await supabase
+      .from("registros_diarios")
+      .select("barbero_id, semana_inicio, total");
 
-      .from(
-        "historial_semanas"
-      )
+    if (errRegistros) throw errRegistros;
 
-      .select(`
-        id,
-        semana_id,
-        barbero_id,
-        fecha_inicio,
-        fecha_fin,
-        total,
-        trabajador_60,
-        good_barber_40,
-        fecha_cierre
-      `)
+    // 2. Extraemos TODOS los cortes de sábado guardados
+    const {
+      data: cortes,
+      error: errCortes
+    } = await supabase
+      .from("cortes_sabado")
+      .select("barbero_id, semana_inicio, total_semanal, trabajador_60, barberia_40");
 
-      .order(
-        "fecha_inicio",
-        {
-          ascending: false
-        }
-      );
+    if (errCortes) throw errCortes;
 
+    // 3. Extraemos el catálogo de barberos
+    const {
+      data: barberos,
+      error: errBarberos
+    } = await supabase
+      .from("barberos")
+      .select("id, nombre");
 
-    if (error) {
+    if (errBarberos) throw errBarberos;
 
-      throw error;
+    const mapBarberos = {};
+    barberos.forEach(b => {
+      mapBarberos[b.id] = b.nombre;
+    });
 
-    }
+    // 4. Agrupamos la información usando registros y cortes
+    const historyMap = {};
 
+    // Primero agrupamos sumando los días (si aún no guardan el corte del sábado)
+    (registros || []).forEach(reg => {
+      const key = reg.semana_inicio + "_" + reg.barbero_id;
+      if (!historyMap[key]) {
+        historyMap[key] = {
+          semana_inicio: reg.semana_inicio,
+          barbero_id: reg.barbero_id,
+          total: 0,
+          es_corte_guardado: false
+        };
+      }
+      historyMap[key].total += Number(reg.total || 0);
+    });
 
-    if (
-      !data ||
-      data.length === 0
-    ) {
+    // Luego sobrescribimos si existe un corte oficial de sábado
+    (cortes || []).forEach(corte => {
+      const key = corte.semana_inicio + "_" + corte.barbero_id;
+      if (!historyMap[key]) {
+        historyMap[key] = {
+          semana_inicio: corte.semana_inicio,
+          barbero_id: corte.barbero_id,
+          total: 0
+        };
+      }
+      historyMap[key].total = Number(corte.total_semanal || 0);
+      historyMap[key].trabajador_60 = Number(corte.trabajador_60 || 0);
+      historyMap[key].barberia_40 = Number(corte.barberia_40 || 0);
+      historyMap[key].es_corte_guardado = true;
+    });
+
+    const historyArray = Object.values(historyMap);
+
+    if (historyArray.length === 0) {
 
       contenedor.innerHTML = `
-
         <div class="empty">
-
-          <h3>
-            No hay semanas guardadas todavía.
-          </h3>
-
-          <p>
-            Guarda el corte del sábado
-            para que aparezca aquí.
-          </p>
-
+          <h3>No hay semanas guardadas todavía.</h3>
+          <p>Los días y cortes que guardes aparecerán agrupados aquí.</p>
         </div>
-
       `;
-
       return;
 
     }
 
+    // Ordenamos de la semana más reciente a la más antigua
+    historyArray.sort((a, b) => b.semana_inicio.localeCompare(a.semana_inicio));
 
-    /*
-      Obtener nombres de los barberos
-    */
+    contenedor.innerHTML = "";
 
-    const ids =
-      [
-        ...new Set(
-          data
-            .map(
-              item =>
-                item.barbero_id
-            )
-            .filter(Boolean)
-        )
-      ];
+    // Construimos la vista
+    historyArray.forEach(item => {
+      const nombre = mapBarberos[item.barbero_id] || "Barbero";
 
+      // Calculamos las fechas de inicio y fin a partir de semana_inicio
+      const partes = item.semana_inicio.split("-");
+      const año = parseInt(partes[0], 10);
+      const mes = parseInt(partes[1], 10) - 1;
+      const dia = parseInt(partes[2], 10);
 
-    const nombres = {};
+      const fechaInicio = new Date(año, mes, dia);
+      const fechaFin = new Date(año, mes, dia);
+      fechaFin.setDate(fechaInicio.getDate() + 5); // +5 días para el sábado
 
+      const inicioStr = fechaInicio.toLocaleDateString("es-MX", { day: "2-digit", month: "2-digit", year: "numeric" });
+      const finStr = fechaFin.toLocaleDateString("es-MX", { day: "2-digit", month: "2-digit", year: "numeric" });
 
-    for (
-      const id of ids
-    ) {
+      let total = item.total;
+      let trabajador60 = item.es_corte_guardado ? item.trabajador_60 : (total * 0.60);
+      let barberia40 = item.es_corte_guardado ? item.barberia_40 : (total * 0.40);
 
-      nombres[id] =
-        await obtenerNombreBarbero(
-          id
-        );
-
-    }
-
-
-    contenedor.innerHTML =
-      "";
-
-
-    data.forEach(
-      item => {
-
-        const nombre =
-          nombres[
-            item.barbero_id
-          ] ||
-          "Barbero";
-
-
-        contenedor.innerHTML += `
-
-          <div class="history-item">
-
-            <h3>
-              Semana del
-              ${item.fecha_inicio || "-"}
-            </h3>
-
-
-            <div class="history-barbero">
-
-              Barbero:
-              <strong>
-                ${nombre}
-              </strong>
-
-              ${
-                item.fecha_fin
-                  ? " · hasta " +
-                    item.fecha_fin
-                  : ""
-              }
-
-            </div>
-
-
-            <div class="history-grid">
-
-
-              <div class="history-box">
-
-                <strong>
-                  Total
-                </strong>
-
-                <br>
-
-                ${dinero(
-                  item.total
-                )}
-
-              </div>
-
-
-              <div class="history-box">
-
-                <strong>
-                  60% barbero
-                </strong>
-
-                <br>
-
-                ${dinero(
-                  item.trabajador_60
-                )}
-
-              </div>
-
-
-              <div class="history-box">
-
-                <strong>
-                  40% Good Barber
-                </strong>
-
-                <br>
-
-                ${dinero(
-                  item.good_barber_40
-                )}
-
-              </div>
-
-
-            </div>
-
+      contenedor.innerHTML += `
+        <div class="history-item">
+          <h3>
+            Semana del ${inicioStr} al ${finStr}
+          </h3>
+          <div class="history-barbero">
+            Barbero:
+            <strong>${nombre}</strong>
           </div>
+          <div class="history-grid">
+            <div class="history-box">
+              <strong>Total</strong>
+              <br>
+              ${dinero(total)}
+            </div>
+            <div class="history-box">
+              <strong>60% barbero</strong>
+              <br>
+              ${dinero(trabajador60)}
+            </div>
+            <div class="history-box">
+              <strong>40% Good Barber</strong>
+              <br>
+              ${dinero(barberia40)}
+            </div>
+          </div>
+        </div>
+      `;
+    });
 
-        `;
-
-      }
-    );
-
-  }
-
-  catch (error) {
+  } catch (error) {
 
     console.error(
       "ERROR HISTORIAL:",
       error
     );
 
-
     contenedor.innerHTML = `
-
       <div class="empty">
-
-        <h3>
-          No se pudo cargar el historial
-        </h3>
-
-        <p>
-          ${error.message}
-        </p>
-
+        <h3>No se pudo cargar el historial</h3>
+        <p>${error.message}</p>
       </div>
-
     `;
 
   }
 
 }
-
 
 /* =========================
    NUEVA SEMANA
@@ -2411,30 +2012,24 @@ function nuevaSemana() {
       "La semana anterior permanecerá guardada en el historial."
     );
 
-
   if (!confirmar) {
     return;
   }
 
-
   crearSemanaLocal();
-
 
   const extra =
     document.getElementById(
       "pagoExtra"
     );
 
-
   if (extra) {
     extra.value = 0;
   }
 
-
   mostrarTab(
     "semana"
   );
-
 
   mostrarStatus(
     "Nueva semana iniciada. El historial anterior permanece guardado.",
@@ -2442,7 +2037,6 @@ function nuevaSemana() {
   );
 
 }
-
 
 /* =========================
    CAMBIAR TAB
@@ -2461,7 +2055,6 @@ function mostrarTab(
       tab !== "semana"
     );
 
-
   document
     .getElementById(
       "resumen"
@@ -2470,7 +2063,6 @@ function mostrarTab(
       "hidden",
       tab !== "resumen"
     );
-
 
   document
     .getElementById(
@@ -2481,7 +2073,6 @@ function mostrarTab(
       tab !== "corte"
     );
 
-
   document
     .getElementById(
       "historial"
@@ -2490,7 +2081,6 @@ function mostrarTab(
       "hidden",
       tab !== "historial"
     );
-
 
   document
     .getElementById(
@@ -2501,7 +2091,6 @@ function mostrarTab(
       tab === "semana"
     );
 
-
   document
     .getElementById(
       "tabResumen"
@@ -2510,7 +2099,6 @@ function mostrarTab(
       "active",
       tab === "resumen"
     );
-
 
   document
     .getElementById(
@@ -2521,7 +2109,6 @@ function mostrarTab(
       tab === "corte"
     );
 
-
   document
     .getElementById(
       "tabHistorial"
@@ -2530,7 +2117,6 @@ function mostrarTab(
       "active",
       tab === "historial"
     );
-
 
   if (
     tab === "historial"
@@ -2541,7 +2127,6 @@ function mostrarTab(
   }
 
 }
-
 
 /* =========================
    PROBAR CONEXION
@@ -2563,7 +2148,6 @@ async function probarConexion() {
 
     }
 
-
     const {
       error
     } = await supabase
@@ -2578,19 +2162,16 @@ async function probarConexion() {
 
       .limit(1);
 
-
     if (error) {
 
       throw error;
 
     }
 
-
     mostrarStatus(
       "Conectado correctamente con Supabase.",
       "ok"
     );
-
 
     await cargarHistorial();
 
@@ -2603,7 +2184,6 @@ async function probarConexion() {
       error
     );
 
-
     mostrarStatus(
       "No se pudo conectar con Supabase.",
       "error"
@@ -2612,7 +2192,6 @@ async function probarConexion() {
   }
 
 }
-
 
 /* =========================
    CAMBIO DE BARBERO
@@ -2636,7 +2215,6 @@ document
 
     }
   );
-
 
 /* =========================
    INICIO
