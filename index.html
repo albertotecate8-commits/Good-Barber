@@ -181,25 +181,88 @@ input,select{
   font-size:12px
 }
 
-.day{
-  display:grid;
-  grid-template-columns:1fr 110px;
-  gap:10px;
+.dayCard{
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:15px;
+  margin:12px 0
+}
+
+.dayHeader{
+  display:flex;
+  justify-content:space-between;
   align-items:center;
-  padding:10px 0;
+  margin-bottom:10px
+}
+
+.dayTitle{
+  font-size:20px;
+  font-weight:900
+}
+
+.serviceRow{
+  display:grid;
+  grid-template-columns:1fr 75px 90px;
+  gap:8px;
+  align-items:center;
+  padding:9px 0;
   border-bottom:1px solid var(--line)
 }
 
-.day:last-child{
-  border-bottom:0
+.serviceName{
+  font-weight:700;
+  font-size:14px
 }
 
-.day b{
-  display:block
+.servicePrice{
+  color:var(--muted);
+  font-size:11px;
+  margin-top:2px
 }
 
-.day small{
-  color:var(--muted)
+.serviceRow input{
+  text-align:center;
+  padding:9px
+}
+
+.serviceTotal{
+  text-align:right;
+  font-weight:800
+}
+
+.promoBox{
+  margin-top:12px;
+  padding:12px;
+  background:#f7f7f8;
+  border-radius:14px
+}
+
+.promoTitle{
+  font-weight:800;
+  margin-bottom:7px
+}
+
+.dayTotal{
+  margin-top:12px;
+  padding-top:12px;
+  border-top:2px solid var(--line)
+}
+
+.summary{
+  background:var(--dark);
+  color:white;
+  border-radius:18px;
+  padding:17px;
+  margin-top:15px
+}
+
+.summary .row{
+  border-color:#29292b
+}
+
+.summary .muted{
+  color:#aaa
 }
 
 .login{
@@ -262,12 +325,25 @@ th{
   margin:10px 0
 }
 
-.ok{
-  color:var(--ok);
-  font-weight:800
+.notice.okNotice{
+  background:#e9f7ef;
+  color:#12633b
+}
+
+.corte{
+  background:#111;
+  color:#fff;
+  border-radius:18px;
+  padding:17px;
+  margin-top:15px
+}
+
+.corte .row{
+  border-color:#29292b
 }
 
 @media(max-width:480px){
+
   .grid{
     grid-template-columns:1fr 1fr
   }
@@ -276,8 +352,12 @@ th{
     grid-column:span 2
   }
 
-  .day{
-    grid-template-columns:1fr 95px
+  .serviceRow{
+    grid-template-columns:1fr 62px 78px
+  }
+
+  .serviceName{
+    font-size:13px
   }
 
   table{
@@ -291,44 +371,103 @@ th{
 
 <div id="status" class="status"></div>
 
+<!-- LOGIN -->
+
 <div id="login" class="app login">
+
   <div class="card">
+
     <div class="brand">GOOD BARBER</div>
-    <div class="sub">Control de barbería</div>
+
+    <div class="sub">
+      Control de barbería
+    </div>
 
     <label>Usuario</label>
-    <input id="lu" value="admin" autocomplete="username">
+
+    <input
+      id="lu"
+      value="admin"
+      autocomplete="username"
+    >
 
     <label>Contraseña</label>
-    <input id="lp" type="password" value="1234" autocomplete="current-password">
 
-    <button id="loginBtn" style="width:100%;margin-top:12px" onclick="enter()">
+    <input
+      id="lp"
+      type="password"
+      value="1234"
+      autocomplete="current-password"
+    >
+
+    <button
+      style="width:100%;margin-top:12px"
+      onclick="enter()">
+
       Entrar
+
     </button>
 
-    <p class="muted">Acceso de demostración: admin / 1234</p>
   </div>
+
 </div>
+
+
+<!-- APP -->
 
 <div id="app" class="app hidden">
 
   <div class="top">
+
     <div>
-      <div class="brand">GOOD BARBER</div>
-      <div class="sub">Administración · Supabase</div>
+
+      <div class="brand">
+        GOOD BARBER
+      </div>
+
+      <div class="sub">
+        Administración · Supabase
+      </div>
+
     </div>
 
-    <button class="soft" onclick="logout()">Salir</button>
+    <button
+      class="soft"
+      onclick="logout()">
+
+      Salir
+
+    </button>
+
   </div>
 
-  <div id="connectionNotice" class="notice hidden"></div>
+
+  <div
+    id="connectionNotice"
+    class="notice hidden">
+  </div>
+
 
   <div class="tabs">
-    <button onclick="show('home')">Inicio</button>
-    <button onclick="show('register')">Semana</button>
-    <button onclick="show('sale')">Venta</button>
-    <button onclick="show('history')">Historial</button>
+
+    <button onclick="show('home')">
+      Inicio
+    </button>
+
+    <button onclick="show('week')">
+      Semana
+    </button>
+
+    <button onclick="show('sale')">
+      Venta
+    </button>
+
+    <button onclick="show('history')">
+      Historial
+    </button>
+
   </div>
+
 
   <!-- INICIO -->
 
@@ -336,45 +475,87 @@ th{
 
     <div class="card hero">
 
-      <div class="sub">Semana actual</div>
+      <div class="sub">
+        Semana actual
+      </div>
 
-      <h2 style="font-size:23px;margin:4px 0 14px">
+      <h2
+        style="font-size:23px;margin:4px 0 14px">
+
         Resumen
+
       </h2>
 
       <div class="grid">
 
         <div class="metric">
-          <small>Total</small>
-          <b id="wSales">$0</b>
+
+          <small>
+            Total
+          </small>
+
+          <b id="wSales">
+            $0
+          </b>
+
         </div>
 
         <div class="metric">
-          <small>60% barbero</small>
-          <b id="wBarber">$0</b>
+
+          <small>
+            60% barbero
+          </small>
+
+          <b id="wBarber">
+            $0
+          </b>
+
         </div>
 
         <div class="metric">
-          <small>40% Good Barber</small>
-          <b id="wShop">$0</b>
+
+          <small>
+            40% Good Barber
+          </small>
+
+          <b id="wShop">
+            $0
+          </b>
+
         </div>
 
       </div>
 
     </div>
 
+
     <div class="card">
-      <h3>Por barbero</h3>
+
+      <h3>
+        Por barbero
+      </h3>
+
       <div id="byBarber">
-        <p class="muted">Cargando…</p>
+        <p class="muted">
+          Cargando...
+        </p>
       </div>
+
     </div>
 
+
     <div class="card">
-      <h3>Últimos registros</h3>
+
+      <h3>
+        Últimos registros
+      </h3>
+
       <div id="recent">
-        <p class="muted">Cargando…</p>
+        <p class="muted">
+          Cargando...
+        </p>
       </div>
+
     </div>
 
   </section>
@@ -382,131 +563,191 @@ th{
 
   <!-- SEMANA -->
 
-  <section id="register" class="hidden">
+  <section id="week" class="hidden">
 
     <div class="card">
 
-      <h2>Registrar semana</h2>
+      <h2>
+        Semana de trabajo
+      </h2>
 
       <p class="muted">
-        Registra de lunes a sábado.
-        El pago del sábado corresponde automáticamente al 60% del total semanal.
+        Registra los servicios de cada día.
+        El dinero se calcula automáticamente.
       </p>
 
-      <label>Barbero</label>
+      <label>
+        Barbero
+      </label>
+
       <select id="wb"></select>
 
-      <label>Semana (elige el lunes)</label>
-      <input id="weekDate" type="date" onchange="normalizeWeek()">
 
-      <label>Servicio</label>
-      <select id="ws" onchange="updateWeekTotal()"></select>
+      <label>
+        Semana
+      </label>
 
-      <div id="days" style="margin-top:10px">
+      <input
+        id="weekDate"
+        type="date"
+        onchange="changeWeek()"
+      >
 
-        <div class="day">
-          <div>
-            <b>Lunes</b>
-            <small id="d0date"></small>
-          </div>
-          <input id="q0" type="number" min="0" value="0" oninput="updateWeekTotal()">
-        </div>
+    </div>
 
-        <div class="day">
-          <div>
-            <b>Martes</b>
-            <small id="d1date"></small>
-          </div>
-          <input id="q1" type="number" min="0" value="0" oninput="updateWeekTotal()">
-        </div>
 
-        <div class="day">
-          <div>
-            <b>Miércoles</b>
-            <small id="d2date"></small>
-          </div>
-          <input id="q2" type="number" min="0" value="0" oninput="updateWeekTotal()">
-        </div>
+    <div id="days"></div>
 
-        <div class="day">
-          <div>
-            <b>Jueves</b>
-            <small id="d3date"></small>
-          </div>
-          <input id="q3" type="number" min="0" value="0" oninput="updateWeekTotal()">
-        </div>
 
-        <div class="day">
-          <div>
-            <b>Viernes</b>
-            <small id="d4date"></small>
-          </div>
-          <input id="q4" type="number" min="0" value="0" oninput="updateWeekTotal()">
-        </div>
+    <!-- RESUMEN -->
 
-        <div class="day">
-          <div>
-            <b>Sábado</b>
-            <small id="d5date"></small>
-          </div>
-          <input id="q5" type="number" min="0" value="0" oninput="updateWeekTotal()">
-        </div>
+    <div class="summary">
+
+      <h3>
+        Resumen semanal
+      </h3>
+
+      <div class="row">
+
+        <span>
+          Servicios
+        </span>
+
+        <b id="weeklyCuts">
+          0
+        </b>
 
       </div>
 
+      <div class="row">
 
-      <div class="card" style="margin:15px 0 0">
+        <span>
+          Total
+        </span>
 
-        <h3>Resumen semanal</h3>
-
-        <div class="row">
-          <span>Total de cortes</span>
-          <b id="weeklyCuts">0</b>
-        </div>
-
-        <div class="row">
-          <span>Total generado</span>
-          <b id="weeklyTotal">$0</b>
-        </div>
-
-        <div class="row">
-          <span>Pago al barbero · 60%</span>
-          <b id="weeklyBarber">$0</b>
-        </div>
-
-        <div class="row">
-          <span>Good Barber · 40%</span>
-          <b id="weeklyShop">$0</b>
-        </div>
+        <b id="weeklyTotal">
+          $0
+        </b>
 
       </div>
 
+      <div class="row">
 
-      <label>Forma de pago registrada</label>
+        <span>
+          60% barbero
+        </span>
 
-      <select id="wpay">
-        <option value="efectivo">Efectivo</option>
-        <option value="transferencia">Transferencia</option>
-        <option value="tarjeta">Tarjeta</option>
-      </select>
+        <b id="weeklyBarber">
+          $0
+        </b>
+
+      </div>
+
+      <div class="row">
+
+        <span>
+          40% Good Barber
+        </span>
+
+        <b id="weeklyShop">
+          $0
+        </b>
+
+      </div>
+
+    </div>
 
 
-      <label>Nota</label>
+    <!-- CORTE SÁBADO -->
 
-      <input id="wn" placeholder="Opcional">
+    <div class="corte">
+
+      <div class="muted">
+        APARTADO PARA HACER CORTE EL SÁBADO
+      </div>
+
+      <h2 style="font-size:23px">
+        Corte semanal
+      </h2>
+
+      <div class="row">
+
+        <span>
+          Total de lunes a sábado
+        </span>
+
+        <b id="settSales">
+          $0
+        </b>
+
+      </div>
+
+      <div class="row">
+
+        <span>
+          60% barbero
+        </span>
+
+        <b id="settBarber">
+          $0
+        </b>
+
+      </div>
+
+      <div class="row">
+
+        <span>
+          40% Good Barber
+        </span>
+
+        <b id="settShop">
+          $0
+        </b>
+
+      </div>
+
+      <div class="row">
+
+        <span>
+          Servicios
+        </span>
+
+        <b id="settCuts">
+          0
+        </b>
+
+      </div>
+
+      <button
+        class="green"
+        style="width:100%;margin-top:12px"
+        onclick="closeWeek()">
+
+        Hacer corte del sábado
+
+      </button>
 
 
       <button
-        id="weekBtn"
-        class="green"
-        style="width:100%;margin-top:12px"
-        onclick="saveWeek()">
+        class="soft"
+        style="width:100%;margin-top:8px"
+        onclick="newWeek()">
 
-        Guardar semana
+        Nueva semana
 
       </button>
 
     </div>
+
+
+    <button
+      class="green"
+      style="width:100%;margin-top:15px"
+      onclick="saveWeek()">
+
+      Guardar semana en Supabase
+
+    </button>
 
   </section>
 
@@ -517,45 +758,92 @@ th{
 
     <div class="card">
 
-      <h2>Nueva venta</h2>
+      <h2>
+        Nueva venta
+      </h2>
 
-      <label>Barbero</label>
+      <label>
+        Barbero
+      </label>
+
       <select id="rb"></select>
 
-      <label>Servicio</label>
-      <select id="rs" onchange="updateTotal()"></select>
 
-      <label>Fecha</label>
-      <input id="saleDate" type="date">
+      <label>
+        Servicio
+      </label>
 
-      <label>Cantidad</label>
+      <select
+        id="rs"
+        onchange="updateSaleTotal()">
+      </select>
+
+
+      <label>
+        Fecha
+      </label>
+
+      <input
+        id="saleDate"
+        type="date"
+      >
+
+
+      <label>
+        Cantidad
+      </label>
+
       <input
         id="rq"
         type="number"
         min="1"
         value="1"
-        inputmode="numeric"
-        oninput="updateTotal()">
+        oninput="updateSaleTotal()"
+      >
+
 
       <div
         style="text-align:right;font-size:22px;font-weight:900;margin:16px 0">
 
         Total:
-        <span id="rt">$0</span>
+
+        <span id="rt">
+          $0
+        </span>
 
       </div>
 
-      <label>Forma de pago</label>
+
+      <label>
+        Forma de pago
+      </label>
 
       <select id="pay">
-        <option value="efectivo">Efectivo</option>
-        <option value="transferencia">Transferencia</option>
-        <option value="tarjeta">Tarjeta</option>
+
+        <option value="efectivo">
+          Efectivo
+        </option>
+
+        <option value="transferencia">
+          Transferencia
+        </option>
+
+        <option value="tarjeta">
+          Tarjeta
+        </option>
+
       </select>
 
-      <label>Nota</label>
 
-      <input id="rn" placeholder="Opcional">
+      <label>
+        Nota
+      </label>
+
+      <input
+        id="rn"
+        placeholder="Opcional"
+      >
+
 
       <button
         class="green"
@@ -577,17 +865,26 @@ th{
 
     <div class="card">
 
-      <h2>Historial</h2>
+      <h2>
+        Historial de semanas
+      </h2>
 
-      <label>Mes</label>
+      <label>
+        Mes
+      </label>
 
       <input
         id="month"
         type="month"
-        onchange="loadHistory()">
+        onchange="loadHistory()"
+      >
 
       <div id="hist">
-        <p class="muted">Cargando…</p>
+
+        <p class="muted">
+          Cargando...
+        </p>
+
       </div>
 
     </div>
@@ -599,303 +896,459 @@ th{
 
 <script>
 
-const SUPABASE_URL="https://smswcsbxefeeuugabqfb.supabase.co";
+/* =========================================================
+   SUPABASE
+========================================================= */
 
-const SUPABASE_KEY="sb_publishable_IyoPemj_PIq71ykyF5LHoA_RJEvFKTb";
+const SUPABASE_URL =
+"https://smswcsbxefeeuugabqfb.supabase.co";
 
-const API=SUPABASE_URL+"/rest/v1";
+const SUPABASE_KEY =
+"sb_publishable_IyoPemj_PIq71ykyF5LHoA_RJEvFKTb";
 
-const HEAD={
+const API =
+SUPABASE_URL + "/rest/v1";
+
+const HEADERS = {
+
   "apikey":SUPABASE_KEY,
-  "Authorization":"Bearer "+SUPABASE_KEY,
-  "Content-Type":"application/json",
-  "Prefer":"return=representation"
+
+  "Authorization":
+  "Bearer " + SUPABASE_KEY,
+
+  "Content-Type":
+  "application/json",
+
+  "Prefer":
+  "return=representation"
+
 };
 
-let barbers=[];
-let services=[];
-let sales=[];
-let currentTab="home";
-let online=false;
+
+let barbers = [];
+
+let services = [];
+
+let sales = [];
+
+let online = false;
+
+let currentWeek = "";
+
+let weekData = {};
 
 
-const $=id=>document.getElementById(id);
+/* =========================================================
+   UTILIDADES
+========================================================= */
+
+const $ =
+id => document.getElementById(id);
 
 
 function money(n){
-  return "$"+Math.round(Number(n||0)).toLocaleString("es-MX")
+
+  return "$" +
+    Number(n || 0)
+    .toLocaleString(
+      "es-MX",
+      {
+        minimumFractionDigits:0,
+        maximumFractionDigits:0
+      }
+    );
+
 }
 
 
 function today(){
-  return new Date().toISOString().slice(0,10)
+
+  return new Date()
+    .toISOString()
+    .slice(0,10);
+
 }
 
 
 function toast(msg){
 
-  let s=$("status");
+  const box =
+    $("status");
 
-  s.textContent=msg;
+  box.textContent =
+    msg;
 
-  s.style.display="block";
+  box.style.display =
+    "block";
 
-  clearTimeout(window._toast);
-
-  window._toast=setTimeout(
-    ()=>s.style.display="none",
-    2800
+  clearTimeout(
+    window._toast
   );
+
+  window._toast =
+    setTimeout(
+      () =>
+      box.style.display="none",
+      3000
+    );
 
 }
 
 
 function esc(v){
 
-  return String(v??"").replace(
-    /[&<>"']/g,
-    m=>({
-      "&":"&amp;",
-      "<":"&lt;",
-      ">":"&gt;",
-      '"':"&quot;",
-      "'":"&#39;"
-    }[m])
-  );
+  return String(v ?? "")
+    .replace(
+      /[&<>"']/g,
+      m =>
+      ({
+        "&":"&amp;",
+        "<":"&lt;",
+        ">":"&gt;",
+        '"':"&quot;",
+        "'":"&#39;"
+      }[m])
+    );
 
 }
 
 
-async function api(path,opts={}){
+/* =========================================================
+   API SUPABASE
+========================================================= */
 
-  const controller=new AbortController();
+async function api(
+  path,
+  options={}
+){
 
-  const timer=setTimeout(
-    ()=>controller.abort(),
-    10000
-  );
+  const controller =
+    new AbortController();
+
+  const timeout =
+    setTimeout(
+      () =>
+      controller.abort(),
+      12000
+    );
 
   try{
 
-    const r=await fetch(
-      API+path,
-      {
-        method:opts.method||"GET",
-        headers:HEAD,
-        body:opts.body,
-        signal:controller.signal,
-        cache:"no-store",
-        mode:"cors"
-      }
-    );
+    const response =
+      await fetch(
+        API + path,
+        {
+          method:
+            options.method ||
+            "GET",
 
-    const text=await r.text();
+          headers:
+            HEADERS,
 
-    if(!r.ok)
-      throw new Error(text||("HTTP "+r.status));
+          body:
+            options.body,
 
-    return text?JSON.parse(text):[];
+          signal:
+            controller.signal,
+
+          cache:
+            "no-store",
+
+          mode:
+            "cors"
+        }
+      );
+
+
+    const text =
+      await response.text();
+
+
+    if(!response.ok){
+
+      throw new Error(
+        text ||
+        "HTTP " +
+        response.status
+      );
+
+    }
+
+
+    return text
+      ? JSON.parse(text)
+      : [];
 
   }finally{
 
-    clearTimeout(timer);
+    clearTimeout(
+      timeout
+    );
 
   }
 
 }
 
 
-function setConnection(ok,msg=""){
+/* =========================================================
+   CONEXIÓN
+========================================================= */
 
-  online=ok;
+function connection(ok,msg=""){
 
-  $("connectionNotice")
-    .classList
-    .toggle("hidden",ok);
+  online =
+    ok;
 
-  if(!ok)
-    $("connectionNotice").textContent=
-      msg||
-      "Sin conexión con Supabase. Puedes revisar la configuración y reintentar.";
+
+  const box =
+    $("connectionNotice");
+
+
+  if(ok){
+
+    box.classList
+      .add("hidden");
+
+    return;
+
+  }
+
+
+  box.classList
+    .remove("hidden");
+
+
+  box.innerHTML =
+    esc(
+      msg ||
+      "No se pudo conectar con Supabase."
+    ) +
+
+    `
+    <button
+      class="soft"
+      style="margin-left:8px"
+      onclick="loadData()">
+
+      Reintentar
+
+    </button>
+    `;
 
 }
 
+
+/* =========================================================
+   CARGAR DATOS
+========================================================= */
 
 async function loadData(){
 
   try{
 
-    const result=await Promise.all([
+    const result =
+      await Promise.all([
 
-      api(
-        "/barberos?select=id,nombre,activo&activo=eq.true&order=nombre"
-      ),
+        api(
+          "/barberos?select=id,nombre,activo&activo=eq.true&order=nombre"
+        ),
 
-      api(
-        "/servicios?select=id,nombre,precio,activo&activo=eq.true&order=id"
-      )
+        api(
+          "/servicios?select=id,nombre,precio,activo&activo=eq.true&order=id"
+        )
 
-    ]);
+      ]);
 
-    barbers=result[0]||[];
 
-    services=result[1]||[];
+    barbers =
+      result[0] || [];
 
-    setConnection(true);
+    services =
+      result[1] || [];
+
+
+    connection(true);
 
     fillSelects();
 
+    renderWeek();
+
     await refreshDashboard();
 
-    toast("Conectado a Good Barber");
-
-  }catch(e){
-
-    console.error("Supabase:",e);
-
-    setConnection(
-      false,
-      "No se pudo conectar con Supabase. El inicio de sesión sigue funcionando. Revisa Data API/RLS y toca Reintentar."
+    toast(
+      "Conectado a Supabase"
     );
 
-    $("connectionNotice").innerHTML=
-      esc(
-        "No se pudo conectar con Supabase. El inicio de sesión sigue funcionando."
-      )+
-      ' <button class="soft" style="margin-left:6px" onclick="loadData()">Reintentar</button>';
 
-    toast("Good Barber abrió; falta conexión con Supabase");
+  }catch(error){
+
+    console.error(
+      "Supabase:",
+      error
+    );
+
+
+    connection(
+      false,
+      "No se pudieron cargar los barberos y servicios desde Supabase."
+    );
+
+
+    toast(
+      "Revisa la conexión con Supabase"
+    );
 
   }
 
 }
 
 
+/* =========================================================
+   SELECTS
+========================================================= */
+
 function fillSelects(){
 
-  const bopts=
+  const barberOptions =
     barbers
       .map(
-        b=>
-        `<option value="${esc(b.id)}">${esc(b.nombre)}</option>`
+        b =>
+        `
+        <option value="${esc(b.id)}">
+          ${esc(b.nombre)}
+        </option>
+        `
       )
       .join("");
 
-  $("rb").innerHTML=
-    bopts||
-    '<option value="">Sin barberos</option>';
 
-  $("wb").innerHTML=
-    bopts||
-    '<option value="">Sin barberos</option>';
+  $("wb").innerHTML =
+    barberOptions ||
+    `
+    <option value="">
+      Sin barberos
+    </option>
+    `;
 
 
-  const sopts=
+  $("rb").innerHTML =
+    barberOptions ||
+    `
+    <option value="">
+      Sin barberos
+    </option>
+    `;
+
+
+  const serviceOptions =
     services
       .map(
-        s=>
-        `<option value="${esc(s.id)}">${esc(s.nombre)} — ${money(s.precio)}</option>`
+        s =>
+        `
+        <option value="${esc(s.id)}">
+          ${esc(s.nombre)} — ${money(s.precio)}
+        </option>
+        `
       )
       .join("");
 
-  $("rs").innerHTML=
-    sopts||
-    '<option value="">Sin servicios</option>';
 
-  $("ws").innerHTML=
-    sopts||
-    '<option value="">Sin servicios</option>';
-
-
-  updateTotal();
-
-  updateWeekTotal();
-
-}
+  $("rs").innerHTML =
+    serviceOptions ||
+    `
+    <option value="">
+      Sin servicios
+    </option>
+    `;
 
 
-function updateTotal(){
-
-  const s=
-    services.find(
-      x=>String(x.id)===String($("rs").value)
-    );
-
-  const q=
-    Math.max(
-      1,
-      parseInt($("rq").value||1)
-    );
-
-  $("rt").textContent=
-    money(
-      (s?s.precio:0)*q
-    );
+  updateSaleTotal();
 
 }
 
+
+/* =========================================================
+   FECHAS
+========================================================= */
 
 function monday(date){
 
-  let x=
+  const d =
     new Date(
-      date+"T12:00:00"
+      date +
+      "T12:00:00"
     );
 
-  let n=x.getDay();
+  const day =
+    d.getDay();
 
-  x.setDate(
-    x.getDate()+
-    (n===0?-6:1-n)
+
+  d.setDate(
+    d.getDate() +
+    (
+      day === 0
+      ? -6
+      : 1 - day
+    )
   );
 
-  return x
+
+  return d
     .toISOString()
     .slice(0,10);
 
 }
 
 
-function addDays(date,n){
+function addDays(
+  date,
+  amount
+){
 
-  const x=
+  const d =
     new Date(
-      date+"T12:00:00"
+      date +
+      "T12:00:00"
     );
 
-  x.setDate(
-    x.getDate()+n
+
+  d.setDate(
+    d.getDate() +
+    amount
   );
 
-  return x
+
+  return d
     .toISOString()
     .slice(0,10);
 
 }
 
 
-function weekEnd(s){
-  return addDays(s,5)
-}
+function weekEnd(
+  start
+){
 
-
-function inCurrentWeek(date){
-
-  const s=monday(today());
-
-  return date>=s &&
-         date<=weekEnd(s);
+  return addDays(
+    start,
+    5
+  );
 
 }
 
 
-function formatDate(d){
+function dateLabel(
+  date
+){
 
   return new Date(
-    d+"T12:00:00"
-  ).toLocaleDateString(
+    date +
+    "T12:00:00"
+  )
+  .toLocaleDateString(
     "es-MX",
     {
+      weekday:"long",
       day:"2-digit",
       month:"2-digit"
     }
@@ -904,15 +1357,14 @@ function formatDate(d){
 }
 
 
-function normalizeWeek(){
+/* =========================================================
+   ESTRUCTURA SEMANAL
+========================================================= */
 
-  const v=$("weekDate").value;
+function createWeekData(){
 
-  if(!v)return;
+  const data = {};
 
-  const m=monday(v);
-
-  $("weekDate").value=m;
 
   for(
     let i=0;
@@ -920,162 +1372,898 @@ function normalizeWeek(){
     i++
   ){
 
-    $("d"+i+"date").textContent=
-      formatDate(
-        addDays(m,i)
-      );
+    data[i] = {
+
+      promo:"",
+      discount:0,
+      payment:"efectivo",
+      quantities:{}
+
+    };
+
+    services.forEach(
+      s =>
+      data[i]
+        .quantities[s.id]=0
+    );
 
   }
 
-  updateWeekTotal();
+
+  return data;
 
 }
 
 
-function updateWeekTotal(){
+function getWeekData(){
 
-  const s=
-    services.find(
-      x=>String(x.id)===String($("ws").value)
+  if(
+    !weekData ||
+    !weekData[currentWeek]
+  ){
+
+    if(
+      !window._weeks
+    )
+      window._weeks={};
+
+
+    if(
+      !window._weeks[currentWeek]
+    ){
+
+      window._weeks[currentWeek] =
+        createWeekData();
+
+    }
+
+
+    weekData =
+      window._weeks;
+
+  }
+
+
+  return window._weeks[currentWeek];
+
+}
+
+
+function saveLocalWeek(){
+
+  try{
+
+    localStorage.setItem(
+      "goodbarber_week_draft",
+      JSON.stringify(
+        window._weeks || {}
+      )
     );
 
-  const price=
-    Number(s?.precio||0);
+  }catch(e){}
 
-  let total=0;
+}
+
+
+function loadLocalWeek(){
+
+  try{
+
+    window._weeks =
+      JSON.parse(
+        localStorage.getItem(
+          "goodbarber_week_draft"
+        ) ||
+        "{}"
+      );
+
+  }catch(e){
+
+    window._weeks={};
+
+  }
+
+}
+
+
+/* =========================================================
+   CAMBIAR SEMANA
+========================================================= */
+
+function changeWeek(){
+
+  let date =
+    $("weekDate").value;
+
+  if(!date)
+    return;
+
+
+  currentWeek =
+    monday(date);
+
+
+  $("weekDate").value =
+    currentWeek;
+
+
+  getWeekData();
+
+  renderWeek();
+
+}
+
+
+/* =========================================================
+   RENDER SEMANA
+========================================================= */
+
+function renderWeek(){
+
+  if(!services.length)
+    return;
+
+
+  currentWeek =
+    currentWeek ||
+    monday(
+      $("weekDate").value ||
+      today()
+    );
+
+
+  $("weekDate").value =
+    currentWeek;
+
+
+  const data =
+    getWeekData();
+
+
+  let html="";
+
+
+  for(
+    let day=0;
+    day<6;
+    day++
+  ){
+
+    const date =
+      addDays(
+        currentWeek,
+        day
+      );
+
+
+    const d =
+      data[day];
+
+
+    html +=
+    `
+
+    <div class="dayCard">
+
+      <div class="dayHeader">
+
+        <div>
+
+          <div class="dayTitle">
+            ${esc(
+              dateLabel(date)
+            )}
+          </div>
+
+          <div class="muted">
+            ${date}
+          </div>
+
+        </div>
+
+        <strong id="dayTotal${day}">
+          $0
+        </strong>
+
+      </div>
+
+
+      ${
+        services
+        .map(
+          s =>
+
+          `
+
+          <div class="serviceRow">
+
+            <div>
+
+              <div class="serviceName">
+                ${esc(s.nombre)}
+              </div>
+
+              <div class="servicePrice">
+                ${money(s.precio)} c/u
+              </div>
+
+            </div>
+
+
+            <input
+              type="number"
+              min="0"
+              inputmode="numeric"
+              value="${
+                d.quantities[s.id] || 0
+              }"
+              onchange="
+                setQuantity(
+                  ${day},
+                  '${esc(s.id)}',
+                  this.value
+                )
+              "
+            >
+
+
+            <div
+              class="serviceTotal"
+              id="st${day}_${esc(s.id)}">
+
+              $0
+
+            </div>
+
+          </div>
+
+          `
+        )
+        .join("")
+      }
+
+
+      <div class="promoBox">
+
+        <div class="promoTitle">
+          Promoción / ajuste del día
+        </div>
+
+
+        <input
+          placeholder="Ej. 2 cortes por $150"
+          value="${esc(d.promo)}"
+          onchange="
+            setPromo(
+              ${day},
+              this.value
+            )
+          "
+        >
+
+
+        <label>
+          Descuento total del día
+        </label>
+
+
+        <input
+          type="number"
+          min="0"
+          step="1"
+          placeholder="0"
+          value="${d.discount || 0}"
+          onchange="
+            setDiscount(
+              ${day},
+              this.value
+            )
+          "
+        >
+
+
+        <label>
+          Forma de pago
+        </label>
+
+
+        <select
+          onchange="
+            setPayment(
+              ${day},
+              this.value
+            )
+          ">
+
+          <option
+            value="efectivo"
+            ${
+              d.payment==="efectivo"
+              ?"selected"
+              :""
+            }>
+
+            Efectivo
+
+          </option>
+
+
+          <option
+            value="transferencia"
+            ${
+              d.payment==="transferencia"
+              ?"selected"
+              :""
+            }>
+
+            Transferencia
+
+          </option>
+
+
+          <option
+            value="tarjeta"
+            ${
+              d.payment==="tarjeta"
+              ?"selected"
+              :""
+            }>
+
+            Tarjeta
+
+          </option>
+
+        </select>
+
+      </div>
+
+
+      <div class="dayTotal">
+
+        <div class="row">
+
+          <span>
+            Total normal
+          </span>
+
+          <b id="normal${day}">
+            $0
+          </b>
+
+        </div>
+
+
+        <div class="row">
+
+          <span>
+            Descuento
+          </span>
+
+          <b id="discount${day}">
+            $0
+          </b>
+
+        </div>
+
+
+        <div class="row">
+
+          <strong>
+            Total cobrado
+          </strong>
+
+          <strong id="charged${day}">
+            $0
+          </strong>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    `;
+
+  }
+
+
+  $("days").innerHTML =
+    html;
+
+
+  updateAllDays();
+
+}
+
+
+/* =========================================================
+   CANTIDADES
+========================================================= */
+
+function setQuantity(
+  day,
+  serviceId,
+  value
+){
+
+  const data =
+    getWeekData();
+
+
+  data[day]
+    .quantities[serviceId] =
+    Math.max(
+      0,
+      parseInt(value || 0)
+    );
+
+
+  saveLocalWeek();
+
+  updateAllDays();
+
+}
+
+
+/* =========================================================
+   PROMOCIONES
+========================================================= */
+
+function setPromo(
+  day,
+  value
+){
+
+  getWeekData()[day]
+    .promo =
+    value;
+
+
+  saveLocalWeek();
+
+}
+
+
+function setDiscount(
+  day,
+  value
+){
+
+  getWeekData()[day]
+    .discount =
+    Math.max(
+      0,
+      Number(value || 0)
+    );
+
+
+  saveLocalWeek();
+
+  updateAllDays();
+
+}
+
+
+function setPayment(
+  day,
+  value
+){
+
+  getWeekData()[day]
+    .payment =
+    value;
+
+
+  saveLocalWeek();
+
+}
+
+
+/* =========================================================
+   CÁLCULOS DE DÍAS
+========================================================= */
+
+function calculateDay(
+  day
+){
+
+  const d =
+    getWeekData()[day];
+
+
+  let normal=0;
 
   let cuts=0;
 
-  for(
-    let i=0;
-    i<6;
-    i++
-  ){
 
-    let q=
-      Math.max(
-        0,
-        parseInt(
-          $("q"+i).value||0
-        )
-      );
+  services.forEach(
+    s => {
 
-    cuts+=q;
+      const q =
+        Number(
+          d.quantities[s.id] ||
+          0
+        );
 
-    total+=q*price;
 
-  }
+      const total =
+        q *
+        Number(s.precio);
 
-  $("weeklyCuts").textContent=cuts;
 
-  $("weeklyTotal").textContent=
-    money(total);
+      normal +=
+        total;
 
-  $("weeklyBarber").textContent=
-    money(total*.60);
 
-  $("weeklyShop").textContent=
-    money(total*.40);
+      cuts +=
+        q;
+
+    }
+  );
+
+
+  let discount =
+    Number(
+      d.discount || 0
+    );
+
+
+  if(
+    discount >
+    normal
+  )
+    discount =
+      normal;
+
+
+  const charged =
+    Math.max(
+      0,
+      normal -
+      discount
+    );
+
+
+  return {
+    normal,
+    discount,
+    charged,
+    cuts
+  };
 
 }
 
+
+function updateAllDays(){
+
+  if(!services.length)
+    return;
+
+
+  let weekTotal=0;
+
+  let weekCuts=0;
+
+
+  for(
+    let day=0;
+    day<6;
+    day++
+  ){
+
+    const result =
+      calculateDay(day);
+
+
+    weekTotal +=
+      result.charged;
+
+
+    weekCuts +=
+      result.cuts;
+
+
+    const normal =
+      $("normal"+day);
+
+    const discount =
+      $("discount"+day);
+
+    const charged =
+      $("charged"+day);
+
+    const dayTotal =
+      $("dayTotal"+day);
+
+
+    if(normal)
+      normal.textContent =
+        money(result.normal);
+
+
+    if(discount)
+      discount.textContent =
+        money(result.discount);
+
+
+    if(charged)
+      charged.textContent =
+        money(result.charged);
+
+
+    if(dayTotal)
+      dayTotal.textContent =
+        money(result.charged);
+
+
+    services.forEach(
+      s => {
+
+        const q =
+          Number(
+            getWeekData()[day]
+              .quantities[s.id] ||
+            0
+          );
+
+
+        const el =
+          $("st"+day+"_"+s.id);
+
+
+        if(el)
+          el.textContent =
+            money(
+              q *
+              Number(s.precio)
+            );
+
+      }
+    );
+
+  }
+
+
+  $("weeklyCuts").textContent =
+    weekCuts;
+
+
+  $("weeklyTotal").textContent =
+    money(weekTotal);
+
+
+  $("weeklyBarber").textContent =
+    money(
+      weekTotal * .60
+    );
+
+
+  $("weeklyShop").textContent =
+    money(
+      weekTotal * .40
+    );
+
+
+  $("settSales").textContent =
+    money(weekTotal);
+
+
+  $("settBarber").textContent =
+    money(
+      weekTotal * .60
+    );
+
+
+  $("settShop").textContent =
+    money(
+      weekTotal * .40
+    );
+
+
+  $("settCuts").textContent =
+    weekCuts;
+
+}
+
+
+/* =========================================================
+   GUARDAR SEMANA
+========================================================= */
 
 async function saveWeek(){
 
-  if(!online)
-    return alert(
-      "Good Barber no está conectado a Supabase. Pulsa Reintentar primero."
+  if(!online){
+
+    alert(
+      "Primero conecta Good Barber con Supabase usando Reintentar."
     );
 
-  const barber=$("wb").value;
-
-  const service=
-    services.find(
-      x=>String(x.id)===String($("ws").value)
-    );
-
-  let start=
-    monday(
-      $("weekDate").value||today()
-    );
-
-  if(!barber||!service)
-    return alert(
-      "Selecciona barbero y servicio."
-    );
-
-  const quantities=[];
-
-  let cuts=0;
-
-  for(
-    let i=0;
-    i<6;
-    i++
-  ){
-
-    let q=
-      Math.max(
-        0,
-        parseInt(
-          $("q"+i).value||0
-        )
-      );
-
-    quantities.push(q);
-
-    cuts+=q;
+    return;
 
   }
 
-  if(cuts===0)
-    return alert(
-      "Registra al menos un corte."
+
+  const barber =
+    $("wb").value;
+
+
+  if(!barber){
+
+    alert(
+      "Selecciona un barbero."
     );
 
+    return;
 
-  const btn=$("weekBtn");
+  }
 
-  btn.disabled=true;
 
-  btn.textContent="Guardando…";
+  const data =
+    getWeekData();
+
+
+  let totalCuts=0;
+
+
+  for(
+    let day=0;
+    day<6;
+    day++
+  ){
+
+    totalCuts +=
+      calculateDay(day)
+      .cuts;
+
+  }
+
+
+  if(totalCuts===0){
+
+    alert(
+      "Registra al menos un servicio."
+    );
+
+    return;
+
+  }
+
+
+  if(
+    !confirm(
+      "¿Guardar esta semana en Supabase?"
+    )
+  )
+    return;
 
 
   try{
 
     for(
-      let i=0;
-      i<6;
-      i++
+      let day=0;
+      day<6;
+      day++
     ){
 
-      const q=quantities[i];
+      const result =
+        calculateDay(day);
 
-      if(!q)continue;
 
-      await api(
-        "/ventas",
-        {
-          method:"POST",
-          body:JSON.stringify({
+      if(
+        result.cuts===0
+      )
+        continue;
 
-            barbero_id:barber,
 
-            servicio_id:service.id,
+      const date =
+        addDays(
+          currentWeek,
+          day
+        );
 
-            fecha:addDays(start,i),
 
-            cantidad:q,
+      /*
+        Si hay descuento,
+        se reparte proporcionalmente
+        entre los servicios del día.
+      */
 
-            precio_unitario:service.precio,
+      const factor =
+        result.normal > 0
+        ? result.charged /
+          result.normal
+        : 1;
 
-            metodo_pago:$("wpay").value,
 
-            notas:$("wn").value||null
+      for(
+        const service of services
+      ){
 
-          })
+        const quantity =
+          Number(
+            data[day]
+              .quantities[
+                service.id
+              ] || 0
+          );
+
+
+        if(quantity<=0)
+          continue;
+
+
+        const adjustedPrice =
+          Number(
+            service.precio
+          ) *
+          factor;
+
+
+        let note="";
+
+
+        if(
+          data[day].promo
+        ){
+
+          note +=
+            "Promoción: " +
+            data[day].promo;
+
         }
-      );
+
+
+        if(
+          result.discount>0
+        ){
+
+          if(note)
+            note += " | ";
+
+          note +=
+            "Descuento del día: $" +
+            result.discount;
+
+        }
+
+
+        await api(
+          "/ventas",
+          {
+            method:"POST",
+
+            body:
+              JSON.stringify({
+
+                barbero_id:
+                  barber,
+
+                servicio_id:
+                  service.id,
+
+                fecha:
+                  date,
+
+                cantidad:
+                  quantity,
+
+                precio_unitario:
+                  adjustedPrice,
+
+                metodo_pago:
+                  data[day].payment ||
+                  "efectivo",
+
+                notas:
+                  note ||
+                  null
+
+              })
+
+          }
+        );
+
+      }
 
     }
 
@@ -1085,221 +2273,483 @@ async function saveWeek(){
     );
 
 
-    for(
-      let i=0;
-      i<6;
-      i++
-    )
-      $("q"+i).value=0;
+    delete window._weeks[currentWeek];
 
+    saveLocalWeek();
 
-    $("wn").value="";
 
     await refreshDashboard();
 
     show("home");
 
 
-  }catch(e){
+  }catch(error){
 
-    console.error(e);
-
-    alert(
-      "No se pudo guardar la semana. Revisa las políticas RLS de la tabla ventas."
+    console.error(
+      "Error guardando semana:",
+      error
     );
 
-  }finally{
 
-    btn.disabled=false;
-
-    btn.textContent=
-      "Guardar semana";
+    alert(
+      "No se pudo guardar. Revisa las políticas RLS de la tabla ventas."
+    );
 
   }
 
 }
 
 
+/* =========================================================
+   CORTE DEL SÁBADO
+========================================================= */
+
+function closeWeek(){
+
+  const result =
+    getWeekSummary();
+
+
+  if(
+    result.cuts===0
+  ){
+
+    alert(
+      "Todavía no hay servicios registrados esta semana."
+    );
+
+    return;
+
+  }
+
+
+  alert(
+    "CORTE DEL SÁBADO\n\n" +
+
+    "Total: " +
+    money(result.total) +
+
+    "\n\n" +
+
+    "60% barbero: " +
+    money(result.total*.60) +
+
+    "\n\n" +
+
+    "40% Good Barber: " +
+    money(result.total*.40) +
+
+    "\n\n" +
+
+    "Servicios: " +
+    result.cuts +
+
+    "\n\n" +
+
+    "La información queda guardada en Supabase cuando pulses Guardar semana."
+  );
+
+}
+
+
+function getWeekSummary(){
+
+  let total=0;
+
+  let cuts=0;
+
+
+  for(
+    let day=0;
+    day<6;
+    day++
+  ){
+
+    const r =
+      calculateDay(day);
+
+
+    total +=
+      r.charged;
+
+    cuts +=
+      r.cuts;
+
+  }
+
+
+  return {
+    total,
+    cuts
+  };
+
+}
+
+
+/* =========================================================
+   NUEVA SEMANA
+========================================================= */
+
+function newWeek(){
+
+  const next =
+    addDays(
+      currentWeek ||
+      monday(today()),
+      7
+    );
+
+
+  currentWeek =
+    monday(next);
+
+
+  $("weekDate").value =
+    currentWeek;
+
+
+  getWeekData();
+
+
+  renderWeek();
+
+
+  toast(
+    "Nueva semana lista"
+  );
+
+}
+
+
+/* =========================================================
+   DASHBOARD
+========================================================= */
+
 async function refreshDashboard(){
 
-  if(!online)return;
+  if(!online)
+    return;
+
 
   try{
 
-    sales=
+    /*
+      IMPORTANTE:
+      Solo usamos columnas que necesita la app.
+      No pedimos "hora" ni "creado_en".
+    */
+
+    sales =
       await api(
-        "/ventas?select=id,barbero_id,servicio_id,fecha,hora,cantidad,precio_unitario,total,metodo_pago,notas,creado_en&order=creado_en.desc&limit=1000"
+        "/ventas?select=id,barbero_id,servicio_id,fecha,cantidad,precio_unitario,total,metodo_pago,notas&order=fecha.desc,id.desc&limit=1000"
       );
 
 
-    const week=
+    const start =
+      monday(today());
+
+
+    const end =
+      weekEnd(start);
+
+
+    const week =
       sales.filter(
-        x=>inCurrentWeek(x.fecha)
+        x =>
+          x.fecha >= start &&
+          x.fecha <= end
       );
 
 
-    const total=
+    const total =
       week.reduce(
-        (a,x)=>
-          a+
-          Number(x.total||0),
+        (sum,x)=>
+          sum +
+          Number(
+            x.total || 0
+          ),
         0
       );
 
 
-    $("wSales").textContent=
+    $("wSales").textContent =
       money(total);
 
-    $("wBarber").textContent=
-      money(total*.60);
 
-    $("wShop").textContent=
-      money(total*.40);
+    $("wBarber").textContent =
+      money(
+        total*.60
+      );
+
+
+    $("wShop").textContent =
+      money(
+        total*.40
+      );
 
 
     const by={};
 
 
-    week.forEach(x=>{
+    week.forEach(
+      x => {
 
-      const b=
-        barbers.find(
-          b=>
-          String(b.id)===
-          String(x.barbero_id)
-        );
-
-      const n=
-        b?
-        b.nombre:
-        "Barbero";
-
-      by[n]=
-        (by[n]||0)+
-        Number(x.total||0);
-
-    });
-
-
-    $("byBarber").innerHTML=
-      Object.entries(by)
-      .map(
-        ([n,v])=>
-        `<div class="row">
-          <span>${esc(n)}</span>
-          <b>
-            ${money(v)}
-            <span class="muted">
-              · 60% ${money(v*.60)}
-            </span>
-          </b>
-        </div>`
-      )
-      .join("")
-      ||
-      '<p class="muted">Sin ventas esta semana.</p>';
-
-
-    $("recent").innerHTML=
-      week
-      .slice(0,8)
-      .map(x=>{
-
-        const b=
+        const barber =
           barbers.find(
-            b=>
-            String(b.id)===
+            b =>
+            String(b.id) ===
             String(x.barbero_id)
           );
 
-        const s=
-          services.find(
-            s=>
-            String(s.id)===
-            String(x.servicio_id)
+
+        const name =
+          barber
+          ? barber.nombre
+          : "Barbero";
+
+
+        by[name] =
+          (
+            by[name] ||
+            0
+          ) +
+          Number(
+            x.total || 0
           );
 
-        return `
+      }
+    );
+
+
+    $("byBarber").innerHTML =
+      Object.entries(by)
+      .map(
+        ([name,value]) =>
+        `
         <div class="row">
 
           <span>
-
-            <b>
-              ${esc(
-                b?
-                b.nombre:
-                "Barbero"
-              )}
-            </b>
-
-            <br>
-
-            <span class="muted">
-              ${esc(x.fecha)}
-              ·
-              ${esc(
-                s?
-                s.nombre:
-                "Servicio"
-              )}
-              ·
-              ${esc(x.metodo_pago)}
-            </span>
-
+            ${esc(name)}
           </span>
 
-          <strong>
-            ${money(x.total)}
-          </strong>
+          <b>
 
-        </div>`;
+            ${money(value)}
 
-      })
+            <span class="muted">
+              · 60% ${money(value*.60)}
+            </span>
+
+          </b>
+
+        </div>
+        `
+      )
       .join("")
       ||
-      '<p class="muted">Sin registros esta semana.</p>';
+      `
+      <p class="muted">
+        Sin ventas esta semana.
+      </p>
+      `;
 
 
-  }catch(e){
+    $("recent").innerHTML =
+      week
+      .slice(0,10)
+      .map(
+        x => {
 
-    console.error(e);
+          const barber =
+            barbers.find(
+              b =>
+              String(b.id) ===
+              String(x.barbero_id)
+            );
 
-    toast(
-      "No se pudo actualizar el resumen"
+
+          const service =
+            services.find(
+              s =>
+              String(s.id) ===
+              String(x.servicio_id)
+            );
+
+
+          return `
+          <div class="row">
+
+            <span>
+
+              <b>
+                ${esc(
+                  barber
+                  ? barber.nombre
+                  : "Barbero"
+                )}
+              </b>
+
+              <br>
+
+              <span class="muted">
+
+                ${esc(x.fecha)}
+                ·
+                ${esc(
+                  service
+                  ? service.nombre
+                  : "Servicio"
+                )}
+
+                ·
+
+                ${esc(
+                  x.metodo_pago ||
+                  "efectivo"
+                )}
+
+                ${
+                  x.notas
+                  ? " · " +
+                    esc(x.notas)
+                  : ""
+                }
+
+              </span>
+
+            </span>
+
+            <strong>
+              ${money(x.total)}
+            </strong>
+
+          </div>
+          `;
+
+        }
+      )
+      .join("")
+      ||
+      `
+      <p class="muted">
+        Sin registros esta semana.
+      </p>
+      `;
+
+
+  }catch(error){
+
+    /*
+      No cambiamos online=false aquí.
+      Si falla una consulta de ventas,
+      NO significa que Supabase esté desconectado.
+    */
+
+    console.error(
+      "Ventas:",
+      error
     );
 
+
+    $("recent").innerHTML =
+      `
+      <p class="muted">
+        No se pudieron cargar las ventas.
+        Barberos y servicios siguen conectados.
+      </p>
+      `;
+
   }
+
+}
+
+
+/* =========================================================
+   VENTA INDIVIDUAL
+========================================================= */
+
+function updateSaleTotal(){
+
+  const service =
+    services.find(
+      s =>
+      String(s.id) ===
+      String(
+        $("rs").value
+      )
+    );
+
+
+  const quantity =
+    Math.max(
+      1,
+      parseInt(
+        $("rq").value || 1
+      )
+    );
+
+
+  $("rt").textContent =
+    money(
+      (
+        service
+        ? Number(service.precio)
+        : 0
+      ) *
+      quantity
+    );
 
 }
 
 
 async function saveSale(){
 
-  if(!online)
-    return alert(
-      "Good Barber no está conectado a Supabase. Pulsa Reintentar primero."
+  if(!online){
+
+    alert(
+      "Good Barber no está conectado a Supabase."
     );
 
+    return;
 
-  const s=
+  }
+
+
+  const service =
     services.find(
-      x=>String(x.id)===
-      String($("rs").value)
-    );
-
-  const q=
-    Math.max(
-      1,
-      parseInt(
-        $("rq").value||1
+      s =>
+      String(s.id) ===
+      String(
+        $("rs").value
       )
     );
 
 
-  if(!s||!$("rb").value)
-    return alert(
+  const barber =
+    $("rb").value;
+
+
+  const quantity =
+    Math.max(
+      1,
+      parseInt(
+        $("rq").value || 1
+      )
+    );
+
+
+  if(
+    !service ||
+    !barber
+  ){
+
+    alert(
       "Selecciona barbero y servicio."
     );
+
+    return;
+
+  }
 
 
   try{
@@ -1308,29 +2758,35 @@ async function saveSale(){
       "/ventas",
       {
         method:"POST",
-        body:JSON.stringify({
 
-          barbero_id:$("rb").value,
+        body:
+          JSON.stringify({
 
-          servicio_id:s.id,
+            barbero_id:
+              barber,
 
-          fecha:
-            $("saleDate").value||
-            today(),
+            servicio_id:
+              service.id,
 
-          cantidad:q,
+            fecha:
+              $("saleDate").value ||
+              today(),
 
-          precio_unitario:
-            s.precio,
+            cantidad:
+              quantity,
 
-          metodo_pago:
-            $("pay").value,
+            precio_unitario:
+              service.precio,
 
-          notas:
-            $("rn").value||
-            null
+            metodo_pago:
+              $("pay").value,
 
-        })
+            notas:
+              $("rn").value ||
+              null
+
+          })
+
       }
     );
 
@@ -1339,21 +2795,28 @@ async function saveSale(){
       "Venta registrada"
     );
 
-    $("rq").value=1;
 
-    $("rn").value="";
+    $("rq").value =
+      1;
+
+    $("rn").value =
+      "";
+
 
     await refreshDashboard();
 
     show("home");
 
 
-  }catch(e){
+  }catch(error){
 
-    console.error(e);
+    console.error(
+      error
+    );
+
 
     alert(
-      "No se pudo registrar la venta. Revisa las políticas RLS de ventas."
+      "No se pudo registrar la venta. Revisa RLS."
     );
 
   }
@@ -1361,20 +2824,32 @@ async function saveSale(){
 }
 
 
-function nextMonth(m){
+/* =========================================================
+   HISTORIAL
+========================================================= */
 
-  let [y,mo]=
-    m.split("-")
-     .map(Number);
+function nextMonth(
+  month
+){
 
-  let d=
+  const [
+    year,
+    monthNumber
+  ] =
+    month
+    .split("-")
+    .map(Number);
+
+
+  const date =
     new Date(
-      y,
-      mo,
+      year,
+      monthNumber,
       1
     );
 
-  return d
+
+  return date
     .toISOString()
     .slice(0,10);
 
@@ -1385,16 +2860,20 @@ async function loadHistory(){
 
   if(!online){
 
-    $("hist").innerHTML=
-      '<p class="muted">Sin conexión con Supabase.</p>';
+    $("hist").innerHTML =
+      `
+      <p class="muted">
+        Sin conexión con Supabase.
+      </p>
+      `;
 
     return;
 
   }
 
 
-  const m=
-    $("month").value||
+  const month =
+    $("month").value ||
     new Date()
       .toISOString()
       .slice(0,7);
@@ -1402,180 +2881,358 @@ async function loadHistory(){
 
   try{
 
-    const es=
+    const records =
       await api(
-        `/ventas?select=id,barbero_id,servicio_id,fecha,cantidad,total,metodo_pago&fecha=gte.${m}-01&fecha=lt.${nextMonth(m)}&order=fecha.desc,creado_en.desc`
+        `/ventas?select=id,barbero_id,servicio_id,fecha,cantidad,total,metodo_pago,notas&fecha=gte.${month}-01&fecha=lt.${nextMonth(month)}&order=fecha.desc,id.desc`
       );
 
 
-    const t=
-      es.reduce(
-        (a,e)=>
-          a+
-          Number(e.total||0),
-        0
+    const weeks={};
+
+
+    records.forEach(
+      record => {
+
+        const wk =
+          monday(
+            record.fecha
+          );
+
+
+        if(!weeks[wk]){
+
+          weeks[wk]={
+            total:0,
+            cuts:0,
+            records:[]
+          };
+
+        }
+
+
+        weeks[wk].total +=
+          Number(
+            record.total || 0
+          );
+
+
+        weeks[wk].cuts +=
+          Number(
+            record.cantidad || 0
+          );
+
+
+        weeks[wk]
+          .records
+          .push(record);
+
+      }
+    );
+
+
+    const weekList =
+      Object.entries(weeks)
+      .sort(
+        (a,b) =>
+        b[0].localeCompare(a[0])
       );
 
 
-    $("hist").innerHTML=
-      `<p>
-        <b>Total ${money(t)}</b>
-        · Barberos ${money(t*.60)}
-        · Good Barber ${money(t*.40)}
-      </p>`
-      +
+    if(!weekList.length){
 
-      (
-        es.length?
+      $("hist").innerHTML =
+        `
+        <p class="muted">
+          Todavía no hay registros para este mes.
+        </p>
+        `;
 
-        `<table>
+      return;
 
-          <tr>
-            <th>Fecha</th>
-            <th>Barbero</th>
-            <th>Servicio</th>
-            <th>Pago</th>
-            <th>Total</th>
-          </tr>
+    }
+
+
+    $("hist").innerHTML =
+      weekList
+      .map(
+        ([week,value]) =>
+
+        `
+
+        <div class="card">
+
+          <h3>
+            Semana
+            ${esc(week)}
+            →
+            ${esc(weekEnd(week))}
+          </h3>
+
+
+          <div class="row">
+
+            <span>
+              Total
+            </span>
+
+            <b>
+              ${money(value.total)}
+            </b>
+
+          </div>
+
+
+          <div class="row">
+
+            <span>
+              60% barbero
+            </span>
+
+            <b>
+              ${money(value.total*.60)}
+            </b>
+
+          </div>
+
+
+          <div class="row">
+
+            <span>
+              40% Good Barber
+            </span>
+
+            <b>
+              ${money(value.total*.40)}
+            </b>
+
+          </div>
+
+
+          <div class="row">
+
+            <span>
+              Servicios
+            </span>
+
+            <b>
+              ${value.cuts}
+            </b>
+
+          </div>
+
 
           ${
-            es.map(e=>{
+            value.records
+            .map(
+              r => {
 
-              const b=
-                barbers.find(
-                  b=>
-                  String(b.id)===
-                  String(e.barbero_id)
-                );
+                const barber =
+                  barbers.find(
+                    b =>
+                    String(b.id) ===
+                    String(r.barbero_id)
+                  );
 
-              const s=
-                services.find(
-                  s=>
-                  String(s.id)===
-                  String(e.servicio_id)
-                );
 
-              return `
-              <tr>
+                const service =
+                  services.find(
+                    s =>
+                    String(s.id) ===
+                    String(r.servicio_id)
+                  );
 
-                <td>
-                  ${esc(e.fecha)}
-                </td>
 
-                <td>
-                  ${esc(
-                    b?
-                    b.nombre:
-                    "-"
-                  )}
-                </td>
+                return `
 
-                <td>
-                  ${esc(
-                    s?
-                    s.nombre:
-                    "-"
-                  )}
-                </td>
+                <div class="row">
 
-                <td>
-                  ${esc(e.metodo_pago)}
-                </td>
+                  <span>
 
-                <td>
-                  ${money(e.total)}
-                </td>
+                    <b>
+                      ${esc(
+                        r.fecha
+                      )}
+                    </b>
 
-              </tr>`;
+                    <br>
 
-            }).join("")
+                    <span class="muted">
+
+                      ${esc(
+                        barber
+                        ? barber.nombre
+                        : "Barbero"
+                      )}
+
+                      ·
+
+                      ${esc(
+                        service
+                        ? service.nombre
+                        : "Servicio"
+                      )}
+
+                      ·
+
+                      ${esc(
+                        r.metodo_pago ||
+                        "efectivo"
+                      )}
+
+                      ${
+                        r.notas
+                        ? "<br>" +
+                          esc(r.notas)
+                        : ""
+                      }
+
+                    </span>
+
+                  </span>
+
+                  <strong>
+                    ${money(r.total)}
+                  </strong>
+
+                </div>
+
+                `;
+
+              }
+            )
+            .join("")
           }
 
-        </table>`
+        </div>
 
-        :
+        `
 
-        '<p class="muted">Sin registros.</p>'
-      );
+      )
+      .join("");
 
 
-  }catch(e){
+  }catch(error){
 
-    console.error(e);
-
-    toast(
-      "Error cargando historial"
+    console.error(
+      error
     );
+
+
+    $("hist").innerHTML =
+      `
+      <p class="muted">
+        No se pudo cargar el historial.
+      </p>
+      `;
 
   }
 
 }
 
+
+/* =========================================================
+   NAVEGACIÓN
+========================================================= */
 
 function show(id){
 
   [
     "home",
-    "register",
+    "week",
     "sale",
     "history"
   ]
   .forEach(
-    x=>
-    $(x)
-    .classList
-    .toggle(
-      "hidden",
-      x!==id
-    )
+    section =>
+    $(section)
+      .classList
+      .toggle(
+        "hidden",
+        section !== id
+      )
   );
 
 
-  currentTab=id;
+  if(
+    id === "week"
+  ){
+
+    if(
+      !currentWeek
+    ){
+
+      currentWeek =
+        monday(
+          today()
+        );
+
+    }
 
 
-  if(id==="history")
-    loadHistory();
+    $("weekDate").value =
+      currentWeek;
 
 
-  if(id==="register"){
+    getWeekData();
 
-    normalizeWeek();
+    renderWeek();
+
+  }
+
+
+  if(
+    id === "sale"
+  ){
+
+    $("saleDate").value =
+      $("saleDate").value ||
+      today();
 
     fillSelects();
 
   }
 
 
-  if(id==="sale"){
+  if(
+    id === "history"
+  ){
 
-    fillSelects();
-
-    $("saleDate").value=
-      $("saleDate").value||
-      today();
+    loadHistory();
 
   }
 
 }
 
 
+/* =========================================================
+   LOGIN
+========================================================= */
+
 function enter(){
 
-  const u=
-    $("lu").value.trim();
+  const user =
+    $("lu")
+    .value
+    .trim();
 
-  const p=
-    $("lp").value;
+
+  const password =
+    $("lp")
+    .value;
 
 
   if(
-    u!=="admin"||
-    p!=="1234"
-  )
-    return alert(
+    user !== "admin" ||
+    password !== "1234"
+  ){
+
+    alert(
       "Usuario o contraseña incorrectos."
     );
+
+    return;
+
+  }
 
 
   localStorage.setItem(
@@ -1595,26 +3252,31 @@ function openApp(){
     .classList
     .add("hidden");
 
+
   $("app")
     .classList
     .remove("hidden");
 
 
-  $("month").value=
+  $("month").value =
     new Date()
-    .toISOString()
-    .slice(0,7);
+      .toISOString()
+      .slice(0,7);
 
 
-  $("saleDate").value=
+  $("saleDate").value =
     today();
 
 
-  $("weekDate").value=
+  currentWeek =
     monday(today());
 
 
-  normalizeWeek();
+  $("weekDate").value =
+    currentWeek;
+
+
+  loadLocalWeek();
 
   loadData();
 
@@ -1627,9 +3289,11 @@ function logout(){
     "gb_login"
   );
 
+
   $("app")
     .classList
     .add("hidden");
+
 
   $("login")
     .classList
@@ -1638,37 +3302,57 @@ function logout(){
 }
 
 
+/* =========================================================
+   INTERNET
+========================================================= */
+
 window.addEventListener(
   "online",
-  ()=>loadData()
+  () =>
+  loadData()
 );
 
 
 window.addEventListener(
   "offline",
-  ()=>
-    setConnection(
-      false,
-      "El dispositivo está sin internet."
-    )
+  () =>
+  connection(
+    false,
+    "El dispositivo está sin internet."
+  )
+);
+
+
+/* =========================================================
+   INICIO
+========================================================= */
+
+$("lp").addEventListener(
+  "keydown",
+  event => {
+
+    if(
+      event.key ===
+      "Enter"
+    ){
+
+      enter();
+
+    }
+
+  }
 );
 
 
 if(
   localStorage.getItem(
     "gb_login"
-  )==="1"
-)
+  ) === "1"
+){
+
   openApp();
 
-else
-  $("lp").addEventListener(
-    "keydown",
-    e=>{
-      if(e.key==="Enter")
-        enter();
-    }
-  );
+}
 
 </script>
 
