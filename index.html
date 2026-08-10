@@ -8,6 +8,17 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js"></script>
 
+  <script>
+    /*
+      El archivo supabase-config.js crea:
+      window.supabaseClient
+
+      Aquí creamos el nombre "supabase"
+      que utiliza el resto de esta aplicación.
+    */
+    const supabase = window.supabaseClient;
+  </script>
+
   <style>
     * {
       box-sizing: border-box;
@@ -589,6 +600,19 @@
 <script>
 
 /* =========================
+   VERIFICAR SUPABASE
+========================= */
+
+if (!supabase) {
+
+  console.error(
+    "No se encontró window.supabaseClient."
+  );
+
+}
+
+
+/* =========================
    SERVICIOS
 ========================= */
 
@@ -632,6 +656,7 @@ const SERVICIOS = [
 
 ];
 
+
 const DIAS = [
 
   "Lunes",
@@ -643,9 +668,11 @@ const DIAS = [
 
 ];
 
+
 let semana = {};
 
 let semanaId = null;
+
 
 /* =========================
    DINERO
@@ -662,6 +689,7 @@ function dinero(valor) {
   ).format(Number(valor || 0));
 
 }
+
 
 /* =========================
    STATUS
@@ -687,6 +715,7 @@ function mostrarStatus(
   }, 4000);
 
 }
+
 
 /* =========================
    FECHA INICIO SEMANA
@@ -723,6 +752,7 @@ function fechaInicioSemana() {
 
 }
 
+
 /* =========================
    FECHA FIN SEMANA
 ========================= */
@@ -750,6 +780,7 @@ function fechaFinSemana() {
 
 }
 
+
 /* =========================
    FECHA TEXTO
 ========================= */
@@ -766,6 +797,7 @@ function fechaTexto(fecha) {
   );
 
 }
+
 
 /* =========================
    FECHA SQL
@@ -789,6 +821,7 @@ function fechaSQL(fecha) {
   return `${año}-${mes}-${dia}`;
 
 }
+
 
 /* =========================
    CREAR SEMANA LOCAL
@@ -841,6 +874,7 @@ function crearSemanaLocal() {
   actualizarResumen();
 
 }
+
 
 /* =========================
    RENDER DIAS
@@ -991,6 +1025,7 @@ function renderDias() {
 
 }
 
+
 /* =========================
    CAMBIAR SERVICIO
 ========================= */
@@ -1014,6 +1049,7 @@ function cambiarServicio(
 
 }
 
+
 /* =========================
    CAMBIAR PROMOCION
 ========================= */
@@ -1035,6 +1071,7 @@ function cambiarPromocion(
   actualizarResumen();
 
 }
+
 
 /* =========================
    CALCULAR DIA
@@ -1089,6 +1126,7 @@ function calcularDia(dia) {
 
 }
 
+
 /* =========================
    TOTAL SEMANA
 ========================= */
@@ -1107,6 +1145,7 @@ function obtenerTotalSemana() {
   return total;
 
 }
+
 
 /* =========================
    RESUMEN
@@ -1149,6 +1188,7 @@ function actualizarResumen() {
   calcularCorte();
 
 }
+
 
 /* =========================
    DETALLE
@@ -1258,6 +1298,7 @@ function renderDetalle() {
 
 }
 
+
 /* =========================
    OBTENER ID BARBERO
 ========================= */
@@ -1266,31 +1307,29 @@ async function obtenerBarberoId(
   nombre
 ) {
 
+  if (!supabase) {
+    throw new Error(
+      "Supabase no fue inicializado."
+    );
+  }
+
   const {
     data,
     error
   } = await supabase
-
     .from("barberos")
-
-    .select(
-      "id,nombre"
-    )
-
-    .eq(
-      "nombre",
-      nombre
-    )
-
+    .select("id,nombre")
+    .eq("nombre", nombre)
     .maybeSingle();
 
   if (error) {
 
     console.error(
+      "ERROR OBTENIENDO BARBERO:",
       error
     );
 
-    return null;
+    throw error;
 
   }
 
@@ -1299,6 +1338,7 @@ async function obtenerBarberoId(
     : null;
 
 }
+
 
 /* =========================
    GUARDAR DIA
@@ -1409,11 +1449,9 @@ async function guardarDia(
     const {
       error
     } = await supabase
-
       .from(
         "registros_diarios"
       )
-
       .upsert(
         registro,
         {
@@ -1443,6 +1481,7 @@ async function guardarDia(
   catch (error) {
 
     console.error(
+      "ERROR GUARDANDO DIA:",
       error
     );
 
@@ -1455,6 +1494,7 @@ async function guardarDia(
   }
 
 }
+
 
 /* =========================
    CARGAR SEMANA
@@ -1491,18 +1531,14 @@ async function cargarSemanaDesdeSupabase() {
       data,
       error
     } = await supabase
-
       .from(
         "registros_diarios"
       )
-
       .select("*")
-
       .eq(
         "barbero_id",
         barberoId
       )
-
       .eq(
         "semana_inicio",
         fecha
@@ -1590,6 +1626,7 @@ async function cargarSemanaDesdeSupabase() {
   catch (error) {
 
     console.error(
+      "ERROR CARGANDO SEMANA:",
       error
     );
 
@@ -1601,6 +1638,7 @@ async function cargarSemanaDesdeSupabase() {
   }
 
 }
+
 
 /* =========================
    CALCULAR CORTE
@@ -1662,6 +1700,7 @@ function calcularCorte() {
       dinero(barberia);
 
 }
+
 
 /* =========================
    GUARDAR CORTE
@@ -1743,11 +1782,9 @@ async function guardarCorte() {
     const {
       error
     } = await supabase
-
       .from(
         "cortes_sabado"
       )
-
       .upsert(
         registro,
         {
@@ -1772,6 +1809,7 @@ async function guardarCorte() {
   catch (error) {
 
     console.error(
+      "ERROR GUARDANDO CORTE:",
       error
     );
 
@@ -1785,6 +1823,7 @@ async function guardarCorte() {
 
 }
 
+
 /* =========================
    OBTENER NOMBRE BARBERO
 ========================= */
@@ -1797,20 +1836,16 @@ async function obtenerNombreBarbero(
     data,
     error
   } = await supabase
-
     .from(
       "barberos"
     )
-
     .select(
       "nombre"
     )
-
     .eq(
       "id",
       id
     )
-
     .maybeSingle();
 
   if (error) {
@@ -1828,8 +1863,10 @@ async function obtenerNombreBarbero(
 
 }
 
+
 /* =========================
-   CARGAR HISTORIAL DINAMICO
+   CARGAR HISTORIAL
+   SIN TABLA NUEVA
 ========================= */
 
 async function cargarHistorial() {
@@ -1844,161 +1881,458 @@ async function cargarHistorial() {
 
   try {
 
-    // 1. Extraemos TODOS los días guardados
+    /*
+      El historial se construye directamente
+      usando las tablas que ya existen:
+
+      registros_diarios
+      cortes_sabado
+      barberos
+
+      NO se necesita crear otra tabla.
+    */
+
     const {
       data: registros,
       error: errRegistros
     } = await supabase
-      .from("registros_diarios")
-      .select("barbero_id, semana_inicio, total");
+      .from(
+        "registros_diarios"
+      )
+      .select(
+        "barbero_id, semana_inicio, total"
+      );
 
-    if (errRegistros) throw errRegistros;
+    if (errRegistros) {
+      throw errRegistros;
+    }
 
-    // 2. Extraemos TODOS los cortes de sábado guardados
+
     const {
       data: cortes,
       error: errCortes
     } = await supabase
-      .from("cortes_sabado")
-      .select("barbero_id, semana_inicio, total_semanal, trabajador_60, barberia_40");
+      .from(
+        "cortes_sabado"
+      )
+      .select(
+        "barbero_id, semana_inicio, total_semanal, trabajador_60, barberia_40"
+      );
 
-    if (errCortes) throw errCortes;
+    if (errCortes) {
+      throw errCortes;
+    }
 
-    // 3. Extraemos el catálogo de barberos
+
     const {
       data: barberos,
       error: errBarberos
     } = await supabase
-      .from("barberos")
-      .select("id, nombre");
+      .from(
+        "barberos"
+      )
+      .select(
+        "id, nombre"
+      );
 
-    if (errBarberos) throw errBarberos;
+    if (errBarberos) {
+      throw errBarberos;
+    }
+
 
     const mapBarberos = {};
-    barberos.forEach(b => {
-      mapBarberos[b.id] = b.nombre;
-    });
 
-    // 4. Agrupamos la información usando registros y cortes
+
+    (barberos || []).forEach(
+      b => {
+
+        mapBarberos[b.id] =
+          b.nombre;
+
+      }
+    );
+
+
+    /*
+      Agrupamos por:
+
+      semana + barbero
+    */
+
     const historyMap = {};
 
-    // Primero agrupamos sumando los días (si aún no guardan el corte del sábado)
-    (registros || []).forEach(reg => {
-      const key = reg.semana_inicio + "_" + reg.barbero_id;
-      if (!historyMap[key]) {
-        historyMap[key] = {
-          semana_inicio: reg.semana_inicio,
-          barbero_id: reg.barbero_id,
-          total: 0,
-          es_corte_guardado: false
-        };
+
+    /*
+      Primero usamos los registros
+      diarios.
+    */
+
+    (registros || []).forEach(
+      reg => {
+
+        const key =
+          reg.semana_inicio +
+          "_" +
+          reg.barbero_id;
+
+
+        if (!historyMap[key]) {
+
+          historyMap[key] = {
+
+            semana_inicio:
+              reg.semana_inicio,
+
+            barbero_id:
+              reg.barbero_id,
+
+            total:
+              0,
+
+            es_corte_guardado:
+              false
+
+          };
+
+        }
+
+
+        historyMap[key].total +=
+          Number(
+            reg.total || 0
+          );
+
       }
-      historyMap[key].total += Number(reg.total || 0);
-    });
+    );
 
-    // Luego sobrescribimos si existe un corte oficial de sábado
-    (cortes || []).forEach(corte => {
-      const key = corte.semana_inicio + "_" + corte.barbero_id;
-      if (!historyMap[key]) {
-        historyMap[key] = {
-          semana_inicio: corte.semana_inicio,
-          barbero_id: corte.barbero_id,
-          total: 0
-        };
+
+    /*
+      Si existe corte del sábado,
+      utilizamos ese total como
+      total oficial de la semana.
+    */
+
+    (cortes || []).forEach(
+      corte => {
+
+        const key =
+          corte.semana_inicio +
+          "_" +
+          corte.barbero_id;
+
+
+        if (!historyMap[key]) {
+
+          historyMap[key] = {
+
+            semana_inicio:
+              corte.semana_inicio,
+
+            barbero_id:
+              corte.barbero_id,
+
+            total:
+              0,
+
+            es_corte_guardado:
+              true
+
+          };
+
+        }
+
+
+        historyMap[key].total =
+          Number(
+            corte.total_semanal || 0
+          );
+
+
+        historyMap[key].trabajador_60 =
+          Number(
+            corte.trabajador_60 || 0
+          );
+
+
+        historyMap[key].barberia_40 =
+          Number(
+            corte.barberia_40 || 0
+          );
+
+
+        historyMap[key]
+          .es_corte_guardado =
+            true;
+
       }
-      historyMap[key].total = Number(corte.total_semanal || 0);
-      historyMap[key].trabajador_60 = Number(corte.trabajador_60 || 0);
-      historyMap[key].barberia_40 = Number(corte.barberia_40 || 0);
-      historyMap[key].es_corte_guardado = true;
-    });
+    );
 
-    const historyArray = Object.values(historyMap);
 
-    if (historyArray.length === 0) {
+    const historyArray =
+      Object.values(
+        historyMap
+      );
+
+
+    if (
+      historyArray.length === 0
+    ) {
 
       contenedor.innerHTML = `
+
         <div class="empty">
-          <h3>No hay semanas guardadas todavía.</h3>
-          <p>Los días y cortes que guardes aparecerán agrupados aquí.</p>
+
+          <h3>
+            No hay semanas guardadas todavía.
+          </h3>
+
+          <p>
+            Los días y cortes que guardes
+            aparecerán agrupados aquí.
+          </p>
+
         </div>
+
       `;
+
       return;
 
     }
 
-    // Ordenamos de la semana más reciente a la más antigua
-    historyArray.sort((a, b) => b.semana_inicio.localeCompare(a.semana_inicio));
 
-    contenedor.innerHTML = "";
+    /*
+      Más reciente primero.
+    */
 
-    // Construimos la vista
-    historyArray.forEach(item => {
-      const nombre = mapBarberos[item.barbero_id] || "Barbero";
+    historyArray.sort(
+      (a, b) =>
+        b.semana_inicio.localeCompare(
+          a.semana_inicio
+        )
+    );
 
-      // Calculamos las fechas de inicio y fin a partir de semana_inicio
-      const partes = item.semana_inicio.split("-");
-      const año = parseInt(partes[0], 10);
-      const mes = parseInt(partes[1], 10) - 1;
-      const dia = parseInt(partes[2], 10);
 
-      const fechaInicio = new Date(año, mes, dia);
-      const fechaFin = new Date(año, mes, dia);
-      fechaFin.setDate(fechaInicio.getDate() + 5); // +5 días para el sábado
+    contenedor.innerHTML =
+      "";
 
-      const inicioStr = fechaInicio.toLocaleDateString("es-MX", { day: "2-digit", month: "2-digit", year: "numeric" });
-      const finStr = fechaFin.toLocaleDateString("es-MX", { day: "2-digit", month: "2-digit", year: "numeric" });
 
-      let total = item.total;
-      let trabajador60 = item.es_corte_guardado ? item.trabajador_60 : (total * 0.60);
-      let barberia40 = item.es_corte_guardado ? item.barberia_40 : (total * 0.40);
+    /*
+      Dibujamos cada semana.
+    */
 
-      contenedor.innerHTML += `
-        <div class="history-item">
-          <h3>
-            Semana del ${inicioStr} al ${finStr}
-          </h3>
-          <div class="history-barbero">
-            Barbero:
-            <strong>${nombre}</strong>
+    historyArray.forEach(
+      item => {
+
+        const nombre =
+          mapBarberos[
+            item.barbero_id
+          ] ||
+          "Barbero";
+
+
+        const partes =
+          item.semana_inicio
+            .split("-");
+
+
+        const año =
+          parseInt(
+            partes[0],
+            10
+          );
+
+
+        const mes =
+          parseInt(
+            partes[1],
+            10
+          ) - 1;
+
+
+        const dia =
+          parseInt(
+            partes[2],
+            10
+          );
+
+
+        const fechaInicio =
+          new Date(
+            año,
+            mes,
+            dia
+          );
+
+
+        const fechaFin =
+          new Date(
+            año,
+            mes,
+            dia
+          );
+
+
+        fechaFin.setDate(
+          fechaInicio.getDate() + 5
+        );
+
+
+        const inicioStr =
+          fechaInicio.toLocaleDateString(
+            "es-MX",
+            {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric"
+            }
+          );
+
+
+        const finStr =
+          fechaFin.toLocaleDateString(
+            "es-MX",
+            {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric"
+            }
+          );
+
+
+        const total =
+          Number(
+            item.total || 0
+          );
+
+
+        const trabajador60 =
+          item.es_corte_guardado
+            ? Number(
+                item.trabajador_60 || 0
+              )
+            : total * 0.60;
+
+
+        const barberia40 =
+          item.es_corte_guardado
+            ? Number(
+                item.barberia_40 || 0
+              )
+            : total * 0.40;
+
+
+        contenedor.innerHTML += `
+
+          <div class="history-item">
+
+            <h3>
+
+              Semana del
+              ${inicioStr}
+              al
+              ${finStr}
+
+            </h3>
+
+
+            <div class="history-barbero">
+
+              Barbero:
+
+              <strong>
+                ${nombre}
+              </strong>
+
+            </div>
+
+
+            <div class="history-grid">
+
+
+              <div class="history-box">
+
+                <strong>
+                  Total
+                </strong>
+
+                <br>
+
+                ${dinero(
+                  total
+                )}
+
+              </div>
+
+
+              <div class="history-box">
+
+                <strong>
+                  60% barbero
+                </strong>
+
+                <br>
+
+                ${dinero(
+                  trabajador60
+                )}
+
+              </div>
+
+
+              <div class="history-box">
+
+                <strong>
+                  40% Good Barber
+                </strong>
+
+                <br>
+
+                ${dinero(
+                  barberia40
+                )}
+
+              </div>
+
+
+            </div>
+
           </div>
-          <div class="history-grid">
-            <div class="history-box">
-              <strong>Total</strong>
-              <br>
-              ${dinero(total)}
-            </div>
-            <div class="history-box">
-              <strong>60% barbero</strong>
-              <br>
-              ${dinero(trabajador60)}
-            </div>
-            <div class="history-box">
-              <strong>40% Good Barber</strong>
-              <br>
-              ${dinero(barberia40)}
-            </div>
-          </div>
-        </div>
-      `;
-    });
 
-  } catch (error) {
+        `;
+
+      }
+    );
+
+  }
+
+  catch (error) {
 
     console.error(
       "ERROR HISTORIAL:",
       error
     );
 
+
     contenedor.innerHTML = `
+
       <div class="empty">
-        <h3>No se pudo cargar el historial</h3>
-        <p>${error.message}</p>
+
+        <h3>
+          No se pudo cargar el historial
+        </h3>
+
+        <p>
+          ${error.message}
+        </p>
+
       </div>
+
     `;
 
   }
 
 }
+
 
 /* =========================
    NUEVA SEMANA
@@ -2012,24 +2346,30 @@ function nuevaSemana() {
       "La semana anterior permanecerá guardada en el historial."
     );
 
+
   if (!confirmar) {
     return;
   }
 
+
   crearSemanaLocal();
+
 
   const extra =
     document.getElementById(
       "pagoExtra"
     );
 
+
   if (extra) {
     extra.value = 0;
   }
 
+
   mostrarTab(
     "semana"
   );
+
 
   mostrarStatus(
     "Nueva semana iniciada. El historial anterior permanece guardado.",
@@ -2037,6 +2377,7 @@ function nuevaSemana() {
   );
 
 }
+
 
 /* =========================
    CAMBIAR TAB
@@ -2055,6 +2396,7 @@ function mostrarTab(
       tab !== "semana"
     );
 
+
   document
     .getElementById(
       "resumen"
@@ -2063,6 +2405,7 @@ function mostrarTab(
       "hidden",
       tab !== "resumen"
     );
+
 
   document
     .getElementById(
@@ -2073,6 +2416,7 @@ function mostrarTab(
       tab !== "corte"
     );
 
+
   document
     .getElementById(
       "historial"
@@ -2081,6 +2425,7 @@ function mostrarTab(
       "hidden",
       tab !== "historial"
     );
+
 
   document
     .getElementById(
@@ -2091,6 +2436,7 @@ function mostrarTab(
       tab === "semana"
     );
 
+
   document
     .getElementById(
       "tabResumen"
@@ -2099,6 +2445,7 @@ function mostrarTab(
       "active",
       tab === "resumen"
     );
+
 
   document
     .getElementById(
@@ -2109,6 +2456,7 @@ function mostrarTab(
       tab === "corte"
     );
 
+
   document
     .getElementById(
       "tabHistorial"
@@ -2117,6 +2465,7 @@ function mostrarTab(
       "active",
       tab === "historial"
     );
+
 
   if (
     tab === "historial"
@@ -2127,6 +2476,7 @@ function mostrarTab(
   }
 
 }
+
 
 /* =========================
    PROBAR CONEXION
@@ -2148,19 +2498,19 @@ async function probarConexion() {
 
     }
 
+
     const {
+      data,
       error
     } = await supabase
-
       .from(
         "barberos"
       )
-
       .select(
         "id,nombre"
       )
-
       .limit(1);
+
 
     if (error) {
 
@@ -2168,10 +2518,18 @@ async function probarConexion() {
 
     }
 
+
+    console.log(
+      "SUPABASE CONECTADO:",
+      data
+    );
+
+
     mostrarStatus(
       "Conectado correctamente con Supabase.",
       "ok"
     );
+
 
     await cargarHistorial();
 
@@ -2184,14 +2542,17 @@ async function probarConexion() {
       error
     );
 
+
     mostrarStatus(
-      "No se pudo conectar con Supabase.",
+      "No se pudo conectar con Supabase: " +
+      error.message,
       "error"
     );
 
   }
 
 }
+
 
 /* =========================
    CAMBIO DE BARBERO
@@ -2215,6 +2576,7 @@ document
 
     }
   );
+
 
 /* =========================
    INICIO
