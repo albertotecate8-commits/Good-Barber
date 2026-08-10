@@ -2,249 +2,1293 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0b0b0c">
 <title>Good Barber</title>
+
 <style>
-:root{--bg:#f3f3f5;--card:#fff;--text:#111;--muted:#737373;--line:#e6e6e8;--dark:#0b0b0c;--soft:#ededee;--ok:#16834a}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif}.app{max-width:760px;margin:auto;padding:16px 14px 90px}
-.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}.brand{font-size:24px;font-weight:900;letter-spacing:-.8px}.sub{font-size:12px;color:var(--muted);margin-top:2px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px;margin:12px 0;box-shadow:0 4px 18px #00000007}.hero{background:var(--dark);color:white;border:0}.hero .sub{color:#bdbdbd}
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.metric{background:#f7f7f8;border-radius:15px;padding:13px}.hero .metric{background:#1b1b1d}.metric small{display:block;color:var(--muted);font-size:11px}.hero .metric small{color:#aaa}.metric b{display:block;font-size:19px;margin-top:5px}
-button{border:0;border-radius:12px;padding:11px 14px;background:var(--dark);color:#fff;font-weight:800;font-size:14px}button.soft{background:var(--soft);color:#111}button.green{background:var(--ok)}
-.tabs{display:flex;gap:7px;overflow:auto;margin:10px 0}.tabs button{white-space:nowrap}.hidden{display:none}
-label{display:block;font-size:12px;color:var(--muted);margin:10px 0 5px}input,select{width:100%;padding:12px;border:1px solid #ddd;border-radius:12px;background:#fff;font-size:15px}
-.service{display:grid;grid-template-columns:1fr 65px 90px;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}.service:last-child{border-bottom:0}.right{text-align:right}.muted{color:var(--muted);font-size:12px}
-.row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}.row:last-child{border-bottom:0}.pill{padding:5px 8px;border-radius:999px;background:#eee;font-size:11px}.ok{color:var(--ok);font-weight:800}
-.actions{display:flex;gap:8px;flex-wrap:wrap}.login{max-width:390px;margin:12vh auto}.login .card{text-align:left}
-h2{font-size:19px;margin:4px 0 12px}h3{font-size:16px;margin:4px 0 10px}
-table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:9px 4px;border-bottom:1px solid var(--line)}th{color:var(--muted)}
-@media(max-width:480px){.grid{grid-template-columns:1fr 1fr}.grid .metric:last-child{grid-column:span 2}.service{grid-template-columns:1fr 58px 76px}}
+:root{
+  --bg:#f3f3f5;
+  --card:#fff;
+  --text:#111;
+  --muted:#737373;
+  --line:#e6e6e8;
+  --dark:#101113;
+  --accent:#111;
+}
+
+*{
+  box-sizing:border-box;
+}
+
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+}
+
+button,
+input,
+select{
+  font:inherit;
+}
+
+button{
+  border:0;
+  border-radius:12px;
+  padding:11px 14px;
+  cursor:pointer;
+}
+
+.app{
+  max-width:980px;
+  margin:auto;
+  padding:16px;
+}
+
+.top{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  margin-bottom:14px;
+}
+
+.brand{
+  font-weight:800;
+  font-size:24px;
+}
+
+.sub{
+  color:var(--muted);
+  font-size:13px;
+}
+
+.card{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:16px;
+  margin-bottom:14px;
+  box-shadow:0 2px 10px #00000008;
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:10px;
+}
+
+.metric{
+  background:var(--dark);
+  color:white;
+  border-radius:14px;
+  padding:14px;
+}
+
+.metric b{
+  display:block;
+  font-size:24px;
+  margin-top:5px;
+}
+
+label{
+  display:block;
+  font-size:12px;
+  color:var(--muted);
+  margin-bottom:5px;
+}
+
+input,
+select{
+  width:100%;
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:11px;
+  background:white;
+}
+
+.row{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+
+.primary{
+  background:#111;
+  color:#fff;
+}
+
+.secondary{
+  background:#eee;
+  color:#111;
+}
+
+.danger{
+  background:#ffe7e7;
+  color:#b00020;
+}
+
+.tabs{
+  display:flex;
+  gap:7px;
+  overflow:auto;
+  margin-bottom:12px;
+}
+
+.tabs button{
+  white-space:nowrap;
+}
+
+.tabs .active{
+  background:#111;
+  color:#fff;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+}
+
+th,
+td{
+  padding:10px 7px;
+  border-bottom:1px solid var(--line);
+  text-align:left;
+  font-size:14px;
+}
+
+.small{
+  font-size:12px;
+  color:var(--muted);
+}
+
+.day{
+  font-weight:700;
+}
+
+.money{
+  font-weight:700;
+}
+
+.notice{
+  padding:12px;
+  border-radius:12px;
+  background:#fff6d9;
+  margin-bottom:12px;
+}
+
+.hidden{
+  display:none!important;
+}
+
+.login{
+  max-width:420px;
+  margin:60px auto;
+}
+
+.status{
+  font-size:12px;
+  margin-top:7px;
+  color:var(--muted);
+}
+
+@media(max-width:700px){
+
+  .grid{
+    grid-template-columns:1fr;
+  }
+
+  .app{
+    padding:10px;
+  }
+
+  .card{
+    padding:13px;
+  }
+
+  th,
+  td{
+    font-size:12px;
+  }
+}
 </style>
 </head>
+
 <body>
-<div id="login" class="app login">
- <div class="card">
-  <div class="brand">GOOD BARBER</div><div class="sub">Control de barbería</div>
-  <label>Usuario</label><input id="lu" value="admin">
-  <label>Contraseña</label><input id="lp" type="password" value="1234">
-  <button style="width:100%;margin-top:12px" onclick="enter()">Entrar</button>
-  <p class="muted">Demo inicial: admin / 1234</p>
- </div>
-</div>
 
-<div id="app" class="app hidden">
- <div class="top"><div><div class="brand">GOOD BARBER</div><div class="sub" id="roleText">Administración</div></div><button class="soft" onclick="logout()">Salir</button></div>
- <div class="tabs" id="tabs">
-  <button onclick="show('home')">Inicio</button><button onclick="show('register')">Registrar</button><button onclick="show('history')">Historial</button><button id="staffTab" onclick="show('staff')">Barberos</button><button id="settingsTab" onclick="show('settings')">Ajustes</button>
- </div>
+<div id="app" class="app"></div>
 
- <section id="home">
-  <div class="card hero"><div class="sub">Esta semana</div><h2 style="font-size:23px;margin:4px 0 14px">Resumen</h2>
-   <div class="grid"><div class="metric"><small>Ventas</small><b id="wSales">$0</b></div><div class="metric"><small>Barbero</small><b id="wBarber">$0</b></div><div class="metric"><small>Good Barber</small><b id="wShop">$0</b></div></div>
-  </div>
-  <div class="card"><h3>Estado de la semana</h3><div class="row"><span id="weekText"></span><span id="weekState" class="pill">Abierta</span></div><div class="actions" style="margin-top:10px"><button class="green" id="closeBtn" onclick="closeWeek()">Cerrar semana</button><button class="soft" onclick="reopenWeek()">Reabrir</button></div></div>
-  <div class="card"><h3>Por barbero</h3><div id="byBarber"></div></div>
- </section>
-
- <section id="register" class="hidden">
-  <div class="card">
-    <h2>Registrar semana</h2>
-
-    <label>Barbero</label>
-    <select id="rb"></select>
-
-    <label>Semana</label>
-    <input id="rd" type="date">
-
-    <h3 style="margin-top:20px">Cortes por día</h3>
-
-    <div class="grid">
-      <div class="card">
-        <b>Lunes</b>
-        <input id="q0" type="number" min="0" value="0" placeholder="Cortes">
-      </div>
-
-      <div class="card">
-        <b>Martes</b>
-        <input id="q1" type="number" min="0" value="0" placeholder="Cortes">
-      </div>
-
-      <div class="card">
-        <b>Miércoles</b>
-        <input id="q2" type="number" min="0" value="0" placeholder="Cortes">
-      </div>
-
-      <div class="card">
-        <b>Jueves</b>
-        <input id="q3" type="number" min="0" value="0" placeholder="Cortes">
-      </div>
-
-      <div class="card">
-        <b>Viernes</b>
-        <input id="q4" type="number" min="0" value="0" placeholder="Cortes">
-      </div>
-
-      <div class="card">
-        <b>Sábado</b>
-        <input id="q5" type="number" min="0" value="0" placeholder="Cortes">
-      </div>
-    </div>
-
-    <div class="card" style="margin-top:15px">
-      <h3>Resumen</h3>
-      <p><b>Total de cortes:</b> <span id="weeklyCuts">0</span></p>
-      <p><b>Total generado:</b> <span id="weeklyTotal">$0</span></p>
-      <p><b>60% Barbero:</b> <span id="weeklyBarber">$0</span></p>
-      <p><b>40% Good Barber:</b> <span id="weeklyShop">$0</span></p>
-    </div>
-
-    <label>Forma de pago</label>
-    <select id="pay">
-      <option>Efectivo</option>
-      <option>Transferencia</option>
-      <option>Tarjeta</option>
-    </select>
-
-    <label>Nota</label>
-    <input id="rn" placeholder="Opcional">
-
-    <button
-      style="width:100%;margin-top:15px"
-      onclick="save()">
-      Guardar semana
-    </button>
-  </div>
-</section>
-
- <section id="history" class="hidden"><div class="card"><h2>Historial</h2><label>Mes</label><input id="month" type="month" onchange="history()"><div id="hist"></div></div></section>
- <section id="staff" class="hidden"><div class="card"><h2>Barberos</h2><div id="staffList"></div><input id="newName" placeholder="Nombre del barbero"><button style="margin-top:9px" onclick="addStaff()">Agregar barbero</button></div></section>
- <section id="settings" class="hidden"><div class="card"><h2>Ajustes</h2><label>Porcentaje barbero</label><input id="pb" type="number"><label>Porcentaje Good Barber</label><input id="ps" type="number"><p class="muted">Deben sumar 100%.</p><div id="prices"></div><button onclick="settings()">Guardar ajustes</button></div></section>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-const K="goodbarber_final_v1";
- let S=JSON.parse(localStorage.getItem(K)||"null");
- let role="admin";
-const SUPABASE_URL="https://smswcsbxefeeugabqfb.supabase.co";
-const SUPABASE_KEY="sb_publishable_IyoPemj_PIq71ykyF5LHoA_RJEvFKTb";
- 
- const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
-async function cargarBarberos(){
-  const {data,error}=await db
-    .from("barberos")
-    .select("id,nombre")
-    .order("nombre");
+/*
+ GOOD BARBER
+ Sistema automático de registro de cortes.
 
-  if(error){
-  console.error("SUPABASE ERROR:", error);
-  alert("ERROR SUPABASE: " + JSON.stringify(error));
-  return;
+ Funciones:
+ - Selección automática de trabajador
+ - Registro de lunes a sábado
+ - Cortes diarios
+ - Dinero diario
+ - 60% trabajador
+ - 40% Good Barber
+ - Resumen semanal
+ - Historial local de respaldo
+ - Conexión con Supabase
+*/
+
+const LOCAL_KEY="good_barber_data_v3";
+
+const DEFAULT_BARBERS=[
+  "Alberto",
+  "Joaquín"
+];
+
+const DAYS=[
+  ["lunes","Lunes"],
+  ["martes","Martes"],
+  ["miercoles","Miércoles"],
+  ["jueves","Jueves"],
+  ["viernes","Viernes"],
+  ["sabado","Sábado"]
+];
+
+let db=null;
+
+let barberos=[];
+
+let currentBarber="";
+
+let weekKey=getWeekKey(new Date());
+
+let records=loadLocal();
+
+let config={};
+
+
+/* INICIO */
+
+async function init(){
+
+  config=await loadConfig();
+
+  if(
+    config.url &&
+    config.key &&
+    window.supabase
+  ){
+
+    try{
+
+      db=window.supabase.createClient(
+        config.url,
+        config.key
+      );
+
+    }catch(e){
+
+      console.warn(e);
+
+    }
+
+  }
+
+  renderLogin();
+
 }
-  }
-
-  S.barbers=data.map(b=>b.nombre);
-
-  rb.innerHTML='<option value="">Selecciona un barbero</option>'+
-    data.map(b=>`<option value="${b.nombre}">${b.nombre}</option>`).join("");
 
 
-  saveS();
-  render();
+/* CARGAR CONFIGURACIÓN SUPABASE */
+
+async function loadConfig(){
+
+  let c={};
+
+  try{
+
+    if(window.GOOD_BARBER_SUPABASE){
+
+      c=window.GOOD_BARBER_SUPABASE;
+
+    }
+
+  }catch(e){}
+
+
+  try{
+
+    const r=await fetch(
+      "supabase-config.js",
+      {
+        cache:"no-store"
+      }
+    );
+
+    if(r.ok){
+
+      const t=await r.text();
+
+      const url=
+        (t.match(
+          /SUPABASE_URL\s*=\s*["']([^"']+)/
+        )||[])[1];
+
+      const key=
+        (t.match(
+          /SUPABASE_KEY\s*=\s*["']([^"']+)/
+        )||[])[1];
+
+      if(url && key){
+
+        c={
+          url,
+          key
+        };
+
+      }
+
+    }
+
+  }catch(e){}
+
+  return c;
+
 }
- cargarBarberos();
-function saveS(){localStorage.setItem(K,JSON.stringify(S))}
-function money(n){return "$"+Math.round(n||0).toLocaleString("es-MX")}
-function monday(s){let d=new Date(s+"T12:00:00"),n=d.getDay();d.setDate(d.getDate()+(n===0?-6:1-n));return d.toISOString().slice(0,10)}
-function weekKey(d){return monday(d)}
-function weekEnd(s){let d=new Date(s+"T12:00:00");d.setDate(d.getDate()+5);return d.toISOString().slice(0,10)}
-function inCurrent(e){let s=weekKey(new Date().toISOString().slice(0,10));return e.date>=s&&e.date<=weekEnd(s)}
-function total(e){return S.prices.reduce((a,p,i)=>a+(e.q[i]||0)*p[1],0)}
-function enter(){let u=lu.value.trim(),p=lp.value;if(u==="admin"&&p==="1234"){localStorage.setItem("gb_login","1");open()}else{alert("Usuario o contraseña incorrectos")}}
-function open(){login.classList.add("hidden");app.classList.remove("hidden");render()}
-function logout(){localStorage.removeItem("gb_login");location.reload()}
-function show(id){["home","register","history","staff","settings"].forEach(x=>document.getElementById(x).classList.toggle("hidden",x!==id));render()}
-function render(){
- roleText.textContent=role==="admin"?"Administración":"Barbero";
- staffTab.classList.toggle("hidden",role!=="admin");settingsTab.classList.toggle("hidden",role!=="admin");
- let es=S.entries.filter(inCurrent),t=es.reduce((a,e)=>a+total(e),0),wk=weekKey(new Date().toISOString().slice(0,10));
- wSales.textContent=money(t);wBarber.textContent=money(t*S.pb/100);wShop.textContent=money(t*S.ps/100);
- weekText.textContent=wk+" → "+weekEnd(wk);let closed=S.closed.includes(wk);weekState.textContent=closed?"Cerrada":"Abierta";weekState.className="pill "+(closed?"ok":"");closeBtn.disabled=closed;closeBtn.textContent=closed?"Semana cerrada":"Cerrar semana";
- let by={};es.forEach(e=>by[e.barber]=(by[e.barber]||0)+total(e));byBarber.innerHTML=Object.entries(by).map(([n,v])=>`<div class="row"><span>${n}</span><b>${money(v)} <span class="muted">· recibe ${money(v*S.pb/100)}</span></b></div>`).join("")||'<p class="muted">Sin ventas esta semana.</p>';
- rb.innerHTML=S.barbers.map(x=>`<option>${x}</option>`).join("");svc.innerHTML=S.prices.map((p,i)=>`<div class="service"><div><b>${p[0]}</b><div class="muted">${money(p[1])} c/u</div></div><input id="q${i}" type="number" min="0" value="0" oninput="rtotal()"><div class="right" id="l${i}">$0</div></div>`).join("");rd.value=rd.value||new Date().toISOString().slice(0,10);rtotal();
- month.value=month.value||new Date().toISOString().slice(0,7);history();staff();config()
+
+
+/* DATOS LOCALES */
+
+function loadLocal(){
+
+  try{
+
+    return JSON.parse(
+      localStorage.getItem(LOCAL_KEY)||"{}"
+    );
+
+  }catch(e){
+
+    return {};
+
+  }
+
 }
-function rtotal(){let t=0;S.prices.forEach((p,i)=>{let q=+(document.getElementById("q"+i)?.value||0),v=q*p[1];t+=v;if(document.getElementById("l"+i))document.getElementById("l"+i).textContent=money(v)});rt.textContent=money(t)}
-function save(){
-  let wk=weekKey(rd.value);
 
-  if(!rd.value){
-    alert("Selecciona la semana.");
-    return;
+
+function saveLocal(){
+
+  localStorage.setItem(
+    LOCAL_KEY,
+    JSON.stringify(records)
+  );
+
+}
+
+
+/* SEMANA */
+
+function getWeekKey(d){
+
+  const x=new Date(d);
+
+  const day=(x.getDay()+6)%7;
+
+  x.setDate(
+    x.getDate()-day
+  );
+
+  return x.toISOString().slice(0,10);
+
+}
+
+
+/* DINERO */
+
+function money(n){
+
+  return "$"+
+    Number(n||0).toLocaleString(
+      "es-MX",
+      {
+        minimumFractionDigits:0,
+        maximumFractionDigits:2
+      }
+    );
+
+}
+
+
+/* SEGURIDAD HTML */
+
+function esc(s){
+
+  return String(s??"").replace(
+    /[&<>"']/g,
+    m=>({
+      "&":"&amp;",
+      "<":"&lt;",
+      ">":"&gt;",
+      '"':"&quot;",
+      "'":"&#039;"
+    }[m])
+  );
+
+}
+
+
+/* CLAVE DE REGISTRO */
+
+function recordKey(
+  barber,
+  day
+){
+
+  return weekKey+
+    "|"+
+    barber+
+    "|"+
+    day;
+
+}
+
+
+/* OBTENER REGISTRO */
+
+function getRecord(
+  barber,
+  day
+){
+
+  return records[
+    recordKey(
+      barber,
+      day
+    )
+  ]||{
+    cuts:0,
+    total:0
+  };
+
+}
+
+
+/* GUARDAR REGISTRO */
+
+function setRecord(
+  barber,
+  day,
+  cuts,
+  total
+){
+
+  records[
+    recordKey(
+      barber,
+      day
+    )
+  ]={
+    cuts:Number(cuts)||0,
+    total:Number(total)||0
+  };
+
+  saveLocal();
+
+}
+
+
+/* CARGAR BARBEROS */
+
+async function loadBarbers(){
+
+  if(db){
+
+    try{
+
+      const {
+        data,
+        error
+      }=await db
+        .from("barberos")
+        .select("id,nombre")
+        .order("nombre");
+
+      if(
+        !error &&
+        data?.length
+      ){
+
+        barberos=
+          data
+          .map(x=>x.nombre)
+          .filter(Boolean);
+
+        return;
+
+      }
+
+    }catch(e){}
+
   }
 
-  if(!rb.value){
-    alert("Selecciona un barbero.");
-    return;
-  }
-
-  if(S.closed.includes(wk)){
-    alert("Esta semana ya está cerrada.");
-    return;
-  }
-
-  let q=[
-    +(document.getElementById("q0").value||0),
-    +(document.getElementById("q1").value||0),
-    +(document.getElementById("q2").value||0),
-    +(document.getElementById("q3").value||0),
-    +(document.getElementById("q4").value||0),
-    +(document.getElementById("q5").value||0)
+  barberos=[
+    ...DEFAULT_BARBERS
   ];
 
-  let cortes=q.reduce((a,b)=>a+b,0);
+}
 
-  if(cortes<=0){
-    alert("Registra al menos un corte.");
-    return;
-  }
 
-  let total=S.prices.reduce((a,p,i)=>a+(q[i]||0)*p,0);
-  let barber=total*0.60;
-  let shop=total*0.40;
+/* LOGIN */
 
-  S.entries.push({
-    id:Date.now(),
-    barber:rb.value,
-    date:rd.value,
-    q:q,
-    pay:pay.value,
-    note:rn.value,
-    total:total
+function renderLogin(){
+
+  document.getElementById("app").innerHTML=`
+
+    <div class="login">
+
+      <div class="card">
+
+        <div class="brand">
+          GOOD BARBER
+        </div>
+
+        <div
+          class="sub"
+          style="margin:4px 0 18px"
+        >
+          Control de cortes y dinero
+        </div>
+
+        <label>
+          Trabajador
+        </label>
+
+        <select id="loginBarber">
+
+          <option value="">
+            Selecciona un trabajador
+          </option>
+
+          ${DEFAULT_BARBERS.map(
+            x=>`
+              <option>
+                ${esc(x)}
+              </option>
+            `
+          ).join("")}
+
+        </select>
+
+        <button
+          class="primary"
+          style="width:100%;margin-top:12px"
+          onclick="enterApp()"
+        >
+          Entrar
+        </button>
+
+        <div
+          id="loginStatus"
+          class="status"
+        >
+          Cargando trabajadores…
+        </div>
+
+      </div>
+
+    </div>
+
+  `;
+
+
+  loadBarbers().then(()=>{
+
+    const s=
+      document.getElementById(
+        "loginBarber"
+      );
+
+    if(!s)return;
+
+    s.innerHTML=
+      `
+      <option value="">
+        Selecciona un trabajador
+      </option>
+      `+
+      barberos.map(
+        x=>`
+          <option value="${esc(x)}">
+            ${esc(x)}
+          </option>
+        `
+      ).join("");
+
+
+    document.getElementById(
+      "loginStatus"
+    ).textContent=
+      db
+      ?
+      "Conectado a Supabase"
+      :
+      "Modo local de respaldo";
+
   });
 
-  saveS();
-
-  document.getElementById("weeklyCuts").textContent=cortes;
-  document.getElementById("weeklyTotal").textContent=money(total);
-  document.getElementById("weeklyBarber").textContent=money(barber);
-  document.getElementById("weeklyShop").textContent=money(shop);
-
-  alert("Semana guardada correctamente.");
-  render();
 }
-function closeWeek(){let wk=weekKey(new Date().toISOString().slice(0,10));if(!S.closed.includes(wk))S.closed.push(wk);saveS();render()}
-function reopenWeek(){let wk=weekKey(new Date().toISOString().slice(0,10));S.closed=S.closed.filter(x=>x!==wk);saveS();render()}
-function history(){
- let m=month.value||new Date().toISOString().slice(0,7),es=S.entries.filter(e=>e.date.startsWith(m)),t=es.reduce((a,e)=>a+total(e),0);
- hist.innerHTML=`<p><b>Total ${money(t)}</b> · Barberos ${money(t*S.pb/100)} · Good Barber ${money(t*S.ps/100)}</p>`+(es.length?`<table><tr><th>Fecha</th><th>Barbero</th><th>Pago</th><th>Total</th></tr>${es.slice().reverse().map(e=>`<tr><td>${e.date}</td><td>${e.barber}</td><td>${e.pay}</td><td>${money(total(e))}</td></tr>`).join("")}</table>`:'<p class="muted">Sin registros.</p>')
+
+
+/* ENTRAR */
+
+function enterApp(){
+
+  const s=
+    document.getElementById(
+      "loginBarber"
+    );
+
+  if(!s.value){
+
+    alert(
+      "Selecciona un trabajador."
+    );
+
+    return;
+
+  }
+
+  currentBarber=s.value;
+
+  renderDashboard();
+
 }
-function addStaff(){let n=newName.value.trim();if(n&&!S.barbers.includes(n)){S.barbers.push(n);newName.value="";saveS();render()}}
-function staff(){staffList.innerHTML=S.barbers.map(n=>`<div class="row"><span>${n}</span><span class="pill">Activo</span></div>`).join("")}
-function config(){pb.value=S.pb;ps.value=S.ps;prices.innerHTML=S.prices.map((p,i)=>`<div class="row"><span>${p[0]}</span><input id="pr${i}" style="max-width:100px" type="number" value="${p[1]}"></div>`).join("")}
-function settings(){let a=+pb.value,b=+ps.value;if(a+b!==100)return alert("Los porcentajes deben sumar 100%.");S.pb=a;S.ps=b;S.prices.forEach((p,i)=>p[1]=+document.getElementById("pr"+i).value||0);saveS();alert("Ajustes guardados");render()}
-if(localStorage.getItem("gb_login")==="1")open();
+
+
+/* PANEL PRINCIPAL */
+
+function renderDashboard(){
+
+  const total=
+    DAYS.reduce(
+      (a,[d])=>
+        a+
+        Number(
+          getRecord(
+            currentBarber,
+            d
+          ).total
+        ),
+      0
+    );
+
+
+  const cuts=
+    DAYS.reduce(
+      (a,[d])=>
+        a+
+        Number(
+          getRecord(
+            currentBarber,
+            d
+          ).cuts
+        ),
+      0
+    );
+
+
+  const worker=
+    total*.60;
+
+  const shop=
+    total*.40;
+
+
+  document.getElementById(
+    "app"
+  ).innerHTML=`
+
+    <div class="top">
+
+      <div>
+
+        <div class="brand">
+          GOOD BARBER
+        </div>
+
+        <div class="sub">
+          ${esc(currentBarber)}
+          · Semana del
+          ${formatDate(weekKey)}
+        </div>
+
+      </div>
+
+      <button
+        class="secondary"
+        onclick="renderLogin()"
+      >
+        Cambiar trabajador
+      </button>
+
+    </div>
+
+
+    <div class="card">
+
+      <div class="tabs">
+
+        <button
+          class="active"
+          onclick="showTab('semana',this)"
+        >
+          Semana
+        </button>
+
+        <button
+          onclick="showTab('resumen',this)"
+        >
+          Resumen
+        </button>
+
+      </div>
+
+
+      <div id="tab-semana"></div>
+
+      <div
+        id="tab-resumen"
+        class="hidden"
+      ></div>
+
+    </div>
+
+  `;
+
+
+  renderWeek();
+
+  renderSummary();
+
+}
+
+
+/* CAMBIAR PESTAÑA */
+
+function showTab(
+  id,
+  btn
+){
+
+  document
+    .querySelectorAll(
+      "[id^=tab-]"
+    )
+    .forEach(
+      x=>x.classList.add(
+        "hidden"
+      )
+    );
+
+
+  document
+    .getElementById(
+      "tab-"+id
+    )
+    .classList.remove(
+      "hidden"
+    );
+
+
+  document
+    .querySelectorAll(
+      ".tabs button"
+    )
+    .forEach(
+      x=>x.classList.remove(
+        "active"
+      )
+    );
+
+
+  btn.classList.add(
+    "active"
+  );
+
+}
+
+
+/* SEMANA */
+
+function renderWeek(){
+
+  const html=
+    DAYS.map(
+      ([key,label])=>{
+
+        const r=
+          getRecord(
+            currentBarber,
+            key
+          );
+
+
+        return `
+
+          <div class="card">
+
+            <div
+              class="row"
+              style="justify-content:space-between"
+            >
+
+              <div>
+
+                <div class="day">
+                  ${label}
+                </div>
+
+                <div class="small">
+
+                  ${
+                    key==="sabado"
+                    ?
+                    "Corte y cierre semanal"
+                    :
+                    "Registro diario"
+                  }
+
+                </div>
+
+              </div>
+
+
+              <div class="money">
+                ${money(r.total)}
+              </div>
+
+            </div>
+
+
+            <div
+              class="grid"
+              style="margin-top:10px"
+            >
+
+              <div>
+
+                <label>
+                  Cortes
+                </label>
+
+                <input
+                  id="cuts-${key}"
+                  type="number"
+                  min="0"
+                  value="${r.cuts}"
+                >
+
+              </div>
+
+
+              <div>
+
+                <label>
+                  Dinero del día
+                </label>
+
+                <input
+                  id="total-${key}"
+                  type="number"
+                  min="0"
+                  step="1"
+                  value="${r.total}"
+                >
+
+              </div>
+
+
+              <div
+                style="display:flex;align-items:end"
+              >
+
+                <button
+                  class="primary"
+                  style="width:100%"
+                  onclick="saveDay('${key}')"
+                >
+                  Guardar día
+                </button>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        `;
+
+      }
+    ).join("");
+
+
+  document.getElementById(
+    "tab-semana"
+  ).innerHTML=
+    html+
+    `
+
+      <div class="row">
+
+        <button
+          class="secondary"
+          onclick="clearWeek()"
+        >
+          Borrar semana
+        </button>
+
+        <span class="small">
+
+          Los datos se guardan
+          automáticamente en este
+          dispositivo.
+
+        </span>
+
+      </div>
+
+    `;
+
+}
+
+
+/* RESUMEN */
+
+function renderSummary(){
+
+  const total=
+    DAYS.reduce(
+      (a,[d])=>
+        a+
+        Number(
+          getRecord(
+            currentBarber,
+            d
+          ).total
+        ),
+      0
+    );
+
+
+  const cuts=
+    DAYS.reduce(
+      (a,[d])=>
+        a+
+        Number(
+          getRecord(
+            currentBarber,
+            d
+          ).cuts
+        ),
+      0
+    );
+
+
+  const worker=
+    total*.60;
+
+  const shop=
+    total*.40;
+
+
+  document.getElementById(
+    "tab-resumen"
+  ).innerHTML=`
+
+    <div class="grid">
+
+      <div class="metric">
+
+        <span>
+          Cortes
+        </span>
+
+        <b>
+          ${cuts}
+        </b>
+
+      </div>
+
+
+      <div class="metric">
+
+        <span>
+          Total
+        </span>
+
+        <b>
+          ${money(total)}
+        </b>
+
+      </div>
+
+
+      <div class="metric">
+
+        <span>
+          60% trabajador
+        </span>
+
+        <b>
+          ${money(worker)}
+        </b>
+
+      </div>
+
+    </div>
+
+
+    <div
+      class="grid"
+      style="margin-top:10px"
+    >
+
+      <div class="card">
+
+        <div class="small">
+          40% Good Barber
+        </div>
+
+        <div class="brand">
+          ${money(shop)}
+        </div>
+
+      </div>
+
+
+      <div class="card">
+
+        <div class="small">
+          Promedio por corte
+        </div>
+
+        <div class="brand">
+          ${money(
+            cuts
+            ?
+            total/cuts
+            :
+            0
+          )}
+        </div>
+
+      </div>
+
+
+      <div class="card">
+
+        <div class="small">
+          Semana
+        </div>
+
+        <div class="brand">
+          ${formatDate(weekKey)}
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <div class="card">
+
+      <table>
+
+        <thead>
+
+          <tr>
+
+            <th>
+              Día
+            </th>
+
+            <th>
+              Cortes
+            </th>
+
+            <th>
+              Total
+            </th>
+
+            <th>
+              60%
+            </th>
+
+            <th>
+              40%
+            </th>
+
+          </tr>
+
+        </thead>
+
+
+        <tbody>
+
+          ${DAYS.map(
+            ([d,l])=>{
+
+              const r=
+                getRecord(
+                  currentBarber,
+                  d
+                );
+
+              const t=
+                Number(r.total);
+
+
+              return `
+
+                <tr>
+
+                  <td>
+                    ${l}
+                  </td>
+
+                  <td>
+                    ${r.cuts}
+                  </td>
+
+                  <td>
+                    ${money(t)}
+                  </td>
+
+                  <td>
+                    ${money(t*.6)}
+                  </td>
+
+                  <td>
+                    ${money(t*.4)}
+                  </td>
+
+                </tr>
+
+              `;
+
+            }
+          ).join("")}
+
+        </tbody>
+
+      </table>
+
+    </div>
+
+  `;
+
+}
+
+
+/* GUARDAR DÍA */
+
+function saveDay(day){
+
+  const cuts=
+    document.getElementById(
+      "cuts-"+day
+    ).value;
+
+
+  const total=
+    document.getElementById(
+      "total-"+day
+    ).value;
+
+
+  setRecord(
+    currentBarber,
+    day,
+    cuts,
+    total
+  );
+
+
+  renderDashboard();
+
+
+  alert(
+    "Guardado correctamente."
+  );
+
+}
+
+
+/* BORRAR SEMANA */
+
+function clearWeek(){
+
+  if(
+    !confirm(
+      "¿Borrar todos los registros de esta semana para "+
+      currentBarber+
+      "?"
+    )
+  ){
+
+    return;
+
+  }
+
+
+  DAYS.forEach(
+    ([d])=>
+      delete records[
+        recordKey(
+          currentBarber,
+          d
+        )
+      ]
+  );
+
+
+  saveLocal();
+
+  renderDashboard();
+
+}
+
+
+/* FECHA */
+
+function formatDate(s){
+
+  const d=
+    new Date(
+      s+"T12:00:00"
+    );
+
+
+  return d.toLocaleDateString(
+    "es-MX",
+    {
+      day:"2-digit",
+      month:"2-digit",
+      year:"numeric"
+    }
+  );
+
+}
+
+
+/* INICIAR */
+
+init();
+
 </script>
+
 </body>
 </html>
