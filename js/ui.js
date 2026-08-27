@@ -95,6 +95,38 @@ export function escapeHtml(value) {
     .replace(/'/g, "&#039;");
 }
 
+// =========================================================
+// DIAGNÓSTICO TEMPORAL — quitar una vez resuelto el problema de conexión
+// con Supabase. Extrae el detalle técnico real de un error (sin mostrar
+// nunca contraseñas ni claves) para saber si es un fallo de red/CORS antes
+// de llegar a Supabase, o una respuesta real de Supabase con otro problema.
+// =========================================================
+export function diagnoseSupabaseError(context, error) {
+  const isNetworkLevel =
+    error?.name === "AuthRetryableFetchError" || error?.status === 0 || error?.status === undefined;
+  return {
+    context,
+    name: error?.name || error?.constructor?.name || null,
+    message: String(error?.message || error || ""),
+    status: error?.status ?? null,
+    code: error?.code ?? null,
+    isNetworkLevel,
+    supabaseUrl: window.__SUPABASE_URL_FOR_DIAGNOSTICS__ || null,
+  };
+}
+
+export function formatDiagnostics(details) {
+  return [
+    `Contexto: ${details.context}`,
+    `Nombre del error: ${details.name || "—"}`,
+    `Status HTTP: ${details.status ?? "— (sin respuesta HTTP)"}`,
+    `Código: ${details.code || "—"}`,
+    `Mensaje: ${details.message}`,
+    `¿Bloqueado antes de llegar a Supabase (red/CORS)?: ${details.isNetworkLevel ? "Sí" : "No — Supabase respondió"}`,
+    `URL de Supabase: ${details.supabaseUrl || "—"}`,
+  ].join("\n");
+}
+
 export function friendlyError(error) {
   const msg = String(error?.message || error || "");
   // "Failed to fetch" es el mensaje de Chrome/V8 para un fetch() que no pudo

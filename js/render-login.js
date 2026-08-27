@@ -1,5 +1,5 @@
 import { signIn, requestPasswordReset } from "./auth.js";
-import { toast, friendlyError, showLoading } from "./ui.js";
+import { toast, friendlyError, showLoading, diagnoseSupabaseError, formatDiagnostics, escapeHtml } from "./ui.js";
 
 export function renderLogin(root, { onSignedIn }) {
   root.innerHTML = `
@@ -55,7 +55,19 @@ export function renderLogin(root, { onSignedIn }) {
       await signIn(email, password);
       onSignedIn();
     } catch (error) {
-      errorBox.textContent = friendlyError(error);
+      // Diagnóstico temporal: además del mensaje amigable, mostramos un
+      // detalle técnico plegable (nunca contraseñas ni claves) para
+      // identificar exactamente qué está fallando en la conexión con
+      // Supabase. Quitar este bloque <details> una vez resuelto.
+      const details = diagnoseSupabaseError("signInWithPassword", error);
+      console.error("[Good Barber diagnóstico Supabase]", details);
+      errorBox.innerHTML = `
+        ${escapeHtml(friendlyError(error))}
+        <details class="mt-8" style="font-size:12px;opacity:0.85">
+          <summary style="cursor:pointer">Detalle técnico (temporal, para diagnóstico)</summary>
+          <pre style="white-space:pre-wrap;margin-top:6px">${escapeHtml(formatDiagnostics(details))}</pre>
+        </details>
+      `;
       errorBox.classList.remove("hidden");
     } finally {
       submitBtn.disabled = false;

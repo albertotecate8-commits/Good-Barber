@@ -9,3 +9,7 @@ const supabaseClient = window.supabase.createClient(
 
 window.supabaseClient = supabaseClient;
 window.supabase = supabaseClient;
+
+// Diagnóstico temporal: SUPABASE_URL ya es pública (se ve en cualquier
+// petición de red), así que exponerla aquí para depuración no es un riesgo.
+window.__SUPABASE_URL_FOR_DIAGNOSTICS__ = SUPABASE_URL;
