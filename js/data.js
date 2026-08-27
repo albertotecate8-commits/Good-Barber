@@ -191,26 +191,10 @@ export async function listPromotionsForRange(barberId, startISO, endISO) {
 }
 
 // ---------- weekly_periods ----------
-export async function getOrCreateWeeklyPeriod(barberId, startISO, endISO) {
-  const existing = unwrap(
-    await sb().from("weekly_periods").select("*").eq("barber_id", barberId).eq("week_start_date", startISO).maybeSingle()
-  );
-  if (existing) return existing;
-  return unwrap(
-    await sb()
-      .from("weekly_periods")
-      .insert({ barber_id: barberId, week_start_date: startISO, week_end_date: endISO, status: "open" })
-      .select()
-      .single()
-  );
-}
-
-export async function setWeeklyPeriodStatus(periodId, status) {
-  const patch = { status };
-  if (status === "closed") patch.closed_at = new Date().toISOString();
-  return unwrap(await sb().from("weekly_periods").update(patch).eq("id", periodId).select().single());
-}
-
+// Crear/cerrar un weekly_period ya no se hace con llamadas separadas desde aquí
+// (ver closeWeeklySettlement): esa secuencia check-then-insert tenía una
+// condición de carrera bajo cierres concurrentes. Se sustituyó por el RPC
+// close_weekly_settlement, que hace ambas escrituras en una sola transacción.
 export async function listWeeklyPeriods(barberId) {
   return unwrap(
     await sb().from("weekly_periods").select("*").eq("barber_id", barberId).order("week_start_date", { ascending: false })
@@ -232,6 +216,46 @@ export async function upsertSettlement(payload) {
       .select()
       .single()
   );
+}
+
+// Cierra una semana de forma atómica (crea/actualiza weekly_period + settlement
+// en una sola transacción del lado del servidor). Evita la condición de carrera
+// de hacer ambas escrituras por separado desde el navegador.
+export async function closeWeeklySettlement({
+  barberId,
+  weekStart,
+  weekEnd,
+  totalCents,
+  extraAdjustmentCents,
+  barberPercentage,
+  barberShareCents,
+  businessShareCents,
+}) {
+  return unwrap(
+    await sb().rpc("close_weekly_settlement", {
+      p_barber_id: barberId,
+      p_week_start: weekStart,
+      p_week_end: weekEnd,
+      p_total_cents: totalCents,
+      p_extra_adjustment_cents: extraAdjustmentCents,
+      p_barber_percentage: barberPercentage,
+      p_barber_share_cents: barberShareCents,
+      p_business_share_cents: businessShareCents,
+    })
+  );
+}
+
+// Detecta si ya se importaron datos de una migración anterior (busca el
+// texto que migration.js escribe en `notes`), para avisar antes de duplicar.
+export async function countMigratedRecords(barberIds) {
+  if (!barberIds.length) return 0;
+  const { count, error } = await sb()
+    .from("service_records")
+    .select("id", { count: "exact", head: true })
+    .in("barber_id", barberIds)
+    .ilike("notes", "Migrado automáticamente%");
+  if (error) throw error;
+  return count || 0;
 }
 
 export async function cancelSettlement(settlementId) {

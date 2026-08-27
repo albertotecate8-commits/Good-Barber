@@ -2,8 +2,8 @@ import * as data from "./data.js";
 import { toast, friendlyError, showLoading, confirmDialog, openModal, escapeHtml } from "./ui.js";
 import { formatCents, toCents } from "./money.js";
 import { dayTotalCents, groupRecordsByDate, weekTotalCents, settlementBreakdown, recordsTotalCents } from "./calc.js";
-import { startOfWeek, endOfWeek, toISODate, todayISO, weekLabel, formatDateText } from "./dates.js";
-import { readLegacyData, summarizeLegacyData, migrateLegacyData } from "./migration.js";
+import { startOfWeek, endOfWeek, toISODate, todayISO, weekLabel, formatDateText, parseISODate } from "./dates.js";
+import { readLegacyData, summarizeLegacyData, migrateLegacyData, checkAlreadyMigrated } from "./migration.js";
 
 const NAV_ITEMS = [
   { id: "dashboard", label: "Dashboard", icon: "📊" },
@@ -377,8 +377,12 @@ export async function renderAdminSales(container) {
     });
 
     try {
-      const records = await data.listAllRecordsForRange(state.start, state.end);
+      const [records, settlements] = await Promise.all([data.listAllRecordsForRange(state.start, state.end), data.listSettlements()]);
       const total = recordsTotalCents(records.filter((r) => r.status === "completed"));
+      const closedWeekKeys = new Set(
+        settlements.filter((s) => s.status !== "cancelled").map((s) => `${s.barber_id}|${s.week_start_date}`)
+      );
+      const weekKeyForRecord = (r) => `${r.barber_id}|${toISODate(startOfWeek(parseISODate(r.record_date)))}`;
 
       container.querySelector("#sales-table").innerHTML = `
         <table>
@@ -410,9 +414,19 @@ export async function renderAdminSales(container) {
         <div class="card-row"><strong>Total del rango</strong><strong>${formatCents(total)}</strong></div>
       `;
 
-      container.querySelectorAll("[data-cancel]").forEach((btn) =>
+      const closedWeekWarning =
+        " Esta fecha pertenece a una semana ya cerrada (tiene un corte guardado) — el total de ese corte NO se recalculará automáticamente; si corresponde, cierra la semana de nuevo desde \"Semanas\" después de este cambio.";
+
+      container.querySelectorAll("[data-cancel]").forEach((btn) => {
+        const record = records.find((r) => r.id === btn.dataset.cancel);
+        const inClosedWeek = record && closedWeekKeys.has(weekKeyForRecord(record));
         btn.addEventListener("click", async () => {
-          const ok = await confirmDialog({ title: "Cancelar registro", message: "¿Cancelar este servicio?", confirmLabel: "Cancelar", danger: true });
+          const ok = await confirmDialog({
+            title: "Cancelar registro",
+            message: "¿Cancelar este servicio?" + (inClosedWeek ? closedWeekWarning : ""),
+            confirmLabel: "Cancelar",
+            danger: true,
+          });
           if (!ok) return;
           showLoading(true);
           try {
@@ -424,10 +438,20 @@ export async function renderAdminSales(container) {
           } finally {
             showLoading(false);
           }
-        })
-      );
-      container.querySelectorAll("[data-reopen]").forEach((btn) =>
+        });
+      });
+      container.querySelectorAll("[data-reopen]").forEach((btn) => {
+        const record = records.find((r) => r.id === btn.dataset.reopen);
+        const inClosedWeek = record && closedWeekKeys.has(weekKeyForRecord(record));
         btn.addEventListener("click", async () => {
+          if (inClosedWeek) {
+            const ok = await confirmDialog({
+              title: "Reabrir registro",
+              message: "¿Reabrir este servicio?" + closedWeekWarning,
+              confirmLabel: "Reabrir",
+            });
+            if (!ok) return;
+          }
           showLoading(true);
           try {
             await data.reopenServiceRecord(btn.dataset.reopen);
@@ -438,8 +462,8 @@ export async function renderAdminSales(container) {
           } finally {
             showLoading(false);
           }
-        })
-      );
+        });
+      });
     } catch (error) {
       container.querySelector("#sales-table").innerHTML = `<div class="text-danger" style="padding:20px">${escapeHtml(friendlyError(error))}</div>`;
     }
@@ -540,19 +564,15 @@ function openSettlementForm({ barber, total, existingSettlement }, weekStart, we
     const { finalTotal, barberShare, businessShare } = settlementBreakdown({ totalCents: total, extraAdjustmentCents: extraCents, barberPercentage: barberPct });
     showLoading(true, "Guardando corte…");
     try {
-      const period = await data.getOrCreateWeeklyPeriod(barber.id, weekStart, weekEnd);
-      await data.setWeeklyPeriodStatus(period.id, "closed");
-      await data.upsertSettlement({
-        weekly_period_id: period.id,
-        barber_id: barber.id,
-        week_start_date: weekStart,
-        week_end_date: weekEnd,
-        total_cents: finalTotal,
-        extra_adjustment_cents: extraCents,
-        barber_percentage: barberPct,
-        barber_share_cents: barberShare,
-        business_share_cents: businessShare,
-        status: "completed",
+      await data.closeWeeklySettlement({
+        barberId: barber.id,
+        weekStart,
+        weekEnd,
+        totalCents: finalTotal,
+        extraAdjustmentCents: extraCents,
+        barberPercentage: barberPct,
+        barberShareCents: barberShare,
+        businessShareCents: businessShare,
       });
       toast("Corte guardado.", "success");
       close();
@@ -685,14 +705,25 @@ export async function renderAdminSettings(container) {
 
     const migrateBtn = container.querySelector("#migrate-btn");
     if (migrateBtn) {
-      migrateBtn.addEventListener("click", () => openMigrationDialog(legacy, legacySummary, barbers));
+      migrateBtn.addEventListener("click", async () => {
+        showLoading(true, "Verificando…");
+        try {
+          const services = await data.listServices(false);
+          const priorCount = await checkAlreadyMigrated(barbers.map((b) => b.id));
+          openMigrationDialog(legacy, legacySummary, barbers, services, priorCount);
+        } catch (error) {
+          toast(friendlyError(error), "error");
+        } finally {
+          showLoading(false);
+        }
+      });
     }
   } catch (error) {
     container.innerHTML = `<div class="card text-danger">${escapeHtml(friendlyError(error))}</div>`;
   }
 }
 
-function openMigrationDialog(legacy, summary, barbers) {
+function openMigrationDialog(legacy, summary, barbers, services, priorCount) {
   const legacyNames = new Set();
   Object.keys(legacy.semanas || {}).forEach((k) => legacyNames.add(k.split("|")[0]));
   Object.values(legacy.cortes || {}).forEach((c) => legacyNames.add(c.barbero));
@@ -701,6 +732,14 @@ function openMigrationDialog(legacy, summary, barbers) {
     <button class="btn btn-ghost btn-icon modal-close" data-close-modal aria-label="Cerrar">✕</button>
     <h3>Migrar datos locales</h3>
     <p class="text-muted mt-8">${summary.weeks} semana(s) y ${summary.cuts} corte(s) encontrados. Asocia cada nombre antiguo con el barbero correspondiente en Supabase antes de continuar.</p>
+    ${
+      priorCount > 0
+        ? `<div class="card" style="background:var(--danger-bg);border-color:var(--danger)">
+            <strong class="text-danger">⚠ Ya existen ${priorCount} servicio(s) marcados como migrados anteriormente.</strong>
+            <p class="mt-8">Si continúas, es posible que dupliques información ya importada. Revisa el historial antes de confirmar si no estás seguro.</p>
+          </div>`
+        : ""
+    }
     ${[...legacyNames]
       .map(
         (name, idx) => `
@@ -731,16 +770,22 @@ function openMigrationDialog(legacy, summary, barbers) {
     }
     const ok = await confirmDialog({
       title: "Confirmar migración",
-      message: "Esto creará registros nuevos en Supabase a partir de los datos guardados en este navegador. No se borrará nada localmente.",
+      message:
+        priorCount > 0
+          ? `Ya se detectaron ${priorCount} servicio(s) migrados antes. Esto creará registros NUEVOS adicionales — si ya importaste estos datos, se duplicarán. ¿Continuar de todas formas?`
+          : "Esto creará registros nuevos en Supabase a partir de los datos guardados en este navegador. No se borrará nada localmente.",
       confirmLabel: "Migrar",
+      danger: priorCount > 0,
     });
     if (!ok) return;
 
-    const btn = e.currentTarget;
+    // No usar e.currentTarget aquí: el navegador lo limpia (vuelve null) en cuanto
+    // termina el despacho síncrono del evento, y ya cruzamos un `await` arriba.
+    const btn = overlay.querySelector("#migrate-confirm");
     btn.disabled = true;
     btn.textContent = "Migrando…";
     try {
-      const report = await migrateLegacyData(legacy, mapping);
+      const report = await migrateLegacyData(legacy, mapping, services);
       overlay.querySelector("#migration-result").innerHTML = `
         <div class="card">
           <p><strong>${report.weeksImported}</strong> semanas procesadas · <strong>${report.recordsCreated}</strong> servicios creados · <strong>${report.cutsImported}</strong> cortes importados.</p>

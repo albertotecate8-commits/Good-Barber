@@ -478,5 +478,157 @@ create policy settings_update on public.settings
   for update using (public.is_admin());
 
 -- =========================================================
+-- 16. CORRECCIONES DE LA AUDITORÍA FINAL
+-- Esta sección es idempotente y segura de re-ejecutar en un proyecto que ya
+-- tenía el esquema anterior instalado (usa DROP ... IF EXISTS antes de cada
+-- ADD, y CREATE OR REPLACE para funciones). Vuelve a correr TODO este
+-- archivo para aplicar estas correcciones a un proyecto existente.
+-- =========================================================
+
+-- ---- 16.1 Validación de porcentajes (0-100) ----
+-- Antes no existía ningún límite: un valor fuera de rango (ej. -10 o 250)
+-- podía guardarse y arruinar el reparto 60/40 sin ningún aviso.
+alter table public.barbers drop constraint if exists barbers_default_percentage_range;
+alter table public.barbers add constraint barbers_default_percentage_range
+  check (default_percentage >= 0 and default_percentage <= 100);
+
+alter table public.settlements drop constraint if exists settlements_barber_percentage_range;
+alter table public.settlements add constraint settlements_barber_percentage_range
+  check (barber_percentage >= 0 and barber_percentage <= 100);
+
+alter table public.settings drop constraint if exists settings_default_percentage_range;
+alter table public.settings add constraint settings_default_percentage_range
+  check (default_barber_percentage >= 0 and default_barber_percentage <= 100);
+
+-- ---- 16.2 Integridad cliente/barbero en service_records ----
+-- Antes un barbero podía guardar un service_record con client_id de OTRO
+-- barbero (RLS no lo comprobaba, solo la propiedad del propio registro).
+-- No exponía datos ajenos (la fila del cliente sigue protegida por su propia
+-- política RLS), pero permitía asociar registros a clientes que no le
+-- pertenecen. Este trigger lo bloquea en el servidor.
+create or replace function public.enforce_service_record_client_owner()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_client_barber_id uuid;
+begin
+  if new.client_id is not null then
+    select barber_id into v_client_barber_id from public.clients where id = new.client_id;
+    if v_client_barber_id is null then
+      raise exception 'El cliente indicado no existe.';
+    end if;
+    if v_client_barber_id <> new.barber_id then
+      raise exception 'No puedes asociar un registro a un cliente de otro barbero.';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_enforce_service_record_client_owner on public.service_records;
+create trigger trg_enforce_service_record_client_owner
+  before insert or update on public.service_records
+  for each row execute function public.enforce_service_record_client_owner();
+
+-- ---- 16.3 profiles: quitar la superficie de auto-edición ----
+-- Ningún flujo del frontend permite que un usuario edite su propia fila de
+-- `profiles` (los cambios de nombre los hace el admin; la contraseña se
+-- cambia vía Supabase Auth, no en esta tabla). La política anterior permitía
+-- de todas formas UPDATE propio de columnas como `email` o `name` llamando
+-- directamente a la API. Se restringe a solo administrador; SELECT propio
+-- se mantiene igual (necesario para cargar el perfil al iniciar sesión).
+drop policy if exists profiles_update on public.profiles;
+create policy profiles_update on public.profiles
+  for update using (public.is_admin()) with check (public.is_admin());
+
+-- ---- 16.4 WITH CHECK explícito en políticas de propiedad ----
+-- Postgres ya aplicaba el mismo USING como WITH CHECK por defecto cuando no
+-- se especifica (por lo que esto no cambia el comportamiento), pero se deja
+-- explícito para que quede claro que un barbero NUNCA puede reasignar
+-- barber_id a otro barbero mediante UPDATE.
+drop policy if exists clients_update on public.clients;
+create policy clients_update on public.clients
+  for update using (public.is_admin() or barber_id = public.current_barber_id())
+  with check (public.is_admin() or barber_id = public.current_barber_id());
+
+drop policy if exists service_records_update on public.service_records;
+create policy service_records_update on public.service_records
+  for update using (public.is_admin() or barber_id = public.current_barber_id())
+  with check (public.is_admin() or barber_id = public.current_barber_id());
+
+drop policy if exists daily_promotions_update on public.daily_promotions;
+create policy daily_promotions_update on public.daily_promotions
+  for update using (public.is_admin() or barber_id = public.current_barber_id())
+  with check (public.is_admin() or barber_id = public.current_barber_id());
+
+-- ---- 16.5 Cierre de semana atómico (RPC) ----
+-- Antes el cierre de semana se hacía en 3 llamadas separadas desde el
+-- navegador (crear/leer weekly_period -> marcarlo closed -> upsert de
+-- settlement). Bajo concurrencia real (dos pestañas de admin, o un doble
+-- clic) existía una condición de carrera: ambas peticiones podían ver "no
+-- existe todavía" y ambas intentar crear la misma fila de weekly_periods,
+-- disparando un error de llave duplicada. Esta función hace las dos
+-- escrituras en una sola transacción atómica del lado del servidor, y
+-- vuelve a comprobar is_admin() de forma independiente a RLS.
+create or replace function public.close_weekly_settlement(
+  p_barber_id uuid,
+  p_week_start date,
+  p_week_end date,
+  p_total_cents integer,
+  p_extra_adjustment_cents integer,
+  p_barber_percentage numeric,
+  p_barber_share_cents integer,
+  p_business_share_cents integer
+)
+returns public.settlements
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_period_id uuid;
+  v_settlement public.settlements;
+begin
+  if not public.is_admin() then
+    raise exception 'Solo un administrador puede cerrar una semana.';
+  end if;
+
+  insert into public.weekly_periods (barber_id, week_start_date, week_end_date, status, closed_at)
+  values (p_barber_id, p_week_start, p_week_end, 'closed', now())
+  on conflict (barber_id, week_start_date)
+  do update set status = 'closed', closed_at = now(), week_end_date = excluded.week_end_date
+  returning id into v_period_id;
+
+  insert into public.settlements (
+    weekly_period_id, barber_id, week_start_date, week_end_date,
+    total_cents, extra_adjustment_cents, barber_percentage,
+    barber_share_cents, business_share_cents, status, created_by
+  ) values (
+    v_period_id, p_barber_id, p_week_start, p_week_end,
+    p_total_cents, p_extra_adjustment_cents, p_barber_percentage,
+    p_barber_share_cents, p_business_share_cents, 'completed', auth.uid()
+  )
+  on conflict (barber_id, week_start_date)
+  do update set
+    weekly_period_id = excluded.weekly_period_id,
+    total_cents = excluded.total_cents,
+    extra_adjustment_cents = excluded.extra_adjustment_cents,
+    barber_percentage = excluded.barber_percentage,
+    barber_share_cents = excluded.barber_share_cents,
+    business_share_cents = excluded.business_share_cents,
+    status = 'completed'
+  returning * into v_settlement;
+
+  return v_settlement;
+end;
+$$;
+
+revoke all on function public.close_weekly_settlement(uuid, date, date, integer, integer, numeric, integer, integer) from public;
+grant execute on function public.close_weekly_settlement(uuid, date, date, integer, integer, numeric, integer, integer) to authenticated;
+
+-- =========================================================
 -- FIN DEL ESQUEMA
 -- =========================================================

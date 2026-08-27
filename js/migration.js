@@ -37,9 +37,23 @@ export function summarizeLegacyData(db) {
   };
 }
 
+// Antes de migrar hay que avisar si ya se importó esto mismo (evita duplicar
+// servicios si el admin ejecuta la migración dos veces por error).
+export async function checkAlreadyMigrated(barberIds) {
+  const count = await data.countMigratedRecords(barberIds);
+  return count > 0 ? count : 0;
+}
+
 // barberNameToId: { "Alberto": barberUuid, "Joaquín": barberUuid }
-export async function migrateLegacyData(db, barberNameToId, { createdBy } = {}) {
+// liveServices: catálogo real ya creado en Supabase (data.listServices(false)),
+// usado para resolver el service_id real de cada servicio del catálogo legado
+// por nombre — service_records.service_id es NOT NULL, así que un servicio sin
+// coincidencia en el catálogo actual se omite en vez de fallar la inserción.
+export async function migrateLegacyData(db, barberNameToId, liveServices) {
   const report = { weeksImported: 0, recordsCreated: 0, cutsImported: 0, skipped: [] };
+
+  const serviceIdByName = {};
+  for (const s of liveServices) serviceIdByName[s.name] = s.id;
 
   for (const [key, weekData] of Object.entries(db.semanas || {})) {
     const [barberName, weekStartISO] = key.split("|");
@@ -60,15 +74,24 @@ export async function migrateLegacyData(db, barberNameToId, { createdBy } = {}) 
 
       for (const legacyService of LEGACY_SERVICES) {
         const qty = Number(dayData.servicios?.[legacyService.id] || 0);
+        if (qty <= 0) continue;
+
+        const realServiceId = serviceIdByName[legacyService.nombre];
+        if (!realServiceId) {
+          report.skipped.push(
+            `${key} ${dia} ${legacyService.nombre}: no se encontró ese servicio en el catálogo actual (¿fue renombrado o eliminado?). Se omitieron ${qty} registro(s).`
+          );
+          continue;
+        }
+
         for (let i = 0; i < qty; i++) {
           try {
             await data.createServiceRecord({
               barberId,
               clientId: null,
-              service: { id: null, name: legacyService.nombre, price_cents: toCents(legacyService.precio) },
+              service: { id: realServiceId, name: legacyService.nombre, price_cents: toCents(legacyService.precio) },
               discountCents: 0,
               notes: `Migrado automáticamente (semana ${weekStartISO}, ${dia})`,
-              createdBy,
             });
             report.recordsCreated++;
           } catch (error) {
@@ -99,19 +122,15 @@ export async function migrateLegacyData(db, barberNameToId, { createdBy } = {}) 
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 5);
     try {
-      const period = await data.getOrCreateWeeklyPeriod(barberId, corte.semana_inicio, toISODate(weekEnd));
-      await data.setWeeklyPeriodStatus(period.id, "closed");
-      await data.upsertSettlement({
-        weekly_period_id: period.id,
-        barber_id: barberId,
-        week_start_date: corte.semana_inicio,
-        week_end_date: toISODate(weekEnd),
-        total_cents: toCents(corte.total_semanal),
-        extra_adjustment_cents: toCents(corte.pago_extra || 0),
-        barber_percentage: 60,
-        barber_share_cents: toCents(corte.trabajador_60),
-        business_share_cents: toCents(corte.good_barber_40),
-        status: "completed",
+      await data.closeWeeklySettlement({
+        barberId,
+        weekStart: corte.semana_inicio,
+        weekEnd: toISODate(weekEnd),
+        totalCents: toCents(corte.total_semanal),
+        extraAdjustmentCents: toCents(corte.pago_extra || 0),
+        barberPercentage: 60,
+        barberShareCents: toCents(corte.trabajador_60),
+        businessShareCents: toCents(corte.good_barber_40),
       });
       report.cutsImported++;
     } catch (error) {
