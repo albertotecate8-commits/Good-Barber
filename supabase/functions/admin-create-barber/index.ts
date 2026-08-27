@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "No tienes permisos de administrador." }, 403);
   }
 
-  let payload: { name?: string; email?: string; password?: string };
+  let payload: { name?: string; email?: string; password?: string; percentage?: number; active?: boolean };
   try {
     payload = await req.json();
   } catch {
@@ -83,6 +83,8 @@ Deno.serve(async (req) => {
   }
 
   const { name, email, password } = payload;
+  const percentage = payload.percentage ?? 60;
+  const active = payload.active ?? true;
 
   if (!name || !email || !password) {
     return jsonResponse({ error: "Nombre, correo y contraseña son obligatorios." }, 400);
@@ -90,6 +92,10 @@ Deno.serve(async (req) => {
 
   if (password.length < 8) {
     return jsonResponse({ error: "La contraseña debe tener al menos 8 caracteres." }, 400);
+  }
+
+  if (typeof percentage !== "number" || Number.isNaN(percentage) || percentage < 0 || percentage > 100) {
+    return jsonResponse({ error: "El porcentaje debe estar entre 0 y 100." }, 400);
   }
 
   const { data: created, error: createError } = await adminClient.auth.admin.createUser({
@@ -109,12 +115,14 @@ Deno.serve(async (req) => {
 
   const { data: barber, error: barberError } = await adminClient
     .from("barbers")
-    .insert({ profile_id: created.user.id, name, active: true })
+    .insert({ profile_id: created.user.id, name, active, default_percentage: percentage })
     .select()
     .single();
 
   if (barberError) {
-    return jsonResponse({ error: `Usuario creado, pero falló crear el barbero: ${barberError.message}` }, 500);
+    // No dejar un usuario de Auth huérfano sin fila de barbero asociada.
+    await adminClient.auth.admin.deleteUser(created.user.id);
+    return jsonResponse({ error: `No se pudo crear el barbero: ${barberError.message}` }, 500);
   }
 
   return jsonResponse({ barber, user_id: created.user.id });

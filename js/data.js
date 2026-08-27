@@ -37,11 +37,11 @@ export async function updateBarber(barberId, patch) {
   return unwrap(await sb().from("barbers").update(patch).eq("id", barberId).select().single());
 }
 
-export async function createBarberViaFunction({ name, email, password }) {
+export async function createBarberViaFunction({ name, email, password, percentage = 60, active = true }) {
   const { data: sessionData } = await sb().auth.getSession();
   const token = sessionData?.session?.access_token;
   const { data, error } = await sb().functions.invoke("admin-create-barber", {
-    body: { name, email, password },
+    body: { name, email, password, percentage, active },
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   });
   if (error) throw error;

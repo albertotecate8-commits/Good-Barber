@@ -82,39 +82,78 @@ supabase/
 4. Es seguro volver a ejecutar el script completo si necesitas actualizarlo (usa
    `create or replace` / `drop policy if exists`), excepto que los datos semilla de
    servicios solo se insertan si la tabla está vacía.
-5. (Opcional pero recomendado) En **Authentication → Providers → Email**, desactiva
-   "Allow new users to sign up" si existe esa opción en tu versión del dashboard, para
-   que nadie pueda crear una cuenta por su cuenta — todas las cuentas se crean desde el
-   panel de administrador o el propio dashboard.
+5. **OBLIGATORIO**: en **Authentication → Sign In / Providers → Email**, desactiva
+   "Allow new users to sign up" (el nombre exacto varía según la versión del dashboard).
+   Sin este paso, cualquier persona podría llamar directamente a
+   `supabase.auth.signUp()` desde la consola del navegador (usando la publishable key,
+   que es pública por diseño) y crearse una cuenta de barbero por su cuenta, saltándose
+   por completo el panel de administrador. Ninguna protección de este repo puede
+   deshabilitar el endpoint público de registro de Supabase Auth — es una opción del
+   propio proyecto, no de esta app.
 
 ## 3. Crear el primer administrador
 
-El rol nunca se puede elegir desde el frontend — es una operación controlada:
+El rol nunca se puede elegir libremente desde el frontend: la app solo permite
+autoasignar `role = 'admin'` una única vez, mientras no exista ningún administrador
+todavía, y ese chequeo se repite de forma atómica en el servidor.
 
-1. En **Authentication → Users → Add user**, crea el usuario del dueño/administrador
-   (correo + contraseña). Esto dispara el trigger que crea su fila en `profiles` con
-   `role = 'barber'` por defecto.
-2. En **SQL Editor**, promuévelo a administrador (una sola vez):
+1. Abre la app → pantalla de login → **"Crear cuenta"**.
+2. Como todavía no existe ningún administrador, verás **"Configuración inicial"**:
+   correo, contraseña, confirmar contraseña → **"Crear administrador"**.
+3. Esto llama a la Edge Function `bootstrap-admin`, que:
+   - comprueba en la base de datos que no exista ya ningún `profiles.role = 'admin'`
+     (si existe, rechaza con 409 y no crea nada);
+   - crea el usuario con la Auth Admin API (`service_role`, solo en el servidor);
+   - lo promueve a `admin` llamando a la función SQL `promote_first_admin()`, que repite
+     el mismo chequeo de forma atómica dentro de la transacción (protege contra dos
+     peticiones simultáneas) y que **solo** el rol `service_role` puede ejecutar (revocada
+     para `anon`/`authenticated`/`public` — ni siquiera con una sesión iniciada se puede
+     invocar desde el navegador);
+   - si la promoción falla (p. ej. perdió la carrera), borra el usuario recién creado
+     para no dejar una cuenta huérfana.
+4. En cuanto existe un administrador, este flujo se bloquea automáticamente: cualquier
+   intento posterior de usar "Configuración inicial" (incluida una petición manipulada
+   enviada directamente a la Edge Function, sin pasar por la interfaz) recibe 409 y no
+   crea ni modifica nada.
+
+Alternativa manual (si prefieres no usar el flujo de la app):
+
+1. En **Authentication → Users → Add user**, crea el usuario (correo + contraseña).
+2. En **SQL Editor**:
 
    ```sql
    update public.profiles set role = 'admin' where email = 'correo-del-admin@ejemplo.com';
    ```
 
-3. Ese usuario ya puede iniciar sesión en la app y verá el panel de administrador.
-
 ## 4. Crear los barberos
 
-Desde el panel de administrador → **Barberos → + Nuevo barbero**, indicando nombre,
-correo y una contraseña temporal. Internamente esto llama a la Edge Function
-`admin-create-barber`, que crea el usuario en Supabase Auth usando la `service_role`
-key **solo del lado del servidor** (nunca en el navegador) y crea su fila en `barbers`.
+**Únicamente un administrador ya autenticado puede crear barberos** — no existe ningún
+registro público para barberos (ver el paso "OBLIGATORIO" de la sección 2).
 
-Para desplegar la función (requiere [Supabase CLI](https://supabase.com/docs/guides/cli)):
+Desde el panel de administrador → **Barberos → + Nuevo barbero**, indicando nombre,
+correo, una contraseña temporal, el **reparto %** (60% por defecto) y el **estado**
+(activo/inactivo). Internamente esto llama a la Edge Function `admin-create-barber`,
+que:
+
+- verifica en el servidor que quien llama tiene una sesión válida y `profiles.role =
+  'admin'` activo (nunca confía en lo que diga el frontend);
+- crea el usuario en Supabase Auth usando la `service_role` key **solo del lado del
+  servidor** (nunca en el navegador);
+- crea su fila en `barbers` con el reparto y estado indicados;
+- si algo falla a mitad de camino, revierte (borra el usuario de Auth) en vez de dejar
+  una cuenta a medio crear.
+
+Un barbero no puede invocar esta función para crear a otro usuario (ni barbero ni
+admin): el primer chequeo de la función rechaza con 403 a cualquiera cuyo
+`profiles.role` no sea `admin`.
+
+Para (re)desplegar las funciones (requiere [Supabase CLI](https://supabase.com/docs/guides/cli)):
 
 ```bash
 supabase login
 supabase link --project-ref TU-PROYECTO
 supabase functions deploy admin-create-barber
+supabase functions deploy bootstrap-admin
 ```
 
 **Si no quieres desplegar la función**, puedes crear cada barbero manualmente:

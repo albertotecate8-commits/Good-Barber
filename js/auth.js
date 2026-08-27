@@ -31,6 +31,21 @@ export async function updatePassword(newPassword) {
   if (error) throw error;
 }
 
+export async function checkAdminExists() {
+  const { data, error } = await sb().rpc("admin_exists");
+  if (error) throw error;
+  return Boolean(data);
+}
+
+export async function bootstrapFirstAdmin({ email, password }) {
+  const { data, error } = await sb().functions.invoke("bootstrap-admin", {
+    body: { email, password },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
 export function onAuthStateChange(callback) {
   const { data } = sb().auth.onAuthStateChange((event, session) => callback(event, session));
   return data.subscription;

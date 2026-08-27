@@ -183,6 +183,18 @@ function openBarberCreateForm(onDone) {
     <div class="field mt-16"><label for="nb-name">Nombre</label><input id="nb-name" required></div>
     <div class="field"><label for="nb-email">Correo</label><input id="nb-email" type="email" required></div>
     <div class="field"><label for="nb-password">Contraseña temporal</label><input id="nb-password" type="password" minlength="8" required></div>
+    <div class="field">
+      <label for="nb-pct">Reparto del barbero (%)</label>
+      <input id="nb-pct" type="number" min="0" max="100" step="0.01" value="60">
+      <div class="field-hint">El resto corresponde a Good Barber.</div>
+    </div>
+    <div class="field">
+      <label for="nb-active">Estado</label>
+      <select id="nb-active">
+        <option value="true" selected>Activo</option>
+        <option value="false">Inactivo</option>
+      </select>
+    </div>
     <div id="nb-error" class="text-danger mt-8 hidden"></div>
     <button type="button" class="btn btn-primary btn-block mt-16" id="nb-save">Crear barbero</button>
   `);
@@ -194,15 +206,22 @@ function openBarberCreateForm(onDone) {
     const name = overlay.querySelector("#nb-name").value.trim();
     const email = overlay.querySelector("#nb-email").value.trim();
     const password = overlay.querySelector("#nb-password").value;
+    const percentage = Number(overlay.querySelector("#nb-pct").value || 60);
+    const active = overlay.querySelector("#nb-active").value === "true";
     if (!name || !email || password.length < 8) {
       errorBox.textContent = "Completa todos los campos (contraseña mínimo 8 caracteres).";
+      errorBox.classList.remove("hidden");
+      return;
+    }
+    if (Number.isNaN(percentage) || percentage < 0 || percentage > 100) {
+      errorBox.textContent = "El reparto debe estar entre 0 y 100.";
       errorBox.classList.remove("hidden");
       return;
     }
     btn.disabled = true;
     btn.textContent = "Creando…";
     try {
-      await data.createBarberViaFunction({ name, email, password });
+      await data.createBarberViaFunction({ name, email, password, percentage, active });
       toast("Barbero creado correctamente.", "success");
       close();
       onDone();

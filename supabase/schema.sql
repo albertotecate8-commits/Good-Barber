@@ -15,6 +15,7 @@ create extension if not exists "pgcrypto";
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
+set search_path = public
 as $$
 begin
   new.updated_at = now();
@@ -628,6 +629,87 @@ $$;
 
 revoke all on function public.close_weekly_settlement(uuid, date, date, integer, integer, numeric, integer, integer) from public;
 grant execute on function public.close_weekly_settlement(uuid, date, date, integer, integer, numeric, integer, integer) to authenticated;
+
+-- =========================================================
+-- 17. CONFIGURACIÓN INICIAL AUTOSERVICIO (creación del primer admin)
+-- =========================================================
+
+-- Permite que operaciones server-side (Edge Functions con service_role) modifiquen
+-- role/active sin necesitar una sesión de admin ya autenticada — necesario para el
+-- arranque inicial (todavía no existe ningún admin). auth.role() lee el claim "role"
+-- del JWT de la petición: 'service_role' solo puede presentarlo el propio backend de
+-- Supabase (nunca un navegador, la service_role key nunca sale de las Edge Functions),
+-- así que esto no abre ninguna vía de escalación para barberos/usuarios normales.
+create or replace function public.prevent_role_escalation()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if (new.role is distinct from old.role or new.active is distinct from old.active)
+     and not public.is_admin()
+     and auth.role() <> 'service_role' then
+    raise exception 'No tienes permiso para modificar el rol o el estado de la cuenta.';
+  end if;
+  return new;
+end;
+$$;
+
+-- Promueve a un usuario a admin ÚNICAMENTE si todavía no existe ningún admin.
+-- Chequeo atómico (dentro de la misma función) para evitar condiciones de carrera
+-- entre dos peticiones de "configuración inicial" simultáneas. Solo puede ejecutarla
+-- el rol service_role (revocado de public/authenticated/anon), es decir, únicamente
+-- la Edge Function bootstrap-admin desde el servidor.
+create or replace function public.promote_first_admin(p_user_id uuid)
+returns public.profiles
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_admin_count integer;
+  v_profile public.profiles;
+begin
+  select count(*) into v_admin_count from public.profiles where role = 'admin';
+  if v_admin_count > 0 then
+    raise exception 'Ya existe un administrador. No se puede crear otro mediante configuración inicial.';
+  end if;
+
+  update public.profiles
+  set role = 'admin'
+  where id = p_user_id
+  returning * into v_profile;
+
+  if v_profile.id is null then
+    raise exception 'Perfil no encontrado para el usuario indicado.';
+  end if;
+
+  return v_profile;
+end;
+$$;
+
+revoke all on function public.promote_first_admin(uuid) from public;
+revoke all on function public.promote_first_admin(uuid) from authenticated;
+revoke all on function public.promote_first_admin(uuid) from anon;
+grant execute on function public.promote_first_admin(uuid) to service_role;
+
+-- Función auxiliar de solo-lectura para que el frontend (con la publishable key,
+-- sin sesión) sepa si mostrar "Configuración inicial" o el mensaje de cuentas
+-- cerradas. No expone ningún dato sensible, solo un booleano.
+create or replace function public.admin_exists()
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (select 1 from public.profiles where role = 'admin');
+$$;
+
+revoke all on function public.admin_exists() from public;
+grant execute on function public.admin_exists() to anon;
+grant execute on function public.admin_exists() to authenticated;
 
 -- =========================================================
 -- FIN DEL ESQUEMA
