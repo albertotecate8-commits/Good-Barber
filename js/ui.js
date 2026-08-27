@@ -97,7 +97,10 @@ export function escapeHtml(value) {
 
 export function friendlyError(error) {
   const msg = String(error?.message || error || "");
-  if (msg.includes("Failed to fetch") || msg.includes("NetworkError")) {
+  // "Failed to fetch" es el mensaje de Chrome/V8 para un fetch() que no pudo
+  // completarse a nivel de red; "Load failed" es el equivalente exacto en
+  // Safari/WebKit (iOS incluido) para el mismo tipo de fallo.
+  if (msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("Load failed")) {
     return "No hay conexión con el servidor. Verifica tu internet e inténtalo de nuevo.";
   }
   if (msg.includes("Invalid login credentials")) {
