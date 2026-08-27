@@ -712,5 +712,91 @@ grant execute on function public.admin_exists() to anon;
 grant execute on function public.admin_exists() to authenticated;
 
 -- =========================================================
+-- 18. VENTAS CON VARIOS SERVICIOS, EDICIÓN POR EL BARBERO Y ANULACIÓN AUDITABLE
+-- Idempotente y 100% aditivo: no borra ni renombra ninguna columna existente,
+-- todas las columnas nuevas son NULL-able o tienen DEFAULT que reproduce
+-- exactamente el comportamiento anterior para las filas ya existentes.
+-- =========================================================
+
+-- sale_id: agrupa varias filas de service_records creadas en una misma
+-- operación de "registrar servicios" (una venta con varios servicios).
+-- NULL en todas las filas históricas (no rompe nada, no se muestran agrupadas).
+alter table public.service_records add column if not exists sale_id uuid;
+create index if not exists idx_service_records_sale on public.service_records(sale_id);
+
+-- quantity: por defecto 1, así que el total de cada fila histórica no cambia
+-- (price_cents * 1 - discount_cents = price_cents - discount_cents, igual que antes).
+alter table public.service_records add column if not exists quantity integer not null default 1;
+alter table public.service_records drop constraint if exists service_records_quantity_positive;
+alter table public.service_records add constraint service_records_quantity_positive check (quantity > 0);
+
+-- Auditoría de anulación: quién y cuándo. NULL en todo lo existente.
+alter table public.service_records add column if not exists voided_at timestamptz;
+alter table public.service_records add column if not exists voided_by uuid references public.profiles(id);
+
+-- Trigger: registra automáticamente voided_at/voided_by cuando un registro pasa
+-- a status='cancelled' (por el barbero o por el admin), y los limpia si se reabre.
+create or replace function public.track_service_record_void()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.status = 'cancelled' and (old.status is distinct from 'cancelled') then
+    new.voided_at = now();
+    new.voided_by = auth.uid();
+  elsif new.status <> 'cancelled' and old.status = 'cancelled' then
+    new.voided_at = null;
+    new.voided_by = null;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_track_service_record_void on public.service_records;
+create trigger trg_track_service_record_void
+  before update on public.service_records
+  for each row execute function public.track_service_record_void();
+
+-- Trigger: protege la integridad de las liquidaciones ya calculadas. Un barbero
+-- no puede crear ni editar un registro cuya fecha caiga dentro de una semana ya
+-- CERRADA (para su barber_id); el administrador sí puede (igual que ya podía
+-- cancelar/reabrir en semanas cerradas desde el panel, sin cambios ahí).
+create or replace function public.prevent_edit_after_settlement_close()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_closed boolean;
+begin
+  if public.is_admin() then
+    return new;
+  end if;
+
+  select exists (
+    select 1 from public.weekly_periods wp
+    where wp.status = 'closed'
+      and (
+        (wp.barber_id = new.barber_id and new.record_date between wp.week_start_date and wp.week_end_date)
+        or (tg_op = 'UPDATE' and wp.barber_id = old.barber_id and old.record_date between wp.week_start_date and wp.week_end_date)
+      )
+  ) into v_closed;
+
+  if v_closed then
+    raise exception 'No puedes crear ni editar un servicio en una semana ya cerrada. Pide al administrador que lo ajuste.';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_prevent_edit_after_settlement_close on public.service_records;
+create trigger trg_prevent_edit_after_settlement_close
+  before insert or update on public.service_records
+  for each row execute function public.prevent_edit_after_settlement_close();
+
+-- =========================================================
 -- FIN DEL ESQUEMA
 -- =========================================================

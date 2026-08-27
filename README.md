@@ -238,9 +238,22 @@ registros nuevos, nunca borra ni sobreescribe localStorage.
   cliente, hora y precio propio), en vez de un simple contador por día — esto permite
   el registro rápido con cliente, y que admin/barbero puedan corregir o cancelar un
   servicio puntual sin afectar el resto del día.
+- **Varios servicios en una operación:** el barbero puede agregar varios servicios al
+  "carrito" antes de guardar (cada uno con su cantidad y descuento); al confirmar se
+  crea un `service_record` por línea, todos compartiendo un `sale_id` común para
+  identificarlos como una misma venta. Cada línea sigue siendo un registro normal, así
+  que todo el historial anterior (sin `sale_id`) sigue funcionando exactamente igual.
+- **Editar un servicio ya registrado:** el barbero puede corregir cualquiera de sus
+  propios registros (fecha, servicio, cantidad, descuento, nota) desde **Servicios**,
+  eligiendo el día en el selector de fecha. RLS impide editar registros de otro
+  barbero, y un trigger adicional bloquea crear/editar un registro cuyo día ya
+  pertenezca a una semana **cerrada** (el administrador sí puede, para poder corregir
+  algo después de un corte).
 - **Cancelaciones:** nunca se borra información; los registros y cortes se marcan como
-  `cancelled` y pueden reabrirse. No existe ningún DELETE físico de historial de
-  servicios o cortes desde la aplicación.
+  `cancelled` (el panel de administrador lo llama "Anular") y pueden reabrirse. Un
+  registro anulado no cuenta para totales, estadísticas ni liquidaciones, pero queda
+  en la base con `voided_at`/`voided_by` para auditoría. No existe ningún DELETE
+  físico de historial de servicios o cortes desde la aplicación.
 - **Semanas y cortes:** cerrar una semana (el antiguo "corte del sábado") es una
   operación exclusiva del panel de administrador → **Semanas**, protegida también a
   nivel de base de datos (no solo oculta en la interfaz).

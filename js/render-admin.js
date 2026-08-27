@@ -1,7 +1,7 @@
 import * as data from "./data.js";
 import { toast, friendlyError, showLoading, confirmDialog, openModal, escapeHtml } from "./ui.js";
 import { formatCents, toCents } from "./money.js";
-import { dayTotalCents, groupRecordsByDate, weekTotalCents, settlementBreakdown, recordsTotalCents } from "./calc.js";
+import { dayTotalCents, groupRecordsByDate, weekTotalCents, settlementBreakdown, recordsTotalCents, recordLineTotalCents } from "./calc.js";
 import { startOfWeek, endOfWeek, toISODate, todayISO, weekLabel, formatDateText, parseISODate } from "./dates.js";
 import { readLegacyData, summarizeLegacyData, migrateLegacyData, checkAlreadyMigrated } from "./migration.js";
 
@@ -50,7 +50,7 @@ export async function renderAdminDashboard(container) {
 
     const perBarber = barbers.map((b) => {
       const records = completedWeek.filter((r) => r.barber_id === b.id);
-      const total = records.reduce((s, r) => s + (r.price_cents - (r.discount_cents || 0)), 0);
+      const total = records.reduce((s, r) => s + recordLineTotalCents(r), 0);
       const { barberShare, businessShare } = settlementBreakdown({ totalCents: total, barberPercentage: b.default_percentage });
       return { barber: b, count: records.length, total, barberShare, businessShare };
     });
@@ -114,7 +114,7 @@ export async function renderAdminBarbers(container) {
       container.querySelector("#barbers-list").innerHTML = barbers
         .map((b) => {
           const records = weekRecords.filter((r) => r.barber_id === b.id && r.status === "completed");
-          const total = records.reduce((s, r) => s + (r.price_cents - (r.discount_cents || 0)), 0);
+          const total = records.reduce((s, r) => s + recordLineTotalCents(r), 0);
           const avg = records.length ? total / records.length : 0;
           const last = records[0];
           return `
@@ -415,12 +415,12 @@ export async function renderAdminSales(container) {
                 <td>${r.record_date}</td>
                 <td>${escapeHtml(r.barbers?.name || "—")}</td>
                 <td>${escapeHtml(r.clients?.name || "—")}</td>
-                <td>${escapeHtml(r.service_name)}</td>
-                <td>${formatCents(r.price_cents - (r.discount_cents || 0))}</td>
-                <td><span class="badge ${r.status === "completed" ? "badge-success" : "badge-danger"}">${r.status === "completed" ? "Completado" : "Cancelado"}</span></td>
+                <td>${escapeHtml(r.service_name)}${r.quantity > 1 ? ` ×${r.quantity}` : ""}</td>
+                <td>${formatCents(recordLineTotalCents(r))}</td>
+                <td><span class="badge ${r.status === "completed" ? "badge-success" : "badge-danger"}">${r.status === "completed" ? "Completado" : "Anulado"}</span></td>
                 <td>${
                   r.status === "completed"
-                    ? `<button class="btn btn-ghost btn-sm" data-cancel="${r.id}">Cancelar</button>`
+                    ? `<button class="btn btn-ghost btn-sm" data-cancel="${r.id}">Anular</button>`
                     : `<button class="btn btn-ghost btn-sm" data-reopen="${r.id}">Reabrir</button>`
                 }</td>
               </tr>
@@ -441,16 +441,16 @@ export async function renderAdminSales(container) {
         const inClosedWeek = record && closedWeekKeys.has(weekKeyForRecord(record));
         btn.addEventListener("click", async () => {
           const ok = await confirmDialog({
-            title: "Cancelar registro",
-            message: "¿Cancelar este servicio?" + (inClosedWeek ? closedWeekWarning : ""),
-            confirmLabel: "Cancelar",
+            title: "Anular registro",
+            message: "¿Anular este servicio? No contará para ingresos ni liquidaciones, pero se conserva en el historial." + (inClosedWeek ? closedWeekWarning : ""),
+            confirmLabel: "Anular",
             danger: true,
           });
           if (!ok) return;
           showLoading(true);
           try {
             await data.cancelServiceRecord(btn.dataset.cancel);
-            toast("Registro cancelado.", "success");
+            toast("Registro anulado.", "success");
             draw();
           } catch (error) {
             toast(friendlyError(error), "error");

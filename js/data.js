@@ -119,6 +119,27 @@ export async function updateServiceRecord(recordId, patch) {
   return unwrap(await sb().from("service_records").update(patch).eq("id", recordId).select().single());
 }
 
+// Registra varios servicios de una sola vez (una "venta" con varias líneas).
+// Todas las filas comparten un sale_id nuevo para poder identificarlas como
+// una misma operación; cada línea sigue siendo un service_record normal
+// (compatible con todo el código existente, que no sabe nada de sale_id).
+export async function createServiceRecordsBatch({ barberId, clientId, items, createdBy }) {
+  const saleId = crypto.randomUUID();
+  const rows = items.map((item) => ({
+    barber_id: barberId,
+    client_id: clientId ?? null,
+    service_id: item.service.id,
+    service_name: item.service.name,
+    price_cents: item.service.price_cents,
+    quantity: item.quantity ?? 1,
+    discount_cents: item.discountCents ?? 0,
+    notes: item.notes ?? null,
+    created_by: createdBy,
+    sale_id: saleId,
+  }));
+  return unwrap(await sb().from("service_records").insert(rows).select());
+}
+
 export async function cancelServiceRecord(recordId) {
   return updateServiceRecord(recordId, { status: "cancelled" });
 }

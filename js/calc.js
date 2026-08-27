@@ -5,10 +5,12 @@
 
 import { clampNonNegative, splitCents } from "./money.js";
 
+export function recordLineTotalCents(record) {
+  return record.price_cents * (record.quantity || 1) - (record.discount_cents || 0);
+}
+
 export function recordsTotalCents(records) {
-  return records
-    .filter((r) => r.status === "completed")
-    .reduce((sum, r) => sum + (r.price_cents - (r.discount_cents || 0)), 0);
+  return records.filter((r) => r.status === "completed").reduce((sum, r) => sum + recordLineTotalCents(r), 0);
 }
 
 export function dayTotalCents(records, dailyPromotionCents = 0) {
