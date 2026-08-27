@@ -1,1 +1,18 @@
-{"name": "Good Barber", "short_name": "Good Barber", "start_url": "./index.html", "display": "standalone", "theme_color": "#0b0b0c", "background_color": "#f3f3f5"}
+{
+  "name": "Good Barber",
+  "short_name": "Good Barber",
+  "description": "Administración de barbería — Good Barber",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0f1115",
+  "theme_color": "#0f1115",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='36' fill='%230f1115'/%3E%3Ctext x='96' y='118' font-family='Arial, sans-serif' font-size='72' font-weight='900' fill='%23d4a24e' text-anchor='middle'%3EGB%3C/text%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    }
+  ]
+}
