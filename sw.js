@@ -1,7 +1,11 @@
-// Service worker mínimo: cachea solo el shell estático de la app.
+// Service worker mínimo: cachea solo el shell estático de la app, como
+// respaldo para cuando no hay red. Cuando SÍ hay red, siempre se sirve la
+// versión más reciente (network-first) — antes era cache-first, lo que
+// hacía que un teléfono con la PWA ya instalada pudiera quedarse mostrando
+// código viejo indefinidamente aunque hubiera una versión nueva desplegada.
 // Nunca intercepta llamadas a Supabase (auth/datos) para no dar
 // una falsa sensación de "guardado" cuando en realidad no hay red.
-const CACHE_NAME = "goodbarber-shell-v2";
+const CACHE_NAME = "goodbarber-shell-v3";
 const SHELL_ASSETS = [
   "./",
   "index.html",
@@ -52,18 +56,18 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // Network-first: si hay red, siempre se usa la respuesta más reciente del
+  // servidor (y se refresca la caché para el modo sin conexión). Solo se cae
+  // a la caché cuando la red falla de verdad (sin conexión).
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const network = fetch(event.request)
-        .then((response) => {
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          }
-          return response;
-        })
-        .catch(() => cached);
-      return cached || network;
-    })
+    fetch(event.request)
+      .then((response) => {
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        }
+        return response;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
