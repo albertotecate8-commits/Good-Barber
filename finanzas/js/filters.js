@@ -26,11 +26,13 @@ export function isDefaultFilter(state) {
 /* ==================================================== Normalización ====== */
 
 export function normalizeOccurrence(occ) {
+  const status = Finance.statusOf(occ);
+  const isPartial = status === "pending" && Finance.occurrenceProgress(occ).paid > 0;
   return {
     raw: occ, kind: "occurrence",
     id: occ.id, name: occ.name, category: occ.category,
     recordKind: occ.kind, amount: occ.amount, date: occ.dueDate,
-    status: Finance.statusOf(occ),
+    status: isPartial ? "partial" : status,
   };
 }
 
@@ -51,6 +53,41 @@ export function normalizeItem(item) {
     recordKind: item.kind, amount: item.kind === "heavy" ? item.balance || 0 : item.amount,
     date: item.startDate || "",
     status: "all",
+  };
+}
+
+/**
+ * Estado agregado de un concepto (no de un vencimiento suelto): para deudas
+ * periódicas, el de su vencimiento real más próximo; para deudas fuertes,
+ * pagada si el saldo llegó a cero. Cancelada siempre gana sobre lo demás.
+ */
+export function normalizeDebtItem(item) {
+  let status = "pending";
+  let date = item.startDate || "";
+  let amount = item.amount;
+
+  if (item.kind === "heavy") {
+    amount = item.balance || 0;
+    status = amount <= 0 ? "paid" : "pending";
+    date = "";
+  } else {
+    const next = Store.occurrencesOf(item.id).find((o) => o.status === "pending");
+    if (next) {
+      const norm = normalizeOccurrence(next);
+      status = norm.status;
+      date = next.dueDate;
+      amount = next.amount;
+    } else {
+      status = "paid";
+    }
+  }
+
+  if (item.active === false) status = "cancelled";
+
+  return {
+    raw: item, kind: "item",
+    id: item.id, name: item.name, category: item.category,
+    recordKind: item.kind, amount, date, status,
   };
 }
 
@@ -79,7 +116,10 @@ function matchesType(record, type) {
 
 function matchesStatus(record, status) {
   if (status === "all") return true;
-  if (!record.date && record.kind === "item") return true; // los conceptos no tienen un solo estado
+  // Los conceptos genéricos (normalizeItem) no tienen un estado real: status
+  // siempre es "all". Los conceptos de deuda (normalizeDebtItem) sí lo tienen
+  // y deben poder filtrarse aunque no tengan fecha (deudas fuertes, por ejemplo).
+  if (!record.date && record.kind === "item" && record.status === "all") return true;
   return record.status === status;
 }
 
@@ -132,8 +172,10 @@ const STATUS_OPTIONS = [
   { id: "all", label: "Todos" },
   { id: "pending", label: "Pendiente" },
   { id: "overdue", label: "Vencido" },
+  { id: "partial", label: "Parcial" },
   { id: "paid", label: "Pagado" },
   { id: "received", label: "Recibido" },
+  { id: "cancelled", label: "Cancelada" },
 ];
 
 const PERIOD_OPTIONS = [

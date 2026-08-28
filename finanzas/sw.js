@@ -4,7 +4,7 @@
 // desde la caché (la app abre sin internet) y en paralelo se busca una versión
 // nueva para la próxima vez. Nunca toca los datos: todo vive en IndexedDB.
 
-const CACHE = "finanzas-v3"; // v3: recurrencias proyectadas en el calendario, día de corte editable
+const CACHE = "finanzas-v4"; // v4: sección Deudas — resumen sin mezclar saldo fuerte con pagos, cancelación no destructiva, filtro y búsqueda
 
 // Carpeta donde vive la app. Se deduce de la ubicación del propio service
 // worker, así funciona igual si la app está en la raíz del dominio o en una

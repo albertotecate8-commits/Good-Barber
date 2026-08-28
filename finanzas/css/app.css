@@ -506,6 +506,7 @@ ul { margin: 0; padding: 0; list-style: none; }
 .chip.neutral { background: var(--bg); color: var(--text-2); }
 .chip.lime { background: #eefbd0; color: #4d7a00; }
 .chip.dark { background: var(--ink); color: var(--lime); }
+.chip.cancel { background: rgba(19,19,19,.08); color: var(--text-2); }
 
 .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; display: inline-block; }
 .dot.pending { background: var(--warn); }

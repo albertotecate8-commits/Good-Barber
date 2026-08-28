@@ -105,13 +105,15 @@ export function itemRow(item) {
 
 /** Tarjeta de deuda fuerte. */
 export function heavyCard(item) {
+  const canceled = item.active === false;
   return `
     <button class="row" data-action="open-item" data-id="${esc(item.id)}">
       <span class="row-ico c-fuertes">${icon("alert", 18)}</span>
       <span class="row-body">
         <span class="row-title">${esc(item.name)}</span>
         <span class="row-sub">
-          ${item.statusNote ? `<span class="chip dark">${esc(item.statusNote)}</span>` : `<span class="chip neutral">Sin estado</span>`}
+          ${canceled ? `<span class="chip cancel">Cancelada</span>` : ""}
+          ${item.statusNote ? `<span class="chip dark">${esc(item.statusNote)}</span>` : canceled ? "" : `<span class="chip neutral">Sin estado</span>`}
         </span>
       </span>
       <span class="row-end">

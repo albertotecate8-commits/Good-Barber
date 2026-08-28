@@ -401,15 +401,18 @@ export function payHeavyDebt(item) {
           });
           if (!ok) return;
         }
+        const before = item.balance || 0;
         await Store.payItemDirect(item.id, { amount: data.amount, date: data.date, note: data.note });
         close();
-        celebrate("Abono registrado", money(data.amount));
+        const after = round2(Math.max(0, before - data.amount));
+        celebrate(after <= 0 ? "Deuda saldada" : "Abono registrado", money(data.amount));
+        toast(after <= 0 ? "Saldo restante: $0.00 — deuda saldada" : `Saldo restante: ${money(after)}`, "ok");
       });
     },
   });
 }
 
-/** Cambia a mano el saldo y el estado de una deuda fuerte. */
+/** Cambia a mano el saldo, la categoría, el estado y el nombre de una deuda fuerte. */
 export function editHeavyDebt(item) {
   sheet({
     title: "Editar deuda fuerte",
@@ -417,7 +420,9 @@ export function editHeavyDebt(item) {
     body: `
       ${fieldText("name", "Nombre", item.name)}
       ${fieldAmount(item.balance || 0, "Saldo actual")}
+      ${fieldCategory(item.category || "fuertes", "expense")}
       ${fieldText("statusNote", "Estado", item.statusNote, "Esperando Afores…")}
+      ${fieldSwitch("active", "Activa", "Si la desactivas, deja de aparecer como deuda pendiente. El historial de abonos no se toca", item.active !== false)}
       ${fieldNote(item.note)}
       <div class="sheet-actions">
         <button class="btn btn-ink" data-submit>Guardar cambios</button>
@@ -448,7 +453,10 @@ export function editHeavyDebt(item) {
           showError(panel, "name", "Escribe un nombre.");
           return;
         }
-        await Store.saveItem({ ...item, name: raw.name, note: raw.note });
+        await Store.saveItem({
+          ...item, name: raw.name, category: raw.category, note: raw.note,
+          active: raw.active === "1",
+        });
         await Store.setHeavyBalance(item.id, amount, raw.statusNote);
         close();
         toast("Deuda actualizada", "ok");
@@ -486,6 +494,7 @@ export function editItem(item, kindHint) {
       body: `
         ${fieldText("name", "Nombre", "", "Denisse, BBVA…")}
         ${fieldAmount("", "Saldo")}
+        ${fieldCategory("fuertes", "expense")}
         ${fieldText("statusNote", "Estado", "", "Esperando la quita…")}
         ${fieldNote()}
         <div class="sheet-actions">
@@ -497,7 +506,7 @@ export function editItem(item, kindHint) {
           if (!data) return;
           if (!String(raw.name || "").trim()) { showError(panel, "name", "Escribe un nombre."); return; }
           await Store.saveItem({
-            kind: KIND.HEAVY, name: raw.name, category: "fuertes", amount: 0,
+            kind: KIND.HEAVY, name: raw.name, category: raw.category || "fuertes", amount: 0,
             balance: data.amount, recurrence: "once", startDate: null,
             statusNote: raw.statusNote, note: raw.note,
           });
