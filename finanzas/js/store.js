@@ -151,6 +151,7 @@ async function migrateCutBasedIncomes() {
 export async function setMeta(key, value) {
   state.meta.set(key, value);
   await persist("meta", { key, value }).catch(() => {});
+  emit();
 }
 
 export function getMeta(key, fallback) {

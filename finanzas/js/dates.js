@@ -14,6 +14,12 @@ export const MONTHS_SHORT = [
 
 export const DOW_SHORT = ["L", "M", "M", "J", "V", "S", "D"];
 
+/** Nombres de día en el orden de Date#getDay() (0 = domingo). */
+export const WEEKDAYS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+
+/** Plural correcto ("los sábados", pero "los lunes" — invariable). */
+export const WEEKDAYS_PLURAL = ["domingos", "lunes", "martes", "miércoles", "jueves", "viernes", "sábados"];
+
 /** Periodicidades soportadas. */
 export const RECURRENCES = [
   { id: "once", label: "Una sola vez", short: "Única" },
@@ -125,18 +131,21 @@ export function endOfWeek(iso) {
 }
 
 /**
- * Corte financiero: domingo a sábado (no lunes a domingo). El sábado es el
- * día de "hacer cuentas" — cierra el corte de esa semana. El domingo
- * siguiente ya es un corte nuevo. Siempre dura 7 días, sin excepciones.
+ * Corte financiero: una semana completa (7 días) que cierra en un día fijo
+ * elegible por el usuario (`closingDay`, 0=domingo … 6=sábado; por defecto
+ * sábado). El día siguiente al de cierre ya es un corte nuevo. Siempre dura
+ * 7 días, sin excepciones.
  */
-export function startOfCut(iso) {
+export function startOfCut(iso, closingDay = 6) {
   const d = parseISO(iso) || new Date();
-  d.setDate(d.getDate() - d.getDay()); // domingo = 0
+  const startDay = (closingDay + 1) % 7; // el día después del cierre
+  const offset = (d.getDay() - startDay + 7) % 7;
+  d.setDate(d.getDate() - offset);
   return toISO(d);
 }
 
-export function endOfCut(iso) {
-  return addDays(startOfCut(iso), 6); // el sábado de esa misma semana
+export function endOfCut(iso, closingDay = 6) {
+  return addDays(startOfCut(iso, closingDay), 6);
 }
 
 /** "29 ago → 4 sep" */

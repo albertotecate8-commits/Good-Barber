@@ -387,15 +387,35 @@ export function cutIncomeItems() {
  * Ventana del corte activo: la que contiene a hoy, salvo que ya se haya
  * cerrado por adelantado — en ese caso el corte activo es el siguiente.
  */
+/** Día de la semana en que cierra el corte (0=domingo … 6=sábado). Editable por el usuario. */
+export function cutClosingDay() {
+  const v = Store.getMeta("cutClosingDay", 6);
+  return Number.isInteger(v) && v >= 0 && v <= 6 ? v : 6;
+}
+
+export async function setCutClosingDay(day) {
+  const value = Number(day);
+  if (!Number.isInteger(value) || value < 0 || value > 6) throw new Error("Día no válido.");
+  await Store.setMeta("cutClosingDay", value);
+}
+
 export function activeCutRange() {
-  let start = startOfCut(todayISO());
+  const closingDay = cutClosingDay();
+  let start = startOfCut(todayISO(), closingDay);
   Store.closedCuts().forEach((c) => {
     if (c.startDate >= start) {
       const after = addDays(c.endDate, 1);
       if (after > start) start = after;
     }
   });
-  return { start, end: endOfCut(start) };
+
+  // Alinea al día de inicio de la regla ACTUAL: si el día de cierre cambió
+  // justo después de cerrar un corte con la regla anterior, evita que el
+  // siguiente corte quede desalineado o con menos de 7 días.
+  let aligned = startOfCut(start, closingDay);
+  while (aligned < start) aligned = addDays(aligned, 7);
+
+  return { start: aligned, end: endOfCut(aligned, closingDay) };
 }
 
 /**
