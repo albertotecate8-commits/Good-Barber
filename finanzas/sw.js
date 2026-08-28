@@ -6,6 +6,11 @@
 
 const CACHE = "finanzas-v1";
 
+// Carpeta donde vive la app. Se deduce de la ubicación del propio service
+// worker, así funciona igual si la app está en la raíz del dominio o en una
+// subcarpeta como /finanzas/.
+const SCOPE = new URL("./", self.location).pathname;
+
 const SHELL = [
   "./",
   "./index.html",
@@ -64,7 +69,7 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
-  if (!url.pathname.includes("/finanzas/")) return; // no interferir con el resto del sitio
+  if (!url.pathname.startsWith(SCOPE)) return; // no interferir con el resto del sitio
 
   event.respondWith(
     caches.match(request).then((cached) => {
