@@ -4,7 +4,7 @@ import * as Store from "../store.js";
 import * as Finance from "../finance.js";
 import { KIND, STATUS } from "../model.js";
 import { money, moneyShort, esc } from "../format.js";
-import { todayISO, formatLong, formatMedium, relativeLabel, recurrenceLabel } from "../dates.js";
+import { todayISO, formatLong, formatMedium, relativeLabel, recurrenceLabel, WEEKDAYS_PLURAL } from "../dates.js";
 import { icon, empty, statusChip } from "../ui.js";
 import { backHeader } from "../components.js";
 
@@ -143,7 +143,7 @@ export default {
         <div class="detail-meta">
           <div class="m">
             <div class="k">${isIncome ? "Próximo cobro" : "Próximo pago"}</div>
-            <div class="v">${next ? esc(formatMedium(next.dueDate)) : (item.cutBased ? "Domingo a sábado" : "Sin definir")}</div>
+            <div class="v">${next ? esc(formatMedium(next.dueDate)) : (item.cutBased ? `Cierra ${esc(WEEKDAYS_PLURAL[Finance.cutClosingDay()])}` : "Sin definir")}</div>
           </div>
           <div class="m">
             <div class="k">Periodicidad</div>

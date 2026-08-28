@@ -1,10 +1,11 @@
 // MÁS: respaldo, categorías, almacenamiento y ajustes.
 
 import * as Store from "../store.js";
+import * as Finance from "../finance.js";
 import * as db from "../db.js";
 import { KIND } from "../model.js";
 import { money, esc } from "../format.js";
-import { todayISO, formatLong } from "../dates.js";
+import { todayISO, formatLong, WEEKDAYS_PLURAL } from "../dates.js";
 import { icon, empty, sheet, toast, confirmSheet } from "../ui.js";
 import { backHeader } from "../components.js";
 
@@ -193,7 +194,7 @@ export default {
         ${tile("nav-calendario", "calendar", "Calendario", "Movimientos día por día")}
         ${tile("nav-historial", "history", "Historial", "Todo lo registrado")}
         ${tile("nav-mensual", "chart", "Resumen del mes", "Ingresos y gastos por concepto")}
-        ${tile("nav-corte", "income", "Corte semanal", "Domingo a sábado")}
+        ${tile("nav-corte", "income", "Corte semanal", `Cierra ${WEEKDAYS_PLURAL[Finance.cutClosingDay()]}`)}
         ${tile("nav-categorias", "tag", "Categorías", "Cuánto tienes comprometido por categoría")}
         ${tile("nav-buscar", "search", "Buscar y filtrar", "Encuentra cualquier registro")}
       </div>

@@ -1,13 +1,46 @@
-// Pantalla CORTE SEMANAL: mis cortes de ingresos son domingo a sábado.
-// Un sábado siempre empieza un corte nuevo; el viernes pertenece al corte
-// que arrancó el sábado anterior.
+// Pantalla CORTE SEMANAL: siempre dura 7 días completos; el día en que
+// cierra (y por lo tanto el día en que empieza el siguiente) lo elige el
+// usuario desde aquí — por defecto, sábado.
 
 import * as Store from "../store.js";
 import * as Finance from "../finance.js";
 import { money, esc } from "../format.js";
-import { formatCutRange, formatMedium, todayISO } from "../dates.js";
-import { icon, empty } from "../ui.js";
+import { formatCutRange, formatMedium, todayISO, WEEKDAYS, WEEKDAYS_PLURAL } from "../dates.js";
+import { icon, empty, sheet, toast } from "../ui.js";
 import { backHeader } from "../components.js";
+
+/** Hoja para elegir qué día de la semana cierra el corte. */
+function closingDaySheet(onDone) {
+  const current = Finance.cutClosingDay();
+
+  sheet({
+    title: "Día de corte",
+    subtitle: "¿Qué día cierras la semana y haces cuentas?",
+    body: `
+      <div class="chips-pick" data-days>
+        ${WEEKDAYS.map((name, i) => `<button type="button" data-day="${i}" class="${i === current ? "is-on" : ""}">${esc(name)}</button>`).join("")}
+      </div>
+      <p class="tiny muted mt-14">
+        El corte de la semana siempre dura 7 días: empieza el día después del
+        que elijas aquí y cierra justo en ese día.
+      </p>`,
+    onMount: (panel, close) => {
+      panel.querySelectorAll("[data-day]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const day = Number(btn.dataset.day);
+          try {
+            await Finance.setCutClosingDay(day);
+            close();
+            toast(`El corte ahora cierra los ${WEEKDAYS_PLURAL[day]}`, "ok");
+            if (onDone) onDone();
+          } catch (err) {
+            toast(err.message, "err");
+          }
+        });
+      });
+    },
+  });
+}
 
 function activeCutCard() {
   const range = Finance.activeCutRange();
@@ -101,11 +134,23 @@ function historySection() {
 
 export default {
   render() {
+    const closingDay = Finance.cutClosingDay();
     return `
-      ${backHeader("Corte semanal", "Domingo a sábado")}
+      ${backHeader(
+        "Corte semanal",
+        `Cierra los ${WEEKDAYS_PLURAL[closingDay]}`,
+        `<button class="icon-btn is-outline" data-action="change-cut-day" aria-label="Cambiar día de corte">${icon("calendar", 18, 2.2)}</button>`
+      )}
       ${activeCutCard()}
       ${historySection()}`;
   },
 
-  mount() {},
+  mount(root, ctx) {
+    const btn = root.querySelector('[data-action="change-cut-day"]');
+    if (btn) {
+      btn.addEventListener("click", () => {
+        closingDaySheet(() => ctx.rerender());
+      });
+    }
+  },
 };
