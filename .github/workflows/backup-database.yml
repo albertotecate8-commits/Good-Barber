@@ -1,0 +1,49 @@
+name: Respaldo de la base de datos de Good Barber
+
+# Corre solo (diario) y también se puede lanzar a mano desde la pestaña
+# "Actions" de GitHub ("Run workflow"). Nunca escribe en la base de datos:
+# pg_dump es de solo lectura, así que este workflow no puede borrar ni
+# modificar nada en Supabase.
+on:
+  schedule:
+    - cron: "0 9 * * *" # 09:00 UTC todos los días
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Instalar cliente de PostgreSQL
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Respaldar el esquema "public" (datos de negocio, nunca auth/contraseñas)
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "Falta el secreto SUPABASE_DB_URL en la configuración del repositorio. Ver BACKUP.md." >&2
+            exit 1
+          fi
+          pg_dump "$DATABASE_URL" \
+            --schema=public \
+            --no-owner \
+            --no-privileges \
+            -f backup.sql
+
+      - name: Cifrar el respaldo
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
+        run: |
+          if [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "Falta el secreto BACKUP_ENCRYPTION_PASSPHRASE en la configuración del repositorio. Ver BACKUP.md." >&2
+            exit 1
+          fi
+          openssl enc -aes-256-cbc -pbkdf2 -salt -in backup.sql -out backup.sql.enc -pass env:BACKUP_PASSPHRASE
+          rm -f backup.sql
+
+      - name: Subir respaldo cifrado
+        uses: actions/upload-artifact@v4
+        with:
+          name: good-barber-backup-${{ github.run_id }}
+          path: backup.sql.enc
+          retention-days: 90

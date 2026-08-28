@@ -196,6 +196,12 @@ Solo sube los archivos tal cual (no hay paso de build). Recuerda que `supabase-c
 contiene la URL y la clave pública de Supabase — son públicas por diseño, pero nunca
 pongas ahí la `service_role key`.
 
+### Respaldo de la base de datos
+
+El plan gratuito de Supabase no incluye backups automáticos. Ver
+[`BACKUP.md`](BACKUP.md) para configurar el respaldo diario cifrado (vía
+GitHub Actions) y el procedimiento de recuperación.
+
 ## 7. Administrar servicios y precios
 
 Panel de administrador → **Servicios**: crear, editar precio/duración, activar o
