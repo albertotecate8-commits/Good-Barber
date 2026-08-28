@@ -126,84 +126,6 @@ function importFlow(onDone) {
   });
 }
 
-function categoriesFlow(onDone) {
-  const render = () => Store.categories().map((c) => `
-    <div class="row" style="cursor:default">
-      <span class="row-ico" style="background:${esc(c.color)}22;color:${esc(c.color)}">${icon("tag", 17)}</span>
-      <span class="row-body">
-        <span class="row-title">${esc(c.name)}</span>
-        <span class="row-sub"><span class="chip neutral">${c.type === "income" ? "Ingresos" : "Gastos"}</span></span>
-      </span>
-      <span class="row-end">
-        <button class="btn btn-outline btn-sm" data-del="${esc(c.id)}">Quitar</button>
-      </span>
-    </div>`).join("");
-
-  sheet({
-    title: "Categorías",
-    subtitle: "Agrupa tus gastos e ingresos",
-    body: `
-      <div class="list" data-list>${render()}</div>
-      <div class="card mt-14">
-        <div class="field" style="margin-bottom:10px">
-          <label for="f-catname">Nueva categoría</label>
-          <input id="f-catname" class="input" type="text" data-name placeholder="Ej. Salud">
-        </div>
-        <div class="field" style="margin-bottom:10px">
-          <label for="f-cattype">Tipo</label>
-          <select id="f-cattype" class="select" data-type>
-            <option value="expense">Gastos</option>
-            <option value="income">Ingresos</option>
-          </select>
-        </div>
-        <button class="btn btn-ink" data-add>${icon("plus", 17, 2.4)} Crear categoría</button>
-        <div class="field-error" data-error hidden></div>
-      </div>`,
-    onMount: (panel) => {
-      const list = panel.querySelector("[data-list]");
-      const errorBox = panel.querySelector("[data-error]");
-
-      const refresh = () => {
-        list.innerHTML = render();
-        bindDelete();
-        if (onDone) onDone();
-      };
-
-      const bindDelete = () => {
-        list.querySelectorAll("[data-del]").forEach((btn) => {
-          btn.addEventListener("click", async () => {
-            try {
-              await Store.deleteCategory(btn.dataset.del);
-              refresh();
-              toast("Categoría eliminada", "ok");
-            } catch (err) {
-              toast(err.message, "err");
-            }
-          });
-        });
-      };
-
-      bindDelete();
-
-      panel.querySelector("[data-add]").addEventListener("click", async () => {
-        errorBox.hidden = true;
-        try {
-          await Store.saveCategory({
-            name: panel.querySelector("[data-name]").value,
-            type: panel.querySelector("[data-type]").value,
-          });
-          panel.querySelector("[data-name]").value = "";
-          refresh();
-          toast("Categoría creada", "ok");
-        } catch (err) {
-          errorBox.textContent = err.message;
-          errorBox.hidden = false;
-        }
-      });
-    },
-  });
-}
-
 async function storageFlow() {
   const estimate = await db.storageEstimate();
   const persisted = await db.requestPersistence();
@@ -271,6 +193,8 @@ export default {
         ${tile("nav-calendario", "calendar", "Calendario", "Movimientos día por día")}
         ${tile("nav-historial", "history", "Historial", "Todo lo registrado")}
         ${tile("nav-mensual", "chart", "Resumen del mes", "Ingresos y gastos por concepto")}
+        ${tile("nav-corte", "income", "Corte semanal", "Sábado a viernes")}
+        ${tile("nav-categorias", "tag", "Categorías", "Cuánto tienes comprometido por categoría")}
         ${tile("nav-buscar", "search", "Buscar y filtrar", "Encuentra cualquier registro")}
       </div>
 
@@ -282,7 +206,6 @@ export default {
         ${tile("new-debt", "debt", "Nueva deuda", "Pago periódico de una deuda")}
         ${tile("new-heavy", "alert", "Nueva deuda fuerte", "Saldo grande sin pago mensual")}
         ${tile("new-income-source", "income", "Nueva fuente de ingreso", "Semanal, mensual o única")}
-        ${tile("categories", "tag", "Categorías", "Crear o quitar categorías")}
       </div>
 
       <div class="section-head">
@@ -319,12 +242,13 @@ export default {
       "nav-calendario": () => go("#/calendario"),
       "nav-historial": () => go("#/historial"),
       "nav-mensual": () => go("#/mensual"),
+      "nav-corte": () => go("#/corte"),
+      "nav-categorias": () => go("#/categorias"),
       "nav-buscar": () => go("#/buscar"),
       export: downloadBackup,
       copy: copyBackup,
       import: () => importFlow(() => ctx.rerender()),
       storage: storageFlow,
-      categories: () => categoriesFlow(() => {}),
       reseed: async () => {
         const ok = await confirmSheet({
           title: "¿Restaurar los datos iniciales?",

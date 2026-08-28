@@ -4,7 +4,7 @@
 // desde la caché (la app abre sin internet) y en paralelo se busca una versión
 // nueva para la próxima vez. Nunca toca los datos: todo vive en IndexedDB.
 
-const CACHE = "finanzas-v1";
+const CACHE = "finanzas-v2"; // v2: corte semanal, categorías, filtro universal, pagos parciales
 
 // Carpeta donde vive la app. Se deduce de la ubicación del propio service
 // worker, así funciona igual si la app está en la raíz del dominio o en una
@@ -23,6 +23,7 @@ const SHELL = [
   "./js/seed.js",
   "./js/finance.js",
   "./js/forms.js",
+  "./js/filters.js",
   "./js/ui.js",
   "./js/components.js",
   "./js/dates.js",
@@ -37,6 +38,8 @@ const SHELL = [
   "./js/screens/history.js",
   "./js/screens/monthly.js",
   "./js/screens/search.js",
+  "./js/screens/cut.js",
+  "./js/screens/categories.js",
   "./icons/icon.svg",
   "./icons/icon-192.png",
   "./icons/icon-512.png",

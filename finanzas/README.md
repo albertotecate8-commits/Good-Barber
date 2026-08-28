@@ -58,6 +58,41 @@ vencimiento** del periodo. En los conceptos marcados como *variables*, el monto
 pagado queda como referencia para los siguientes periodos — los pagos anteriores
 nunca se modifican.
 
+**Solo existe un vencimiento pendiente por concepto a la vez.** No se generan
+meses hacia adelante: Netflix, por ejemplo, siempre muestra un único "próximo
+pago"; en cuanto se paga, se calcula y se crea el siguiente. El historial
+completo de pagos anteriores se conserva aparte y nunca se borra.
+
+**Pagos parciales.** Al pagar una deuda o un gasto se puede marcar "Fue un pago
+parcial": si lo pagado no cubre el total, el vencimiento sigue pendiente por la
+diferencia y se puede seguir abonando después, sin perder el registro de cada
+abono.
+
+## Corte semanal (sábado a viernes)
+
+Barbería y Uñas son ingresos semanales **sin un día fijo inventado**: no se les
+asigna un vencimiento fechado, sino que pertenecen a un corte de sábado a
+viernes (`Corte semanal`, accesible desde Ingresos o Más). Cada corte muestra
+lo esperado, lo recibido y lo faltante, y se puede **cerrar** cuando termina la
+semana — el cierre guarda una fotografía en el historial de cortes y no borra
+ningún ingreso ya registrado. El corte activo siempre es el que contiene la
+fecha de hoy (o el siguiente, si el actual ya se cerró antes de tiempo).
+
+## Próximos 7 días vs. vencidos
+
+"Próximos 7 días" va del día de **mañana** al séptimo día — nunca incluye lo
+que ya venció. Lo vencido (con fecha de hoy o anterior) aparece aparte, en su
+propia sección roja, para no mezclarse nunca con lo próximo.
+
+## Categorías y filtro universal
+
+**Más → Categorías** muestra cuánto hay comprometido por categoría (gastos y
+deudas por un lado, ingresos esperados por otro) y permite crear o eliminar
+categorías. El botón de embudo (**Filtrar**) en Gastos, Historial y Buscar abre
+el mismo panel de filtro en todas partes: categoría, tipo, estado, periodo
+(incluye un rango de fechas personalizado) y orden (fecha, monto o nombre, en
+ambos sentidos).
+
 ## Estructura
 
 ```
