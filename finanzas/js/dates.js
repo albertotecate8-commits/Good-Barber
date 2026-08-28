@@ -125,19 +125,18 @@ export function endOfWeek(iso) {
 }
 
 /**
- * Corte financiero: sábado a viernes (no lunes a domingo). Un viernes
- * pertenece al corte que empezó el sábado anterior; el sábado siguiente ya
- * es un corte nuevo.
+ * Corte financiero: domingo a sábado (no lunes a domingo). El sábado es el
+ * día de "hacer cuentas" — cierra el corte de esa semana. El domingo
+ * siguiente ya es un corte nuevo. Siempre dura 7 días, sin excepciones.
  */
 export function startOfCut(iso) {
   const d = parseISO(iso) || new Date();
-  const offset = (d.getDay() + 1) % 7; // días transcurridos desde el último sábado
-  d.setDate(d.getDate() - offset);
+  d.setDate(d.getDate() - d.getDay()); // domingo = 0
   return toISO(d);
 }
 
 export function endOfCut(iso) {
-  return addDays(startOfCut(iso), 6);
+  return addDays(startOfCut(iso), 6); // el sábado de esa misma semana
 }
 
 /** "29 ago → 4 sep" */

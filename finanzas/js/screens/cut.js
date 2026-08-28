@@ -1,4 +1,4 @@
-// Pantalla CORTE SEMANAL: mis cortes de ingresos son sábado a viernes.
+// Pantalla CORTE SEMANAL: mis cortes de ingresos son domingo a sábado.
 // Un sábado siempre empieza un corte nuevo; el viernes pertenece al corte
 // que arrancó el sábado anterior.
 
@@ -102,7 +102,7 @@ function historySection() {
 export default {
   render() {
     return `
-      ${backHeader("Corte semanal", "Sábado a viernes")}
+      ${backHeader("Corte semanal", "Domingo a sábado")}
       ${activeCutCard()}
       ${historySection()}`;
   },

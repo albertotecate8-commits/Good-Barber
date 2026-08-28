@@ -36,7 +36,7 @@ function summaryCard() {
     </section>`;
 }
 
-/** Tarjeta compacta del corte semanal activo (sábado a viernes). */
+/** Tarjeta compacta del corte semanal activo (domingo a sábado). */
 function cutCard() {
   const range = Finance.activeCutRange();
   const breakdown = Finance.cutBreakdown(range);
