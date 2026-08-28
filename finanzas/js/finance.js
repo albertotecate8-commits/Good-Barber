@@ -124,6 +124,51 @@ export function committedThisMonth(iso) {
 }
 
 /**
+ * Resumen de la sección Deudas: separa siempre el saldo de las deudas
+ * fuertes (balance acumulado, sin pago mensual fijo) de la obligación de
+ * los pagos periódicos (lo que toca pagar este periodo) — nunca se suman
+ * como si fueran lo mismo, solo se combinan en "total" como vista general.
+ */
+export function debtsSummary(iso) {
+  const today = todayISO();
+  const ref = iso || today;
+
+  const periodicItems = Store.items().filter((i) => i.active && i.kind === KIND.DEBT);
+  const heavyItems = Store.items().filter((i) => i.active && i.kind === KIND.HEAVY);
+
+  let periodicTotal = 0;
+  let overdueTotal = 0;
+  let pendingTotal = 0;
+
+  periodicItems.forEach((item) => {
+    const next = Store.occurrencesOf(item.id)
+      .filter((o) => o.status === STATUS.PENDING)
+      .sort((a, b) => (a.dueDate < b.dueDate ? -1 : 1))[0];
+    if (!next) return;
+    periodicTotal += next.amount;
+    const remaining = occurrenceProgress(next).remaining;
+    if (next.dueDate <= today) overdueTotal += remaining;
+    else pendingTotal += remaining;
+  });
+
+  const heavyTotal = round2(heavyItems.reduce((s, i) => s + (i.balance || 0), 0));
+
+  const paidThisMonth = Store.movements()
+    .filter((m) => (m.kind === KIND.DEBT || m.kind === KIND.HEAVY) && m.date >= startOfMonth(ref) && m.date <= endOfMonth(ref))
+    .reduce((s, m) => s + m.amount, 0);
+
+  return {
+    total: round2(heavyTotal + periodicTotal),
+    heavy: heavyTotal,
+    periodic: round2(periodicTotal),
+    overdue: round2(overdueTotal),
+    pending: round2(pendingTotal),
+    paidThisMonth: round2(paidThisMonth),
+    activeCount: periodicItems.length + heavyItems.length,
+  };
+}
+
+/**
  * Tarjeta "Próximos 7 días": del día de mañana al séptimo día contando desde
  * hoy. NUNCA incluye vencidos — esos van aparte, en "Pagos vencidos".
  */

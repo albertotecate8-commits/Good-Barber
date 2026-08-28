@@ -302,6 +302,11 @@ export async function saveItem(data) {
   if (item.startDate && !isValidISO(item.startDate)) throw new Error("La fecha no es válida.");
   if (item.amount < 0) throw new Error("El monto no puede ser negativo.");
 
+  // Registra automáticamente cuándo se canceló (o se reactivó) el concepto.
+  if (existing && existing.active !== item.active) {
+    item.canceledAt = item.active ? null : todayISO();
+  }
+
   // Evita duplicados exactos al crear (mismo nombre, tipo y categoría).
   if (!existing) {
     const dup = items().find(

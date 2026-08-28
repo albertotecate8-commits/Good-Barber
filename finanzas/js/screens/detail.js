@@ -71,13 +71,18 @@ function heavyView(item) {
           <div class="detail-amount num">${esc(money(item.balance || 0))}</div>
           <div class="detail-cap">Saldo pendiente</div>
         </div>
-        ${item.statusNote ? `<span class="detail-pill warn">${esc(item.statusNote)}</span>` : ""}
+        ${item.active === false
+          ? `<span class="detail-pill bad">Cancelada</span>`
+          : item.statusNote ? `<span class="detail-pill warn">${esc(item.statusNote)}</span>` : ""}
       </div>
       <div class="detail-meta">
         <div class="m"><div class="k">Abonado</div><div class="v num">${esc(money(totalPaid))}</div></div>
         <div class="m"><div class="k">Avance</div><div class="v num">${progress}%</div></div>
       </div>
     </section>
+
+    ${item.active === false && item.canceledAt
+      ? `<p class="tiny muted" style="margin:10px 2px 0">Cancelada desde el ${esc(formatLong(item.canceledAt))}</p>` : ""}
 
     <div class="btn-row mt-14">
       <button class="btn btn-ink" data-action="pay-heavy" data-id="${esc(item.id)}">${icon("check", 18, 2.4)} Abonar</button>
@@ -120,13 +125,16 @@ export default {
       .filter((o) => o.status === STATUS.PENDING)
       .sort((a, b) => (a.dueDate < b.dueDate ? -1 : 1))[0];
 
+    const canceled = item.active === false;
     const status = next ? Finance.statusOf(next) : null;
-    const pillClass = status === "overdue" ? "bad" : status === "pending" ? "warn" : "ok";
+    const pillClass = canceled ? "bad" : status === "overdue" ? "bad" : status === "pending" ? "warn" : "ok";
     const needsDate = !next && !item.cutBased;
 
-    const pillLabel = next
-      ? (status === "overdue" ? "Vencido" : "Pendiente")
-      : (item.cutBased ? "Corte semanal" : "Fecha por configurar");
+    const pillLabel = canceled
+      ? "Cancelada"
+      : next
+        ? (status === "overdue" ? "Vencido" : "Pendiente")
+        : (item.cutBased ? "Corte semanal" : "Fecha por configurar");
 
     return `
       ${backHeader(item.name, Store.categoryName(item.category))}
@@ -177,6 +185,7 @@ export default {
         <div class="kv"><span class="k">Monto variable</span><span class="v">${item.variable ? "Sí" : "No"}</span></div>
         ${item.reference ? `<div class="kv"><span class="k">Referencia</span><span class="v num">${esc(item.reference)}</span></div>` : ""}
         ${item.statusNote ? `<div class="kv"><span class="k">Estado</span><span class="v">${esc(item.statusNote)}</span></div>` : ""}
+        ${canceled ? `<div class="kv"><span class="k">Cancelada</span><span class="v neg">${item.canceledAt ? `Desde el ${esc(formatMedium(item.canceledAt))}` : "Sí"}</span></div>` : ""}
         ${item.note ? `<div class="kv"><span class="k">Nota</span><span class="v" style="font-weight:500;max-width:60%">${esc(item.note)}</span></div>` : ""}
       </div>
 

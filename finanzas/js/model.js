@@ -48,6 +48,7 @@ export function makeItem(data) {
     reference: data.reference || "",     // número de referencia / cuenta
     note: data.note || "",
     active: data.active !== false,
+    canceledAt: data.canceledAt || null, // fecha en que se desactivó (null si está activo o nunca se canceló)
     seeded: !!data.seeded,
     createdAt: data.createdAt || new Date().toISOString(),
     updatedAt: data.updatedAt || new Date().toISOString(),
