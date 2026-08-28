@@ -11,7 +11,7 @@ import { KIND, makeItem } from "./model.js";
 import { todayISO, parseISO, toISO, daysInMonth, addMonths, addDays } from "./dates.js";
 
 /**
- * Ingresos que pertenecen al corte semanal (sábado a viernes) en vez de a un
+ * Ingresos que pertenecen al corte semanal (domingo a sábado) en vez de a un
  * día fijo del calendario: no tienen "startDate" ni vencimiento propio.
  */
 export const CUT_BASED_ITEM_IDS = ["ing-barberia", "ing-unas"];
@@ -119,7 +119,7 @@ export function buildSeed(todayOverride) {
         statusNote: "Esperando la quita" });
 
   // -------------------------------------------------------------- INGRESOS --
-  // Barbería y Uñas son ingresos del corte semanal (sábado a viernes): no
+  // Barbería y Uñas son ingresos del corte semanal (domingo a sábado): no
   // tienen un día fijo inventado, se registran dentro de la semana que caiga.
   add({ id: "ing-barberia", kind: KIND.INCOME, name: "Barbería", category: "barberia",
         amount: 300, recurrence: "weekly", startDate: null, variable: true, cutBased: true });

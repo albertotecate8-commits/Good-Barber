@@ -118,7 +118,7 @@ export async function init() {
 
 /**
  * Migración idempotente: los ingresos semanales (Barbería, Uñas) ya no tienen
- * un día fijo inventado — pertenecen al corte sábado-viernes. Si vienen de una
+ * un día fijo inventado — pertenecen al corte semanal (domingo a sábado). Si vienen de una
  * versión anterior con fecha y vencimientos fechados, se limpia aquí una sola
  * vez (los movimientos ya recibidos, que son historial real, no se tocan).
  */

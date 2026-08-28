@@ -378,7 +378,7 @@ export function search(query, filter) {
 
 /* ==================================================== Cortes semanales ==== */
 
-/** Ingresos que pertenecen al corte sábado-viernes (sin fecha fija propia). */
+/** Ingresos que pertenecen al corte semanal domingo-sábado (sin fecha fija propia). */
 export function cutIncomeItems() {
   return Store.items().filter((i) => i.active && i.kind === KIND.INCOME && i.cutBased);
 }

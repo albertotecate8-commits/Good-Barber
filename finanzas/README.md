@@ -68,15 +68,17 @@ parcial": si lo pagado no cubre el total, el vencimiento sigue pendiente por la
 diferencia y se puede seguir abonando después, sin perder el registro de cada
 abono.
 
-## Corte semanal (sábado a viernes)
+## Corte semanal (domingo a sábado)
 
 Barbería y Uñas son ingresos semanales **sin un día fijo inventado**: no se les
-asigna un vencimiento fechado, sino que pertenecen a un corte de sábado a
-viernes (`Corte semanal`, accesible desde Ingresos o Más). Cada corte muestra
-lo esperado, lo recibido y lo faltante, y se puede **cerrar** cuando termina la
-semana — el cierre guarda una fotografía en el historial de cortes y no borra
-ningún ingreso ya registrado. El corte activo siempre es el que contiene la
-fecha de hoy (o el siguiente, si el actual ya se cerró antes de tiempo).
+asigna un vencimiento fechado, sino que pertenecen a un corte de domingo a
+sábado (`Corte semanal`, accesible desde Ingresos o Más) — el sábado es el día
+de "hacer cuentas": cierra la semana, y el domingo siguiente ya es un corte
+nuevo. Cada corte muestra lo esperado, lo recibido y lo faltante, y se puede
+**cerrar** cuando termina la semana — el cierre guarda una fotografía en el
+historial de cortes y no borra ningún ingreso ya registrado. El corte activo
+siempre es el que contiene la fecha de hoy (o el siguiente, si el actual ya se
+cerró antes de tiempo).
 
 ## Próximos 7 días vs. vencidos
 

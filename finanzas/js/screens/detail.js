@@ -143,7 +143,7 @@ export default {
         <div class="detail-meta">
           <div class="m">
             <div class="k">${isIncome ? "Próximo cobro" : "Próximo pago"}</div>
-            <div class="v">${next ? esc(formatMedium(next.dueDate)) : (item.cutBased ? "Sábado a viernes" : "Sin definir")}</div>
+            <div class="v">${next ? esc(formatMedium(next.dueDate)) : (item.cutBased ? "Domingo a sábado" : "Sin definir")}</div>
           </div>
           <div class="m">
             <div class="k">Periodicidad</div>

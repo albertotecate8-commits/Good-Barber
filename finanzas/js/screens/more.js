@@ -193,7 +193,7 @@ export default {
         ${tile("nav-calendario", "calendar", "Calendario", "Movimientos día por día")}
         ${tile("nav-historial", "history", "Historial", "Todo lo registrado")}
         ${tile("nav-mensual", "chart", "Resumen del mes", "Ingresos y gastos por concepto")}
-        ${tile("nav-corte", "income", "Corte semanal", "Sábado a viernes")}
+        ${tile("nav-corte", "income", "Corte semanal", "Domingo a sábado")}
         ${tile("nav-categorias", "tag", "Categorías", "Cuánto tienes comprometido por categoría")}
         ${tile("nav-buscar", "search", "Buscar y filtrar", "Encuentra cualquier registro")}
       </div>
