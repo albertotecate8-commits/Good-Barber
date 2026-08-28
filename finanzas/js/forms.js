@@ -520,6 +520,7 @@ export function editItem(item, kindHint) {
       ${fieldDate("startDate", isIncome ? "Próximo cobro" : "Próximo vencimiento", current.startDate || "")}
       <p class="tiny muted" style="margin:-8px 0 14px">Si lo dejas vacío, el concepto queda sin programar y puedes registrarlo manualmente cuando ocurra.</p>
       ${fieldSwitch("variable", "Monto variable", "Cada periodo puedes pagar una cantidad distinta", !!current.variable)}
+      ${!isNew ? fieldSwitch("active", "Activa", "Si la desactivas, deja de generar vencimientos futuros. Lo pendiente y el historial no se tocan", current.active !== false) : ""}
       ${kind === KIND.EXPENSE || kind === KIND.DEBT ? fieldText("reference", "Referencia (opcional)", current.reference, "Número de cuenta o referencia") : ""}
       ${fieldNote(current.note)}
       <div class="sheet-actions">
@@ -570,6 +571,7 @@ export function editItem(item, kindHint) {
           startDate: raw.startDate || null,
           anchorDay: raw.startDate ? Number(raw.startDate.slice(8, 10)) : null,
           variable: raw.variable === "1",
+          active: isNew ? true : raw.active === "1",
           reference: raw.reference || "",
           note: raw.note || "",
         });

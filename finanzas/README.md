@@ -58,10 +58,20 @@ vencimiento** del periodo. En los conceptos marcados como *variables*, el monto
 pagado queda como referencia para los siguientes periodos — los pagos anteriores
 nunca se modifican.
 
-**Solo existe un vencimiento pendiente por concepto a la vez.** No se generan
-meses hacia adelante: Netflix, por ejemplo, siempre muestra un único "próximo
-pago"; en cuanto se paga, se calcula y se crea el siguiente. El historial
-completo de pagos anteriores se conserva aparte y nunca se borra.
+**Solo existe un vencimiento pendiente (real) por concepto a la vez.** No se
+generan meses hacia adelante como registros: Netflix, por ejemplo, siempre
+tiene un único "próximo pago" real; en cuanto se paga, se calcula y se crea
+el siguiente. El historial completo de pagos anteriores se conserva aparte y
+nunca se borra.
+
+**Pero el calendario sí ve más allá de ese único vencimiento real.** Mientras
+un concepto recurrente esté activo, sus fechas futuras se **calculan al
+vuelo** (a partir de su periodicidad) para cualquier mes que consultes —
+agosto, octubre, o enero del año que viene — sin crear un solo registro
+nuevo en la base. Solo el vencimiento real (el más próximo) se puede pagar;
+los demás son una proyección informativa. Al desactivar un concepto (interruptor
+"Activa" en Editar) deja de proyectarse hacia adelante desde ese momento —
+lo que ya estaba pendiente y todo el historial se conservan intactos.
 
 **Pagos parciales.** Al pagar una deuda o un gasto se puede marcar "Fue un pago
 parcial": si lo pagado no cubre el total, el vencimiento sigue pendiente por la
