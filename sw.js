@@ -10,6 +10,7 @@ const SHELL_ASSETS = [
   "./",
   "index.html",
   "manifest.json",
+  "supabase-config.js",
   "css/styles.css",
   "js/vendor/supabase.js",
   "js/app.js",
@@ -24,6 +25,8 @@ const SHELL_ASSETS = [
   "js/render-admin.js",
   "js/render-barber.js",
   "js/migration.js",
+  "icons/apple-touch-icon.png",
+  "icons/icon-512.png",
 ];
 
 self.addEventListener("install", (event) => {

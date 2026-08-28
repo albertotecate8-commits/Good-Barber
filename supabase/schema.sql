@@ -798,5 +798,146 @@ create trigger trg_prevent_edit_after_settlement_close
   for each row execute function public.prevent_edit_after_settlement_close();
 
 -- =========================================================
+-- 19. AUDITORÍA FINAL: rendimiento de RLS + índices de FK faltantes
+-- Puramente rendimiento, CERO cambio de semántica: se envuelve cada llamada
+-- a is_admin()/is_active_profile()/current_barber_id()/auth.uid() dentro de
+-- las políticas en "(select ...)" para que Postgres la evalúe una sola vez
+-- por consulta (InitPlan) en vez de una vez por fila. Mismo resultado,
+-- más rápido a medida que crezcan las tablas. Patrón recomendado por el
+-- propio linter de Supabase (auth_rls_initplan).
+-- =========================================================
+
+-- ---- profiles ----
+drop policy if exists profiles_select on public.profiles;
+create policy profiles_select on public.profiles
+  for select using (id = (select auth.uid()) or (select public.is_admin()));
+
+drop policy if exists profiles_update on public.profiles;
+create policy profiles_update on public.profiles
+  for update using ((select public.is_admin())) with check ((select public.is_admin()));
+
+drop policy if exists profiles_insert on public.profiles;
+create policy profiles_insert on public.profiles
+  for insert with check ((select public.is_admin()));
+
+-- ---- barbers ----
+drop policy if exists barbers_select on public.barbers;
+create policy barbers_select on public.barbers
+  for select using ((select public.is_admin()) or profile_id = (select auth.uid()));
+
+drop policy if exists barbers_insert_admin on public.barbers;
+create policy barbers_insert_admin on public.barbers
+  for insert with check ((select public.is_admin()));
+drop policy if exists barbers_update_admin on public.barbers;
+create policy barbers_update_admin on public.barbers
+  for update using ((select public.is_admin()));
+drop policy if exists barbers_delete_admin on public.barbers;
+create policy barbers_delete_admin on public.barbers
+  for delete using ((select public.is_admin()));
+
+-- ---- clients ----
+drop policy if exists clients_select on public.clients;
+create policy clients_select on public.clients
+  for select using ((select public.is_admin()) or barber_id = (select public.current_barber_id()));
+
+drop policy if exists clients_insert on public.clients;
+create policy clients_insert on public.clients
+  for insert with check ((select public.is_admin()) or barber_id = (select public.current_barber_id()));
+
+drop policy if exists clients_update on public.clients;
+create policy clients_update on public.clients
+  for update using ((select public.is_admin()) or barber_id = (select public.current_barber_id()))
+  with check ((select public.is_admin()) or barber_id = (select public.current_barber_id()));
+
+drop policy if exists clients_delete on public.clients;
+create policy clients_delete on public.clients
+  for delete using ((select public.is_admin()));
+
+-- ---- services ----
+drop policy if exists services_select on public.services;
+create policy services_select on public.services
+  for select using ((select public.is_active_profile()));
+
+drop policy if exists services_insert_admin on public.services;
+create policy services_insert_admin on public.services
+  for insert with check ((select public.is_admin()));
+drop policy if exists services_update_admin on public.services;
+create policy services_update_admin on public.services
+  for update using ((select public.is_admin()));
+drop policy if exists services_delete_admin on public.services;
+create policy services_delete_admin on public.services
+  for delete using ((select public.is_admin()));
+
+-- ---- service_records ----
+drop policy if exists service_records_select on public.service_records;
+create policy service_records_select on public.service_records
+  for select using ((select public.is_admin()) or barber_id = (select public.current_barber_id()));
+
+drop policy if exists service_records_insert on public.service_records;
+create policy service_records_insert on public.service_records
+  for insert with check ((select public.is_admin()) or barber_id = (select public.current_barber_id()));
+
+drop policy if exists service_records_update on public.service_records;
+create policy service_records_update on public.service_records
+  for update using ((select public.is_admin()) or barber_id = (select public.current_barber_id()))
+  with check ((select public.is_admin()) or barber_id = (select public.current_barber_id()));
+
+-- ---- daily_promotions ----
+drop policy if exists daily_promotions_select on public.daily_promotions;
+create policy daily_promotions_select on public.daily_promotions
+  for select using ((select public.is_admin()) or barber_id = (select public.current_barber_id()));
+
+drop policy if exists daily_promotions_insert on public.daily_promotions;
+create policy daily_promotions_insert on public.daily_promotions
+  for insert with check ((select public.is_admin()) or barber_id = (select public.current_barber_id()));
+
+drop policy if exists daily_promotions_update on public.daily_promotions;
+create policy daily_promotions_update on public.daily_promotions
+  for update using ((select public.is_admin()) or barber_id = (select public.current_barber_id()))
+  with check ((select public.is_admin()) or barber_id = (select public.current_barber_id()));
+
+-- ---- weekly_periods ----
+drop policy if exists weekly_periods_select on public.weekly_periods;
+create policy weekly_periods_select on public.weekly_periods
+  for select using ((select public.is_admin()) or barber_id = (select public.current_barber_id()));
+
+drop policy if exists weekly_periods_insert on public.weekly_periods;
+create policy weekly_periods_insert on public.weekly_periods
+  for insert with check ((select public.is_admin()));
+
+drop policy if exists weekly_periods_update on public.weekly_periods;
+create policy weekly_periods_update on public.weekly_periods
+  for update using ((select public.is_admin()));
+
+-- ---- settlements ----
+drop policy if exists settlements_select on public.settlements;
+create policy settlements_select on public.settlements
+  for select using ((select public.is_admin()) or barber_id = (select public.current_barber_id()));
+
+drop policy if exists settlements_insert on public.settlements;
+create policy settlements_insert on public.settlements
+  for insert with check ((select public.is_admin()));
+
+drop policy if exists settlements_update on public.settlements;
+create policy settlements_update on public.settlements
+  for update using ((select public.is_admin()));
+
+-- ---- settings ----
+drop policy if exists settings_select on public.settings;
+create policy settings_select on public.settings
+  for select using ((select public.is_active_profile()));
+
+drop policy if exists settings_update on public.settings;
+create policy settings_update on public.settings
+  for update using ((select public.is_admin()));
+
+-- ---- Índices de FK faltantes (INFO del advisor de rendimiento) ----
+create index if not exists idx_service_records_created_by on public.service_records(created_by);
+create index if not exists idx_service_records_service_id on public.service_records(service_id);
+create index if not exists idx_service_records_voided_by on public.service_records(voided_by);
+create index if not exists idx_settlements_created_by on public.settlements(created_by);
+create index if not exists idx_settlements_weekly_period_id on public.settlements(weekly_period_id);
+
+-- =========================================================
 -- FIN DEL ESQUEMA
 -- =========================================================
