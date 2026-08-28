@@ -42,6 +42,7 @@ export function makeItem(data) {
     startDate: data.startDate || null,   // primer vencimiento (null = todavía sin fecha)
     anchorDay: data.anchorDay || null,   // día del mes de referencia (para meses cortos)
     variable: !!data.variable,           // el monto cambia en cada periodo
+    cutBased: !!data.cutBased,           // ingreso semanal ligado al corte sábado-viernes, sin día fijo
     balance: data.balance == null ? null : Number(data.balance), // solo deudas fuertes
     statusNote: data.statusNote || "",   // "Esperando Afores", "Esperando la quita"…
     reference: data.reference || "",     // número de referencia / cuenta
@@ -84,6 +85,7 @@ export function makeMovement(data) {
     note: data.note || "",
     itemId: data.itemId || null,
     occurrenceId: data.occurrenceId || null,
+    partial: !!data.partial,          // true = abono parcial; el vencimiento sigue pendiente
     balanceBefore: data.balanceBefore == null ? null : Number(data.balanceBefore),
     balanceAfter: data.balanceAfter == null ? null : Number(data.balanceAfter),
     createdAt: data.createdAt || new Date().toISOString(),

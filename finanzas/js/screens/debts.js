@@ -14,7 +14,10 @@ function debtCard(item) {
     .filter((o) => o.status === STATUS.PENDING)
     .sort((a, b) => (a.dueDate < b.dueDate ? -1 : 1))[0];
 
-  const overdue = next && next.dueDate < todayISO();
+  const overdue = next && next.dueDate <= todayISO();
+  const progress = next ? Finance.occurrenceProgress(next) : null;
+  const hasPartial = !!progress && progress.paid > 0;
+  const displayAmount = next ? (hasPartial ? progress.remaining : next.amount) : item.amount;
 
   return `
     <div class="row has-actions" style="cursor:default">
@@ -24,18 +27,19 @@ function debtCard(item) {
         <span class="row-sub">
           ${next
             ? `<span class="chip ${overdue ? "overdue" : "pending"}">${overdue ? "Vencido" : "Próximo pago"}</span>
+               ${hasPartial ? `<span class="chip lime">Abonado ${esc(money(progress.paid))}</span>` : ""}
                <span class="nowrap">${esc(formatMedium(next.dueDate))}${item.variable ? " · variable" : ""}</span>`
-            : `<span class="chip neutral">Sin programar</span>`}
+            : `<span class="chip neutral">Fecha por configurar</span>`}
         </span>
       </button>
       <span class="row-end">
-        <span class="row-amount num">${esc(money(next ? next.amount : item.amount))}</span>
-        <span class="row-meta">${next ? "próximo pago" : "monto"}</span>
+        <span class="row-amount num">${esc(money(displayAmount))}</span>
+        <span class="row-meta">${hasPartial ? `de ${esc(money(next.amount))}` : next ? "próximo pago" : "monto"}</span>
       </span>
       <span class="row-actions">
         <button class="btn btn-outline btn-sm" data-action="open-item" data-id="${esc(item.id)}">Detalle</button>
         ${next
-          ? `<button class="btn btn-ink btn-sm" data-action="pay" data-occ="${esc(next.id)}">Pagar</button>`
+          ? `<button class="btn btn-ink btn-sm" data-action="pay" data-occ="${esc(next.id)}">${hasPartial ? "Pagar resto" : "Pagar"}</button>`
           : `<button class="btn btn-ink btn-sm" data-action="pay-item" data-id="${esc(item.id)}">Pagar</button>`}
       </span>
     </div>`;

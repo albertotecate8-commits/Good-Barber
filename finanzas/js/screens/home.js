@@ -3,7 +3,7 @@
 import * as Store from "../store.js";
 import * as Finance from "../finance.js";
 import { KIND } from "../model.js";
-import { money, moneyShort, esc } from "../format.js";
+import { money, moneyShort, esc, round2 } from "../format.js";
 import { todayISO, formatLong, formatMonthYear, startOfMonth, endOfMonth, addMonths } from "../dates.js";
 import { icon, empty } from "../ui.js";
 import { occurrenceRow, barsChart, donutChart } from "../components.js";
@@ -54,7 +54,8 @@ function heroCard() {
 function monthCard() {
   const today = todayISO();
   const summary = Finance.monthSummary(today);
-  const committed = Finance.committedThisMonth(today);
+  const snap = Finance.pendingSnapshot();
+  const available = Store.availableMoney();
 
   return `
     <section class="stack-card mt-14">
@@ -65,7 +66,7 @@ function monthCard() {
       <div class="body">
         <div class="mini-grid">
           <div class="mini">
-            <div class="k">Ingresos</div>
+            <div class="k">Ingresos recibidos</div>
             <div class="v lime num">${esc(money(summary.income))}</div>
           </div>
           <div class="mini">
@@ -73,8 +74,22 @@ function monthCard() {
             <div class="v num">${esc(money(summary.paid))}</div>
           </div>
           <div class="mini">
-            <div class="k">Pendiente</div>
-            <div class="v warn num">${esc(money(committed.total))}</div>
+            <div class="k">Disponible</div>
+            <div class="v num">${esc(money(available))}</div>
+          </div>
+        </div>
+        <div class="mini-grid mt-14">
+          <div class="mini">
+            <div class="k">Vencido</div>
+            <div class="v num" style="${snap.overdueTotal ? "color:#ff9096" : ""}">${esc(money(snap.overdueTotal))}</div>
+          </div>
+          <div class="mini">
+            <div class="k">Próximos 7 días</div>
+            <div class="v warn num">${esc(money(snap.upcomingTotal))}</div>
+          </div>
+          <div class="mini">
+            <div class="k">Total pendiente</div>
+            <div class="v num">${esc(money(snap.total))}</div>
           </div>
         </div>
       </div>
@@ -103,25 +118,40 @@ function needCard() {
     </div>`;
 }
 
-function upcomingSection() {
-  const list = Finance.upcomingPayments(6);
-  const total = Finance.upcomingPayments().length;
+/** 🔴 Vencidos: su fecha ya llegó y siguen sin pagarse. Nunca se mezclan con los próximos. */
+function overdueSection() {
+  const list = Finance.overduePayments();
+  if (!list.length) return "";
+  const total = round2(list.reduce((s, o) => s + o.amount, 0));
+
+  return `
+    <div class="section-head">
+      <h2 class="section-title" style="color:var(--danger)">Vencidos</h2>
+      <span class="section-link num" style="color:var(--danger)">${esc(money(total))}</span>
+    </div>
+    <div class="list">${list.slice(0, 6).map((o) => occurrenceRow(o, { showRelative: true })).join("")}</div>
+    ${list.length > 6 ? `<button class="section-link" data-action="nav" data-to="#/gastos" style="display:block;margin:10px 2px 0">Ver todos ${icon("chevron", 13, 2.4)}</button>` : ""}`;
+}
+
+/** 🟠 Próximos 7 días (mañana en adelante): nunca incluye lo vencido. */
+function next7DaysSection() {
+  const week = Finance.next7Days();
 
   return `
     <div class="section-head">
       <h2 class="section-title">Próximos pagos</h2>
-      ${total > 6 ? `<button class="section-link" data-action="nav" data-to="#/gastos">Ver todo ${icon("chevron", 13, 2.4)}</button>` : ""}
+      <span class="section-link num">${esc(money(week.needed))}</span>
     </div>
-    ${list.length
-      ? `<div class="list">${list.map((o) => occurrenceRow(o, { showRelative: true })).join("")}</div>`
-      : `<div class="card">${empty("Sin pagos pendientes", "Todo al corriente por ahora.", "check")}</div>`}`;
+    ${week.list.length
+      ? `<div class="list">${week.list.map((o) => occurrenceRow(o, { showRelative: true })).join("")}</div>`
+      : `<div class="card">${empty("Nada en los próximos 7 días", "Todo al corriente por ahora.", "check")}</div>`}`;
 }
 
 function expectedIncomeSection() {
   const today = todayISO();
   const list = Finance.pendingIncomes({ until: endOfMonth(today) }).slice(0, 4);
   const noDate = Store.items().filter(
-    (i) => i.active && i.kind === KIND.INCOME && !i.startDate
+    (i) => i.active && i.kind === KIND.INCOME && !i.startDate && !i.cutBased
   );
 
   if (!list.length && !noDate.length) return "";
@@ -205,7 +235,8 @@ export default {
         <input type="text" placeholder="Buscar Mercado Libre, Vexi, Netflix…" readonly>
       </div>
 
-      ${upcomingSection()}
+      ${overdueSection()}
+      ${next7DaysSection()}
       ${expectedIncomeSection()}
       ${summarySection()}
       ${categorySection()}`;

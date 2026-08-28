@@ -4,7 +4,7 @@ import * as Store from "../store.js";
 import * as Finance from "../finance.js";
 import { KIND, STATUS } from "../model.js";
 import { money, esc } from "../format.js";
-import { todayISO, endOfMonth, addDays, formatMedium, recurrenceShort } from "../dates.js";
+import { todayISO, endOfMonth, addDays, formatMedium, formatCutRange, recurrenceShort } from "../dates.js";
 import { icon, empty } from "../ui.js";
 import { occurrenceRow, movementRow } from "../components.js";
 
@@ -13,17 +13,13 @@ function summaryCard() {
   const summary = Finance.monthSummary(today);
   const expected = Finance.pendingIncomes({ until: endOfMonth(today) })
     .reduce((s, o) => s + o.amount, 0);
-  const week = Finance.weekSummary(today);
+  const cut = Finance.cutBreakdown(Finance.activeCutRange());
 
   return `
     <section class="card-dark">
       <div class="hero-label" style="text-align:left">Recibido este mes</div>
       <div class="hero-amount num" style="text-align:left;font-size:32px">${esc(money(summary.income))}</div>
       <div class="mini-grid mt-14">
-        <div class="mini">
-          <div class="k">Esta semana</div>
-          <div class="v lime num">${esc(money(week.income))}</div>
-        </div>
         <div class="mini">
           <div class="k">Por recibir</div>
           <div class="v warn num">${esc(money(expected))}</div>
@@ -32,8 +28,47 @@ function summaryCard() {
           <div class="k">Disponible</div>
           <div class="v num">${esc(money(Store.availableMoney()))}</div>
         </div>
+        <div class="mini">
+          <div class="k">Corte de la semana</div>
+          <div class="v lime num">${esc(money(cut.received))}</div>
+        </div>
       </div>
     </section>`;
+}
+
+/** Tarjeta compacta del corte semanal activo (sábado a viernes). */
+function cutCard() {
+  const range = Finance.activeCutRange();
+  const breakdown = Finance.cutBreakdown(range);
+  if (!breakdown.rows.length) return "";
+
+  const rows = breakdown.rows.map(({ item, expected, received }) => `
+    <div class="kv">
+      <span class="k">${esc(item.name)}</span>
+      <span class="v num">
+        ${esc(money(received))}
+        <span class="muted" style="font-weight:500">de ${esc(money(expected))}</span>
+      </span>
+    </div>`).join("");
+
+  return `
+    <div class="section-head">
+      <h2 class="section-title">Corte semanal</h2>
+      <button class="section-link" data-action="nav" data-to="#/corte">Ver corte ${icon("chevron", 13, 2.4)}</button>
+    </div>
+    <button class="stack-card" data-action="nav" data-to="#/corte" style="width:100%;text-align:left;display:block">
+      <div class="top">
+        <span>${esc(formatCutRange(range.start, range.end))}</span>
+        <span class="date">${breakdown.missing > 0 ? `Faltan ${esc(money(breakdown.missing))}` : "Completo"}</span>
+      </div>
+      <div class="body">
+        ${rows}
+        <div class="kv" style="border-top:1px solid rgba(255,255,255,.12);margin-top:6px;padding-top:10px">
+          <span class="k" style="color:var(--on-dark-2)">Total del corte</span>
+          <span class="v num">${esc(money(breakdown.received))} <span style="color:var(--on-dark-3);font-weight:500">de ${esc(money(breakdown.expected))}</span></span>
+        </div>
+      </div>
+    </button>`;
 }
 
 /** Fila de ingreso esperado con botón de cobro directo. */
@@ -58,7 +93,9 @@ function expectedRow(occ) {
 }
 
 function extraordinarySection() {
-  const list = Store.items().filter((i) => i.active && i.kind === KIND.INCOME && !i.startDate);
+  // Ingreso extraordinario de verdad: sin fecha Y sin pertenecer al corte
+  // semanal (Afores). Barbería/Uñas son del corte, no "extraordinarios".
+  const list = Store.items().filter((i) => i.active && i.kind === KIND.INCOME && !i.startDate && !i.cutBased);
   if (!list.length) return "";
 
   return `
@@ -86,7 +123,7 @@ function extraordinarySection() {
 
 function sourcesSection() {
   const list = Store.items()
-    .filter((i) => i.active && i.kind === KIND.INCOME && i.startDate)
+    .filter((i) => i.active && i.kind === KIND.INCOME)
     .sort((a, b) => a.name.localeCompare(b.name, "es"));
 
   if (!list.length) return "";
@@ -101,7 +138,10 @@ function sourcesSection() {
           <span class="row-ico c-ingreso">${icon("income", 18)}</span>
           <span class="row-body">
             <span class="row-title">${esc(item.name)}</span>
-            <span class="row-sub"><span class="chip neutral">${esc(recurrenceShort(item.recurrence))}</span>${item.variable ? '<span class="chip neutral">Editable</span>' : ""}</span>
+            <span class="row-sub">
+              <span class="chip neutral">${item.cutBased ? "Corte semanal" : esc(recurrenceShort(item.recurrence))}</span>
+              ${item.variable ? '<span class="chip neutral">Editable</span>' : ""}
+            </span>
           </span>
           <span class="row-end">
             <span class="row-amount num pos">+${esc(money(item.amount))}</span>
@@ -135,6 +175,8 @@ export default {
         <button class="btn btn-lime" data-action="quick-income">${icon("plus", 18, 2.4)} Ingreso</button>
         <button class="btn btn-outline" data-action="nav" data-to="#/historial">${icon("history", 17)} Historial</button>
       </div>
+
+      ${cutCard()}
 
       <div class="section-head">
         <h2 class="section-title">Por recibir</h2>

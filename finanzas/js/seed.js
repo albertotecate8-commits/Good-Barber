@@ -10,6 +10,12 @@
 import { KIND, makeItem } from "./model.js";
 import { todayISO, parseISO, toISO, daysInMonth, addMonths, addDays } from "./dates.js";
 
+/**
+ * Ingresos que pertenecen al corte semanal (sábado a viernes) en vez de a un
+ * día fijo del calendario: no tienen "startDate" ni vencimiento propio.
+ */
+export const CUT_BASED_ITEM_IDS = ["ing-barberia", "ing-unas"];
+
 /** Primer día `day` del mes que caiga en hoy o después. */
 function nextMonthDayFrom(today, day) {
   const d = parseISO(today);
@@ -113,10 +119,12 @@ export function buildSeed(todayOverride) {
         statusNote: "Esperando la quita" });
 
   // -------------------------------------------------------------- INGRESOS --
+  // Barbería y Uñas son ingresos del corte semanal (sábado a viernes): no
+  // tienen un día fijo inventado, se registran dentro de la semana que caiga.
   add({ id: "ing-barberia", kind: KIND.INCOME, name: "Barbería", category: "barberia",
-        amount: 300, recurrence: "weekly", startDate: today, variable: true });
+        amount: 300, recurrence: "weekly", startDate: null, variable: true, cutBased: true });
   add({ id: "ing-unas", kind: KIND.INCOME, name: "Uñas", category: "unas",
-        amount: 5400, recurrence: "weekly", startDate: today, variable: true });
+        amount: 5400, recurrence: "weekly", startDate: null, variable: true, cutBased: true });
   add({ id: "ing-rentas", kind: KIND.INCOME, name: "Rentas", category: "rentas",
         amount: 5000, recurrence: "monthly", startDate: nextMonthDayFrom(today, 1), anchorDay: 1 });
   add({ id: "ing-afores", kind: KIND.INCOME, name: "Afores", category: "afores",

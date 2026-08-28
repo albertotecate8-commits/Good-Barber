@@ -6,7 +6,7 @@ import * as Forms from "./forms.js";
 import { KIND } from "./model.js";
 import { money, esc } from "./format.js";
 import { formatLong } from "./dates.js";
-import { icon, toast, sheet, closeSheet } from "./ui.js";
+import { icon, toast, sheet, closeSheet, confirmSheet } from "./ui.js";
 
 import home from "./screens/home.js";
 import expenses from "./screens/expenses.js";
@@ -18,6 +18,8 @@ import calendar from "./screens/calendar.js";
 import historyScreen from "./screens/history.js";
 import monthly from "./screens/monthly.js";
 import search from "./screens/search.js";
+import cut from "./screens/cut.js";
+import categoriesScreen from "./screens/categories.js";
 
 const SCREENS = {
   inicio: home,
@@ -30,6 +32,8 @@ const SCREENS = {
   historial: historyScreen,
   mensual: monthly,
   buscar: search,
+  corte: cut,
+  categorias: categoriesScreen,
 };
 
 const TABS = [
@@ -46,6 +50,8 @@ const TAB_FOR_ROUTE = {
   historial: "mas",
   mensual: "mas",
   buscar: null,
+  corte: "ingresos",
+  categorias: "mas",
 };
 
 let current = { name: "inicio", params: {} };
@@ -199,6 +205,20 @@ const ACTIONS = {
   undo: async (data) => {
     const movement = Store.getMovement(data.id);
     if (movement) await Forms.undoMovement(movement);
+  },
+
+  "close-cut": async (data) => {
+    const expected = Number(data.expected) || 0;
+    const received = Number(data.received) || 0;
+    const diff = received - expected;
+    const ok = await confirmSheet({
+      title: "¿Cerrar este corte?",
+      message: `Esperado ${money(expected)}, recibido ${money(received)} (${diff >= 0 ? "+" : ""}${money(diff)}). Se guarda en el historial y no se puede editar después. Los ingresos que ya registraste no se borran.`,
+      confirmText: "Sí, cerrar corte",
+    });
+    if (!ok) return;
+    await Store.closeCut({ start: data.start, end: data.end, expected, received });
+    toast("Corte cerrado", "ok");
   },
 
   "new-expense": () => Forms.newExpense(),

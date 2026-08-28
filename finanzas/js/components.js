@@ -31,7 +31,9 @@ export function occurrenceRow(occ, options = {}) {
   const status = Finance.statusOf(occ);
   const isIncome = occ.kind === KIND.INCOME;
   const done = status === "paid" || status === "received";
-  const amount = done && occ.paidAmount != null ? occ.paidAmount : occ.amount;
+  const progress = done ? null : Finance.occurrenceProgress(occ);
+  const hasPartial = !!progress && progress.paid > 0;
+  const amount = done && occ.paidAmount != null ? occ.paidAmount : hasPartial ? progress.remaining : occ.amount;
   const changed = done && occ.paidAmount != null && occ.paidAmount !== occ.amount;
 
   return `
@@ -41,12 +43,14 @@ export function occurrenceRow(occ, options = {}) {
         <span class="row-title">${esc(occ.name)}</span>
         <span class="row-sub">
           ${statusChip(status)}
+          ${hasPartial ? `<span class="chip lime">Abonado ${esc(moneyShort(progress.paid))}</span>` : ""}
           ${options.hideDate ? "" : `<span>${esc(options.showRelative ? relativeLabel(occ.dueDate) : formatMedium(occ.dueDate))}</span>`}
         </span>
       </span>
       <span class="row-end">
         <span class="row-amount num ${isIncome && done ? "pos" : ""}">${isIncome ? "+" : ""}${esc(money(amount))}</span>
         ${changed ? `<span class="row-meta">esperado ${esc(moneyShort(occ.amount))}</span>`
+                  : hasPartial ? `<span class="row-meta">de ${esc(moneyShort(occ.amount))}</span>`
                   : `<span class="row-meta">${esc(Store.categoryName(occ.category))}</span>`}
       </span>
     </button>`;
@@ -83,7 +87,7 @@ export function itemRow(item) {
   const isIncome = item.kind === KIND.INCOME;
   const sub = next
     ? `${statusChip(Finance.statusOf(next))}<span>${esc(formatMedium(next.dueDate))}</span>`
-    : `<span class="chip neutral">Sin programar</span>`;
+    : `<span class="chip neutral">Fecha por configurar</span>`;
 
   return `
     <button class="row" data-action="open-item" data-id="${esc(item.id)}">

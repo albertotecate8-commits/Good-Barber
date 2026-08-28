@@ -9,7 +9,7 @@ import * as Store from "./store.js";
 import { KIND, STATUS } from "./model.js";
 import {
   todayISO, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth,
-  addMonths, parseISO, MONTHS_SHORT, DOW_SHORT, monthKey,
+  addMonths, parseISO, MONTHS_SHORT, DOW_SHORT, monthKey, startOfCut, endOfCut,
 } from "./dates.js";
 import { round2 } from "./format.js";
 
@@ -19,12 +19,16 @@ export function isExpenseKind(kind) {
   return EXPENSE_KINDS.includes(kind);
 }
 
-/** Estado visual de un vencimiento: paid | received | overdue | pending. */
+/**
+ * Estado visual de un vencimiento: paid | received | overdue | pending.
+ * Un vencimiento que vence HOY ya cuenta como vencido (urgente, hay que
+ * cubrirlo ya) — por eso "Próximos 7 días" empieza mañana, no hoy.
+ */
 export function statusOf(occ, today) {
   const ref = today || todayISO();
   if (occ.status === STATUS.PAID) return "paid";
   if (occ.status === STATUS.RECEIVED) return "received";
-  if (occ.dueDate < ref) return "overdue";
+  if (occ.dueDate <= ref) return "overdue";
   return "pending";
 }
 
@@ -50,9 +54,22 @@ export function pendingIncomes({ until, from } = {}) {
     .sort((a, b) => (a.dueDate < b.dueDate ? -1 : 1));
 }
 
+/** Pagos vencidos: su fecha ya llegó (hoy incluido) y siguen sin pagarse. */
 export function overduePayments() {
-  const today = todayISO();
-  return pendingPayments({ until: addDays(today, -1) });
+  return pendingPayments({ until: todayISO() });
+}
+
+/**
+ * Cuánto se ha abonado ya a un vencimiento pendiente y cuánto falta —
+ * soporte de pagos parciales. Para uno ya resuelto, "pagado" es lo que
+ * realmente se pagó y no queda nada pendiente.
+ */
+export function occurrenceProgress(occ) {
+  if (occ.status !== STATUS.PENDING) {
+    return { paid: occ.paidAmount != null ? occ.paidAmount : occ.amount, remaining: 0 };
+  }
+  const paid = Store.paidSoFar(occ.id);
+  return { paid, remaining: round2(Math.max(0, occ.amount - paid)) };
 }
 
 /** Movimientos dentro de un rango de fechas (inclusive). */
@@ -106,17 +123,21 @@ export function committedThisMonth(iso) {
   return { total: round2(list.reduce((s, o) => s + o.amount, 0)), list };
 }
 
-/** Tarjeta "Próximos 7 días": cuánto se necesita y si alcanza. */
+/**
+ * Tarjeta "Próximos 7 días": del día de mañana al séptimo día contando desde
+ * hoy. NUNCA incluye vencidos — esos van aparte, en "Pagos vencidos".
+ */
 export function next7Days() {
   const today = todayISO();
+  const from = addDays(today, 1);
   const until = addDays(today, 7);
-  const list = pendingPayments({ until });
+  const list = pendingPayments({ from, until });
   const needed = round2(list.reduce((sum, o) => sum + o.amount, 0));
   const available = Store.availableMoney();
-  const expected = round2(pendingIncomes({ until }).reduce((s, o) => s + o.amount, 0));
+  const expected = round2(pendingIncomes({ from, until }).reduce((s, o) => s + o.amount, 0));
 
   return {
-    from: today,
+    from,
     until,
     list,
     needed,
@@ -124,6 +145,23 @@ export function next7Days() {
     expected,
     isEnough: available >= needed,
     missing: round2(Math.max(0, needed - available)),
+  };
+}
+
+/**
+ * Fotografía de lo pendiente para el dashboard: vencido (hoy incluido) +
+ * próximos 7 días. No mezcla con lo que vence más adelante en el mes.
+ */
+export function pendingSnapshot() {
+  const overdue = overduePayments();
+  const upcoming = next7Days();
+  const overdueTotal = round2(overdue.reduce((s, o) => s + o.amount, 0));
+  return {
+    overdue,
+    overdueTotal,
+    upcoming: upcoming.list,
+    upcomingTotal: upcoming.needed,
+    total: round2(overdueTotal + upcoming.needed),
   };
 }
 
@@ -153,6 +191,35 @@ export function categoryBreakdown(from, to) {
   const total = round2(rows.reduce((s, r) => s + r.amount, 0));
   rows.forEach((r) => { r.percent = total ? Math.round((r.amount / total) * 100) : 0; });
   return { rows, total };
+}
+
+/**
+ * Cuánto hay comprometido por categoría ahora mismo: la suma de los montos
+ * configurados de los conceptos activos (el saldo, para deudas fuertes). No
+ * es historial pagado — es "cuánto tengo comprometido", útil para planear.
+ */
+export function categoryCommitment() {
+  const totals = new Map();
+  const counts = new Map();
+
+  Store.items().forEach((item) => {
+    if (!item.active) return;
+    const amount = item.kind === KIND.HEAVY ? item.balance || 0 : item.amount;
+    totals.set(item.category, round2((totals.get(item.category) || 0) + amount));
+    counts.set(item.category, (counts.get(item.category) || 0) + 1);
+  });
+
+  return Store.categories()
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      color: c.color,
+      type: c.type,
+      total: totals.get(c.id) || 0,
+      count: counts.get(c.id) || 0,
+    }))
+    .filter((c) => c.count > 0)
+    .sort((a, b) => b.total - a.total);
 }
 
 /** Ingresos recibidos agrupados por categoría en un rango. */
@@ -279,7 +346,7 @@ export function search(query, filter) {
       occs = occs.filter((o) => o.status === STATUS.PAID || o.status === STATUS.RECEIVED);
       break;
     case "overdue":
-      occs = occs.filter((o) => o.status === STATUS.PENDING && o.dueDate < today);
+      occs = occs.filter((o) => o.status === STATUS.PENDING && o.dueDate <= today);
       movs = [];
       break;
     case "income":
@@ -307,6 +374,66 @@ export function search(query, filter) {
     occurrences: occs.sort((a, b) => (a.dueDate < b.dueDate ? 1 : -1)).slice(0, 60),
     movements: movs.sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 60),
   };
+}
+
+/* ==================================================== Cortes semanales ==== */
+
+/** Ingresos que pertenecen al corte sábado-viernes (sin fecha fija propia). */
+export function cutIncomeItems() {
+  return Store.items().filter((i) => i.active && i.kind === KIND.INCOME && i.cutBased);
+}
+
+/**
+ * Ventana del corte activo: la que contiene a hoy, salvo que ya se haya
+ * cerrado por adelantado — en ese caso el corte activo es el siguiente.
+ */
+export function activeCutRange() {
+  let start = startOfCut(todayISO());
+  Store.closedCuts().forEach((c) => {
+    if (c.startDate >= start) {
+      const after = addDays(c.endDate, 1);
+      if (after > start) start = after;
+    }
+  });
+  return { start, end: endOfCut(start) };
+}
+
+/**
+ * Esperado y recibido de los ingresos de corte dentro de un rango de fechas.
+ * Solo cuenta lo registrado explícitamente contra ese concepto (itemId) —
+ * un ingreso rápido suelto, aunque comparta categoría, no se mete al corte
+ * por accidente.
+ */
+export function cutBreakdown(range) {
+  const incomeItems = cutIncomeItems();
+  const inRange = (m) => m.type === "income" && m.date >= range.start && m.date <= range.end;
+
+  const rows = incomeItems.map((item) => {
+    const received = round2(
+      Store.movements()
+        .filter(inRange)
+        .filter((m) => m.itemId === item.id)
+        .reduce((s, m) => s + m.amount, 0)
+    );
+    return { item, expected: item.amount, received };
+  });
+
+  const expected = round2(rows.reduce((s, r) => s + r.expected, 0));
+  const received = round2(rows.reduce((s, r) => s + r.received, 0));
+  return { range, rows, expected, received, missing: round2(Math.max(0, expected - received)) };
+}
+
+/** Cortes cerrados, del más reciente al más antiguo. */
+export function cutHistory() {
+  return Store.closedCuts();
+}
+
+/** Resumen semanal — Inicio y la pantalla de corte comparten la lógica. */
+export function activeCutSummary() {
+  const range = activeCutRange();
+  const breakdown = cutBreakdown(range);
+  const period = summaryBetween(range.start, range.end);
+  return { ...breakdown, period };
 }
 
 /** Resumen mensual por concepto para la pantalla de "Resumen del mes". */

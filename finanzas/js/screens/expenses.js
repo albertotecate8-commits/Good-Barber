@@ -2,6 +2,7 @@
 
 import * as Store from "../store.js";
 import * as Finance from "../finance.js";
+import * as Filters from "../filters.js";
 import { KIND, STATUS } from "../model.js";
 import { money, esc } from "../format.js";
 import { todayISO, endOfMonth, formatMedium } from "../dates.js";
@@ -10,6 +11,7 @@ import { occurrenceRow, itemRow, groupedByDate } from "../components.js";
 
 let filter = "pending";
 let query = "";
+let advanced = { ...Filters.DEFAULT_FILTER };
 
 const FILTERS = [
   { id: "pending", label: "Pendientes" },
@@ -28,7 +30,8 @@ function listFor() {
   let rows;
   switch (filter) {
     case "overdue":
-      rows = all.filter((o) => o.status === STATUS.PENDING && o.dueDate < today);
+      // Vencido = su fecha ya llegó (hoy incluido) y sigue sin pagarse.
+      rows = all.filter((o) => o.status === STATUS.PENDING && o.dueDate <= today);
       break;
     case "paid":
       rows = all.filter((o) => o.status === STATUS.PAID);
@@ -37,10 +40,17 @@ function listFor() {
       rows = all;
       break;
     default:
-      rows = all.filter((o) => o.status === STATUS.PENDING);
+      // "Pendientes" son los que todavía no vencen — los vencidos tienen su propia pestaña.
+      rows = all.filter((o) => o.status === STATUS.PENDING && o.dueDate > today);
   }
 
   rows = rows.filter(match);
+
+  const isAdvanced = !Filters.isDefaultFilter(advanced);
+  if (isAdvanced) {
+    return Filters.applyAll(rows.map(Filters.normalizeOccurrence), advanced).map((r) => r.raw);
+  }
+
   const asc = filter === "pending" || filter === "overdue";
   return rows.sort((a, b) => (a.dueDate === b.dueDate ? a.name.localeCompare(b.name, "es") : (a.dueDate < b.dueDate ? (asc ? -1 : 1) : (asc ? 1 : -1))));
 }
@@ -111,6 +121,7 @@ function conceptsSection() {
 export default {
   render() {
     const rows = listFor();
+    const isAdvanced = !Filters.isDefaultFilter(advanced);
 
     return `
       <header class="head">
@@ -123,9 +134,12 @@ export default {
 
       ${totalsCard()}
 
-      <div class="search">
-        <span class="mag">${icon("search", 16, 2.2)}</span>
-        <input type="text" placeholder="Buscar gasto…" data-search value="${esc(query)}">
+      <div class="flex mt-14" style="gap:8px">
+        <div class="search grow" style="margin:0">
+          <span class="mag">${icon("search", 16, 2.2)}</span>
+          <input type="text" placeholder="Buscar gasto…" data-search value="${esc(query)}">
+        </div>
+        <button class="icon-btn ${isAdvanced ? "is-dark" : "is-outline"}" data-action="open-filters" aria-label="Filtrar">${icon("filter", 18, 2.2)}</button>
       </div>
 
       <div class="filters mt-14">
@@ -133,7 +147,7 @@ export default {
       </div>
 
       ${rows.length
-        ? (filter === "paid" || filter === "all"
+        ? (isAdvanced || filter === "paid" || filter === "all"
             ? `<div class="list">${rows.map((o) => occurrenceRow(o)).join("")}</div>`
             : groupedByDate(rows, (o) => occurrenceRow(o, { hideDate: true })))
         : `<div class="card">${empty("Nada por aquí", query ? "Prueba con otra búsqueda." : "No hay gastos con ese filtro.", "wallet")}</div>`}
@@ -149,6 +163,17 @@ export default {
         ctx.rerender();
       });
     });
+
+    const filterBtn = root.querySelector('[data-action="open-filters"]');
+    if (filterBtn) {
+      filterBtn.addEventListener("click", () => {
+        Filters.openFilterSheet({
+          state: advanced,
+          categoryType: "expense",
+          onApply: (next) => { advanced = next; ctx.rerender(); },
+        });
+      });
+    }
 
     const search = root.querySelector("[data-search]");
     if (search) {

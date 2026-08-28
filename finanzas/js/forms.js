@@ -2,6 +2,7 @@
 // cualquier registro y abonos a deudas fuertes. Todos viven en hojas modales.
 
 import * as Store from "./store.js";
+import * as Finance from "./finance.js";
 import { KIND, STATUS } from "./model.js";
 import { money, parseMoney, esc, round2 } from "./format.js";
 import { todayISO, formatLong, formatMedium, RECURRENCES, recurrenceLabel, isValidISO } from "./dates.js";
@@ -181,7 +182,7 @@ export function newIncome(prefill) {
       ${fieldText("concept", "Concepto", prefill && prefill.concept, "Uñas, barbería, renta…")}
       ${fieldAmount(prefill && prefill.amount, "Monto recibido")}
       ${fieldDate("date", "Fecha", (prefill && prefill.date) || todayISO())}
-      ${fieldCategory(prefill && prefill.category, "income")}
+      ${fieldCategory((prefill && prefill.category) || "otros-ingresos", "income")}
       ${fieldNote()}
       <div class="sheet-actions">
         <button class="btn btn-lime" data-submit>${icon("check", 18, 2.4)} Guardar ingreso</button>
@@ -215,7 +216,7 @@ export function newExpense(prefill) {
       ${fieldText("concept", "Concepto", prefill && prefill.concept, "Comida, gasolina, luz…")}
       ${fieldAmount(prefill && prefill.amount, "Monto")}
       ${fieldDate("date", "Fecha", (prefill && prefill.date) || todayISO())}
-      ${fieldCategory(prefill && prefill.category, "expense")}
+      ${fieldCategory((prefill && prefill.category) || "otros", "expense")}
       ${fieldSwitch("recurring", "¿Es recurrente?", "Se repetirá automáticamente cada periodo", false)}
       <div data-when="recurring" hidden>${fieldRecurrence("monthly")}</div>
       <div data-when="single">
@@ -291,17 +292,24 @@ export function newExpense(prefill) {
 export function payOccurrence(occ) {
   const item = Store.getItem(occ.itemId);
   const isIncome = occ.kind === KIND.INCOME;
-  const variableHint = item && item.variable
+  const progress = Finance.occurrenceProgress(occ);
+  const hasPartial = progress.paid > 0;
+  const suggested = hasPartial ? progress.remaining : occ.amount;
+
+  const variableHint = item && item.variable && !hasPartial
     ? "Este concepto es de monto variable: puedes pagar una cantidad distinta."
     : "";
 
   sheet({
     title: isIncome ? `¿Cuánto recibiste?` : `¿Cuánto pagaste?`,
-    subtitle: `${occ.name} · esperado ${money(occ.amount)}`,
+    subtitle: hasPartial
+      ? `${occ.name} · ya abonaste ${money(progress.paid)} · restan ${money(progress.remaining)}`
+      : `${occ.name} · esperado ${money(occ.amount)}`,
     body: `
-      ${fieldAmount(occ.amount, isIncome ? "Monto recibido" : "Monto pagado")}
+      ${fieldAmount(suggested, isIncome ? "Monto recibido" : "Monto pagado")}
       ${variableHint ? `<p class="tiny muted" style="margin:-8px 0 14px">${esc(variableHint)}</p>` : ""}
       ${fieldDate("date", isIncome ? "Fecha de cobro" : "Fecha del pago", todayISO())}
+      ${!isIncome ? fieldSwitch("partial", "Fue un pago parcial", "Si pagas menos, el resto sigue pendiente para después", false) : ""}
       ${fieldNote()}
       <div class="sheet-actions">
         <button class="btn ${isIncome ? "btn-lime" : "btn-ink"}" data-submit>
@@ -315,9 +323,16 @@ export function payOccurrence(occ) {
       wire(panel, close, async (raw) => {
         const data = validate(panel, raw);
         if (!data) return;
-        await Store.payOccurrence(occ.id, { amount: data.amount, date: data.date, note: data.note });
+        const result = await Store.payOccurrence(occ.id, {
+          amount: data.amount, date: data.date, note: data.note, partial: raw.partial === "1",
+        });
         close();
-        celebrate(isIncome ? "Recibido" : "Pagado", money(data.amount));
+        if (result.partial) {
+          celebrate("Abono registrado", money(data.amount));
+          toast(`Restan ${money(result.remaining)} de este pago`, "ok");
+        } else {
+          celebrate(isIncome ? "Recibido" : "Pagado", money(data.amount));
+        }
       });
     },
   });
@@ -616,7 +631,8 @@ export function choosePayment(pending) {
   }
 
   const rows = pending.slice(0, 40).map((occ) => {
-    const overdue = occ.dueDate < todayISO();
+    const overdue = occ.dueDate <= todayISO();
+    const progress = Finance.occurrenceProgress(occ);
     return `
       <button class="row" data-pay="${esc(occ.id)}">
         <span class="row-ico c-${esc(occ.category)}">${icon("wallet", 18)}</span>
@@ -627,7 +643,10 @@ export function choosePayment(pending) {
             ${esc(formatMedium(occ.dueDate))}
           </span>
         </span>
-        <span class="row-end"><span class="row-amount num">${esc(money(occ.amount))}</span></span>
+        <span class="row-end">
+          <span class="row-amount num">${esc(money(progress.paid > 0 ? progress.remaining : occ.amount))}</span>
+          ${progress.paid > 0 ? `<span class="row-meta">abonado ${esc(money(progress.paid))}</span>` : ""}
+        </span>
       </button>`;
   }).join("");
 

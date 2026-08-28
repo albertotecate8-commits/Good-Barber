@@ -1,12 +1,14 @@
 // HISTORIAL completo de movimientos. Nunca se borra solo.
 
 import * as Store from "../store.js";
+import * as Filters from "../filters.js";
 import { money, esc } from "../format.js";
-import { formatLong, monthKey, formatMonthYear } from "../dates.js";
+import { formatMonthYear, monthKey } from "../dates.js";
 import { icon, empty } from "../ui.js";
 import { backHeader, movementRow } from "../components.js";
 
 let filter = "all";
+let advanced = { ...Filters.DEFAULT_FILTER };
 
 const FILTERS = [
   { id: "all", label: "Todos" },
@@ -24,6 +26,18 @@ export default {
     if (filter === "income") rows = rows.filter((m) => m.type === "income");
     if (filter === "expense") rows = rows.filter((m) => m.type === "expense" && m.kind !== "debt" && m.kind !== "heavy");
     if (filter === "debt") rows = rows.filter((m) => m.kind === "debt" || m.kind === "heavy");
+
+    const isAdvanced = !Filters.isDefaultFilter(advanced);
+
+    if (isAdvanced) {
+      const flat = Filters.applyAll(rows.map(Filters.normalizeMovement), advanced).map((r) => r.raw);
+      return `
+        ${backHeader("Historial", `${flat.length} movimiento${flat.length === 1 ? "" : "s"}`)}
+        ${filterBar(isAdvanced)}
+        ${flat.length
+          ? `<div class="list mt-14">${flat.map(movementRow).join("")}</div>`
+          : `<div class="card mt-14">${empty("Sin resultados", "Prueba con otro filtro.", "history")}</div>`}`;
+    }
 
     const byMonth = new Map();
     rows.forEach((m) => {
@@ -47,11 +61,7 @@ export default {
 
     return `
       ${backHeader("Historial", `${rows.length} movimiento${rows.length === 1 ? "" : "s"}`)}
-
-      <div class="filters">
-        ${FILTERS.map((f) => `<button class="filter ${f.id === filter ? "is-on" : ""}" data-filter="${f.id}">${esc(f.label)}</button>`).join("")}
-      </div>
-
+      ${filterBar(isAdvanced)}
       ${rows.length ? groups : `<div class="card">${empty("Sin movimientos", "Aquí queda registrado cada ingreso y cada pago.", "history")}</div>`}`;
   },
 
@@ -62,5 +72,25 @@ export default {
         ctx.rerender();
       });
     });
+
+    const filterBtn = root.querySelector('[data-action="open-filters"]');
+    if (filterBtn) {
+      filterBtn.addEventListener("click", () => {
+        Filters.openFilterSheet({
+          state: advanced,
+          onApply: (next) => { advanced = next; ctx.rerender(); },
+        });
+      });
+    }
   },
 };
+
+function filterBar(isAdvanced) {
+  return `
+    <div class="flex" style="gap:8px;margin-top:14px">
+      <div class="filters grow" style="margin:0">
+        ${FILTERS.map((f) => `<button class="filter ${f.id === filter ? "is-on" : ""}" data-filter="${f.id}">${esc(f.label)}</button>`).join("")}
+      </div>
+      <button class="icon-btn ${isAdvanced ? "is-dark" : "is-outline"}" data-action="open-filters" aria-label="Filtrar">${icon("filter", 18, 2.2)}</button>
+    </div>`;
+}

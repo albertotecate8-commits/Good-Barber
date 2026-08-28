@@ -124,6 +124,32 @@ export function endOfWeek(iso) {
   return addDays(startOfWeek(iso), 6);
 }
 
+/**
+ * Corte financiero: sábado a viernes (no lunes a domingo). Un viernes
+ * pertenece al corte que empezó el sábado anterior; el sábado siguiente ya
+ * es un corte nuevo.
+ */
+export function startOfCut(iso) {
+  const d = parseISO(iso) || new Date();
+  const offset = (d.getDay() + 1) % 7; // días transcurridos desde el último sábado
+  d.setDate(d.getDate() - offset);
+  return toISO(d);
+}
+
+export function endOfCut(iso) {
+  return addDays(startOfCut(iso), 6);
+}
+
+/** "29 ago → 4 sep" */
+export function formatCutRange(startISO, endISO) {
+  const a = parseISO(startISO);
+  const b = parseISO(endISO);
+  if (!a || !b) return "";
+  const sameMonth = a.getMonth() === b.getMonth();
+  const left = sameMonth ? `${a.getDate()}` : `${a.getDate()} ${MONTHS_SHORT[a.getMonth()]}`;
+  return `${left} ${sameMonth ? MONTHS_SHORT[a.getMonth()] : ""} → ${b.getDate()} ${MONTHS_SHORT[b.getMonth()]}`.replace(/\s+/g, " ").trim();
+}
+
 export function startOfMonth(iso) {
   const d = parseISO(iso) || new Date();
   return toISO(new Date(d.getFullYear(), d.getMonth(), 1, 12));

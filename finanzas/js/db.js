@@ -3,9 +3,9 @@
 // sigue funcionando en memoria y avisa que los datos no se guardarán.
 
 const DB_NAME = "mis-finanzas";
-const DB_VERSION = 1;
+const DB_VERSION = 2; // v2: agrega el store "cuts" (cortes semanales cerrados)
 
-export const STORES = ["items", "occurrences", "movements", "categories", "meta"];
+export const STORES = ["items", "occurrences", "movements", "categories", "meta", "cuts"];
 
 let dbPromise = null;
 let unavailableReason = null;
@@ -60,6 +60,11 @@ function openDB() {
 
       if (!db.objectStoreNames.contains("meta")) {
         db.createObjectStore("meta", { keyPath: "key" });
+      }
+
+      if (!db.objectStoreNames.contains("cuts")) {
+        const cuts = db.createObjectStore("cuts", { keyPath: "id" });
+        cuts.createIndex("startDate", "startDate", { unique: false });
       }
 
       void event;

@@ -4,13 +4,9 @@
 
 import * as db from "./db.js";
 import { KIND, STATUS, DEFAULT_CATEGORIES, makeItem, makeOccurrence, makeMovement, signedAmount } from "./model.js";
-import { buildSeed } from "./seed.js";
-import { todayISO, addDays, addMonths, parseISO, isValidISO, RECURRENCES } from "./dates.js";
+import { buildSeed, CUT_BASED_ITEM_IDS } from "./seed.js";
+import { todayISO, addDays, addMonths, isValidISO, RECURRENCES } from "./dates.js";
 import { round2 } from "./format.js";
-
-/** Hasta dónde se generan vencimientos futuros por adelantado. */
-const HORIZON_DAYS = 120;
-const MAX_OCCURRENCES_PER_ITEM = 80;
 
 const state = {
   items: new Map(),
@@ -18,6 +14,7 @@ const state = {
   movements: new Map(),
   categories: new Map(),
   meta: new Map(),
+  cuts: new Map(),
   ready: false,
   persistent: true, // false = IndexedDB no disponible, se trabaja solo en memoria
 };
@@ -80,18 +77,20 @@ export async function init() {
 
   if (state.persistent) {
     try {
-      const [items, occurrences, movements, categories, meta] = await Promise.all([
+      const [items, occurrences, movements, categories, meta, cuts] = await Promise.all([
         db.getAll("items"),
         db.getAll("occurrences"),
         db.getAll("movements"),
         db.getAll("categories"),
         db.getAll("meta"),
+        db.getAll("cuts"),
       ]);
       items.forEach((r) => state.items.set(r.id, r));
       occurrences.forEach((r) => state.occurrences.set(r.id, r));
       movements.forEach((r) => state.movements.set(r.id, r));
       categories.forEach((r) => state.categories.set(r.id, r));
       meta.forEach((r) => state.meta.set(r.key, r.value));
+      cuts.forEach((r) => state.cuts.set(r.id, r));
     } catch (err) {
       console.error("No se pudieron leer los datos locales:", err);
       state.persistent = false;
@@ -110,10 +109,43 @@ export async function init() {
     await setMeta("seeded", new Date().toISOString());
   }
 
+  await migrateCutBasedIncomes();
   await ensureOccurrences();
   state.ready = true;
   emit();
   return state.persistent;
+}
+
+/**
+ * Migración idempotente: los ingresos semanales (Barbería, Uñas) ya no tienen
+ * un día fijo inventado — pertenecen al corte sábado-viernes. Si vienen de una
+ * versión anterior con fecha y vencimientos fechados, se limpia aquí una sola
+ * vez (los movimientos ya recibidos, que son historial real, no se tocan).
+ */
+async function migrateCutBasedIncomes() {
+  const touchedItems = [];
+  const removedOccurrences = [];
+
+  CUT_BASED_ITEM_IDS.forEach((id) => {
+    const item = state.items.get(id);
+    if (!item || item.cutBased) return;
+    item.cutBased = true;
+    item.startDate = null;
+    item.anchorDay = null;
+    item.updatedAt = new Date().toISOString();
+    state.items.set(id, item);
+    touchedItems.push(item);
+
+    occurrences()
+      .filter((o) => o.itemId === id && o.status === STATUS.PENDING)
+      .forEach((o) => {
+        state.occurrences.delete(o.id);
+        removedOccurrences.push(o.id);
+      });
+  });
+
+  if (touchedItems.length) await persist("items", touchedItems).catch(() => {});
+  if (removedOccurrences.length) await persistRemove("occurrences", removedOccurrences).catch(() => {});
 }
 
 export async function setMeta(key, value) {
@@ -176,61 +208,67 @@ function stepDate(date, recurrence, anchorDay) {
 }
 
 /**
- * Crea los vencimientos que falten para cada item activo, desde su fecha de
- * inicio hasta el horizonte. Es idempotente: llamarla varias veces no duplica
- * nada porque el id del vencimiento se deriva de (item, fecha).
+ * Cada concepto recurrente tiene, como máximo, UN vencimiento pendiente a la
+ * vez ("el próximo compromiso"). No se generan meses hacia adelante: cuando
+ * ese vencimiento se paga, esta función calcula y crea el siguiente. Es
+ * idempotente y también actúa como saneador — si por cualquier motivo hay más
+ * de un pendiente para el mismo concepto, deja solo el más próximo.
  */
 export async function ensureOccurrences() {
-  const today = todayISO();
-  const horizon = addDays(today, HORIZON_DAYS);
   const created = [];
+  const removed = [];
 
   items().forEach((item) => {
     if (!item.active) return;
     if (item.kind === KIND.HEAVY) return;   // las deudas fuertes no vencen solas
-    if (!item.startDate) return;            // sin fecha configurada todavía
+    if (item.cutBased) return;              // ingresos del corte semanal: sin fecha fija
+    if (!item.startDate) return;            // fecha por configurar
 
     const existing = occurrences()
       .filter((o) => o.itemId === item.id)
       .sort((a, b) => (a.dueDate < b.dueDate ? -1 : 1));
 
-    const last = existing[existing.length - 1];
-    let cursor = last ? last.dueDate : item.startDate;
-    let count = existing.length;
-
-    if (!last) {
-      const id = occurrenceId(item.id, cursor);
-      if (!state.occurrences.has(id)) {
-        const occ = makeOccurrence({
-          id, itemId: item.id, kind: item.kind, name: item.name,
-          category: item.category, dueDate: cursor, amount: item.amount,
-        });
-        state.occurrences.set(id, occ);
-        created.push(occ);
-        count += 1;
-      }
+    if (!existing.length) {
+      const id = occurrenceId(item.id, item.startDate);
+      const occ = makeOccurrence({
+        id, itemId: item.id, kind: item.kind, name: item.name,
+        category: item.category, dueDate: item.startDate, amount: item.amount,
+      });
+      state.occurrences.set(id, occ);
+      created.push(occ);
+      return;
     }
 
-    if (item.recurrence === "once") return;
+    const pending = existing.filter((o) => o.status === STATUS.PENDING);
 
-    while (cursor < horizon && count < MAX_OCCURRENCES_PER_ITEM) {
-      const next = stepDate(cursor, item.recurrence, item.anchorDay);
-      if (!next || next <= cursor) break;
-      cursor = next;
-      const id = occurrenceId(item.id, cursor);
-      if (!state.occurrences.has(id)) {
-        const occ = makeOccurrence({
-          id, itemId: item.id, kind: item.kind, name: item.name,
-          category: item.category, dueDate: cursor, amount: item.amount,
-        });
-        state.occurrences.set(id, occ);
-        created.push(occ);
-      }
-      count += 1;
+    if (pending.length > 1) {
+      // Sobrantes de una versión anterior (o de un cambio de periodicidad):
+      // se conserva solo el más próximo, el resto se retira.
+      pending.slice(1).forEach((o) => {
+        state.occurrences.delete(o.id);
+        removed.push(o.id);
+      });
+    }
+
+    if (pending.length >= 1) return; // ya hay un compromiso activo
+    if (item.recurrence === "once") return; // no se repite
+
+    const last = existing[existing.length - 1];
+    const next = stepDate(last.dueDate, item.recurrence, item.anchorDay);
+    if (!next) return;
+    const id = occurrenceId(item.id, next);
+    if (!state.occurrences.has(id)) {
+      const occ = makeOccurrence({
+        id, itemId: item.id, kind: item.kind, name: item.name,
+        category: item.category, dueDate: next, amount: item.amount,
+      });
+      state.occurrences.set(id, occ);
+      created.push(occ);
     }
   });
 
   if (created.length) await persist("occurrences", created).catch(() => {});
+  if (removed.length) await persistRemove("occurrences", removed).catch(() => {});
   return created.length;
 }
 
@@ -383,12 +421,26 @@ function validatePayload({ amount, date }) {
   if (!isValidISO(date)) throw new Error("La fecha no es válida.");
 }
 
+/** Cuánto se ha abonado ya a un vencimiento pendiente (para pagos parciales). */
+export function paidSoFar(occId) {
+  return round2(
+    movements()
+      .filter((m) => m.occurrenceId === occId)
+      .reduce((s, m) => s + m.amount, 0)
+  );
+}
+
 /**
  * Registra el pago de un vencimiento. El monto puede ser distinto al esperado.
- * Si el item es de monto variable, el nuevo monto queda como referencia para
- * los siguientes periodos (los anteriores quedan intactos en el historial).
+ *
+ * Si `partial` es true y lo pagado no cubre el monto restante, el vencimiento
+ * NO se marca como pagado: sigue pendiente por la diferencia, y se puede
+ * seguir abonando después (pago parcial). Si cubre el total (o no se marcó
+ * como parcial), el vencimiento se resuelve, y si el item es de monto
+ * variable, el importe de este pago queda como referencia para el siguiente
+ * periodo — los pagos anteriores del historial nunca se modifican.
  */
-export async function payOccurrence(occId, { amount, date, note } = {}) {
+export async function payOccurrence(occId, { amount, date, note, partial } = {}) {
   const occ = state.occurrences.get(occId);
   if (!occ) throw new Error("No se encontró ese pago.");
   if (occ.status !== STATUS.PENDING) throw new Error("Ese pago ya estaba registrado.");
@@ -398,6 +450,10 @@ export async function payOccurrence(occId, { amount, date, note } = {}) {
   validatePayload(payload);
 
   const isIncome = occ.kind === KIND.INCOME;
+  const prior = paidSoFar(occ.id);
+  const remaining = round2(occ.amount - prior - payload.amount);
+  const isPartial = !isIncome && !!partial && remaining > 0;
+
   const movement = buildMovement({
     type: isIncome ? "income" : "expense",
     concept: occ.name,
@@ -408,18 +464,26 @@ export async function payOccurrence(occId, { amount, date, note } = {}) {
     note: payload.note,
     itemId: occ.itemId,
     occurrenceId: occ.id,
+    partial: isPartial,
   });
 
-  occ.status = isIncome ? STATUS.RECEIVED : STATUS.PAID;
-  occ.paidAmount = payload.amount;
-  occ.paidDate = payload.date;
-  occ.note = payload.note;
-  occ.movementId = movement.id;
-
   state.movements.set(movement.id, movement);
-  state.occurrences.set(occ.id, occ);
-
   await persist("movements", movement);
+
+  if (isPartial) {
+    if (payload.note) occ.note = occ.note ? `${occ.note} · ${payload.note}` : payload.note;
+    state.occurrences.set(occ.id, occ);
+    await persist("occurrences", occ);
+    emit();
+    return { occurrence: occ, movement, partial: true, remaining: round2(Math.max(0, remaining)) };
+  }
+
+  occ.status = isIncome ? STATUS.RECEIVED : STATUS.PAID;
+  occ.paidAmount = round2(prior + payload.amount);
+  occ.paidDate = payload.date;
+  occ.note = payload.note || occ.note;
+  occ.movementId = movement.id;
+  state.occurrences.set(occ.id, occ);
   await persist("occurrences", occ);
 
   // Monto variable: el importe pagado queda como referencia hacia adelante.
@@ -428,18 +492,12 @@ export async function payOccurrence(occId, { amount, date, note } = {}) {
     item.updatedAt = new Date().toISOString();
     state.items.set(item.id, item);
     await persist("items", item);
-
-    const future = occurrences().filter(
-      (o) => o.itemId === item.id && o.status === STATUS.PENDING && o.dueDate > occ.dueDate
-    );
-    future.forEach((o) => { o.amount = payload.amount; });
-    if (future.length) await persist("occurrences", future).catch(() => {});
   }
 
-  // Genera el siguiente vencimiento del periodo.
+  // Genera el siguiente vencimiento del periodo (uno solo, no meses enteros).
   await ensureOccurrences();
   emit();
-  return { occurrence: occ, movement };
+  return { occurrence: occ, movement, partial: false };
 }
 
 /**
@@ -557,6 +615,36 @@ export async function setHeavyBalance(itemId, balance, note) {
   return item;
 }
 
+/* ==================================================== Cortes semanales ==== */
+
+export const closedCuts = () => [...state.cuts.values()].sort((a, b) => (a.startDate < b.startDate ? 1 : -1));
+export const getCut = (id) => state.cuts.get(id) || null;
+
+/**
+ * Cierra el corte semanal actual: guarda una fotografía (esperado, recibido,
+ * diferencia) que ya no cambia aunque después se editen los ingresos. NUNCA
+ * borra movimientos ni ingresos: solo registra el cierre del periodo.
+ */
+export async function closeCut({ start, end, expected, received }) {
+  if (!start || !end) throw new Error("Faltan las fechas del corte.");
+  const id = `cut_${start}`;
+  if (state.cuts.has(id)) throw new Error("Ese corte ya estaba cerrado.");
+  const record = {
+    id,
+    startDate: start,
+    endDate: end,
+    expected: round2(expected || 0),
+    received: round2(received || 0),
+    difference: round2((received || 0) - (expected || 0)),
+    status: "closed",
+    closedAt: new Date().toISOString(),
+  };
+  state.cuts.set(id, record);
+  await persist("cuts", record);
+  emit();
+  return record;
+}
+
 /* ======================================================== Categorías ===== */
 
 export async function saveCategory({ id, name, type, color }) {
@@ -598,18 +686,20 @@ export async function deleteCategory(id) {
 export function exportData() {
   return {
     app: "mis-finanzas",
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     counts: {
       items: state.items.size,
       occurrences: state.occurrences.size,
       movements: state.movements.size,
       categories: state.categories.size,
+      cuts: state.cuts.size,
     },
     items: items(),
     occurrences: occurrences(),
     movements: movements(),
     categories: categories(),
+    cuts: closedCuts(),
     meta: [...state.meta.entries()].map(([key, value]) => ({ key, value })),
   };
 }
@@ -617,7 +707,7 @@ export function exportData() {
 function validateBackup(data) {
   if (!data || typeof data !== "object") throw new Error("El archivo no es un respaldo válido.");
   if (data.app && data.app !== "mis-finanzas") throw new Error("Ese respaldo es de otra aplicación.");
-  ["items", "occurrences", "movements", "categories"].forEach((key) => {
+  ["items", "occurrences", "movements", "categories", "cuts"].forEach((key) => {
     if (data[key] != null && !Array.isArray(data[key])) throw new Error(`El campo "${key}" está dañado.`);
   });
   if (!Array.isArray(data.items) && !Array.isArray(data.movements)) {
@@ -643,6 +733,7 @@ export async function importData(raw) {
     occurrences: (data.occurrences || []).map(makeOccurrence),
     movements: (data.movements || []).map(makeMovement),
     categories: (data.categories || []).length ? data.categories : DEFAULT_CATEGORIES,
+    cuts: data.cuts || [],
     meta: data.meta || [{ key: "seeded", value: new Date().toISOString() }],
   };
 
@@ -652,8 +743,10 @@ export async function importData(raw) {
   state.occurrences = new Map(payload.occurrences.map((r) => [r.id, r]));
   state.movements = new Map(payload.movements.map((r) => [r.id, r]));
   state.categories = new Map(payload.categories.map((r) => [r.id, r]));
+  state.cuts = new Map(payload.cuts.map((r) => [r.id, r]));
   state.meta = new Map(payload.meta.map((r) => [r.key, r.value]));
 
+  await migrateCutBasedIncomes();
   await ensureOccurrences();
   emit();
   return { items: state.items.size, movements: state.movements.size };
@@ -666,12 +759,14 @@ export async function resetAll(reseed) {
   state.occurrences.clear();
   state.movements.clear();
   state.meta.clear();
+  state.cuts.clear();
   state.categories = new Map(DEFAULT_CATEGORIES.map((c) => [c.id, c]));
   await persist("categories", DEFAULT_CATEGORIES).catch(() => {});
 
   if (reseed) {
     buildSeed().forEach((item) => state.items.set(item.id, item));
     await persist("items", [...state.items.values()]).catch(() => {});
+    await migrateCutBasedIncomes();
     await ensureOccurrences();
   }
   await setMeta("seeded", new Date().toISOString());
