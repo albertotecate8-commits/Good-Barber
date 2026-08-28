@@ -9,7 +9,7 @@ import * as Store from "./store.js";
 import { KIND, STATUS } from "./model.js";
 import {
   todayISO, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth,
-  addMonths, parseISO, MONTHS_SHORT, DOW_SHORT, monthKey, startOfCut, endOfCut,
+  addMonths, parseISO, MONTHS_SHORT, DOW_SHORT, monthKey, startOfCut, endOfCut, nextDue,
 } from "./dates.js";
 import { round2 } from "./format.js";
 
@@ -282,6 +282,62 @@ export function series(period) {
 }
 
 /** Eventos por día para el calendario: { "YYYY-MM-DD": {...} } */
+/**
+ * Vencimientos FUTUROS de un concepto recurrente, calculados dinámicamente
+ * a partir de su próximo vencimiento real — sin crear ningún registro en
+ * la base. Sirven solo para mostrar (calendario, planeación); el único
+ * vencimiento que se puede pagar sigue siendo el real (el más próximo).
+ *
+ * Mientras el concepto esté activo, sigue proyectándose indefinidamente
+ * hacia adelante según su periodicidad; al desactivarlo, deja de
+ * proyectarse a partir de ese momento (el historial y lo ya pendiente no
+ * se tocan).
+ */
+export function projectOccurrences(item, fromISO, toISO_) {
+  if (!item || !item.active) return [];
+  if (item.kind === KIND.HEAVY || item.cutBased) return [];
+  if (item.recurrence === "once" || !item.startDate) return [];
+
+  const real = Store.occurrencesOf(item.id).sort((a, b) => (a.dueDate < b.dueDate ? -1 : 1));
+  const pending = real.find((o) => o.status === STATUS.PENDING);
+  const anchorDate = pending ? pending.dueDate : item.startDate;
+
+  const results = [];
+  let cursor = anchorDate;
+  let guard = 0;
+
+  // Avanza sin generar nada hasta entrar al rango pedido (lo anterior ya lo
+  // cubre, si existe, el vencimiento real).
+  while (cursor < fromISO && guard < 240) {
+    const next = nextDue(cursor, item.recurrence, item.anchorDay);
+    if (!next || next <= cursor) return results;
+    cursor = next;
+    guard += 1;
+  }
+
+  while (cursor <= toISO_ && guard < 240) {
+    if (cursor !== anchorDate) {
+      // El ancla real (si cae en el rango) ya se pinta desde Store.occurrences();
+      // aquí solo se agregan las proyecciones puramente calculadas.
+      results.push({
+        virtual: true,
+        itemId: item.id,
+        kind: item.kind,
+        name: item.name,
+        category: item.category,
+        dueDate: cursor,
+        amount: item.amount,
+      });
+    }
+    const next = nextDue(cursor, item.recurrence, item.anchorDay);
+    if (!next || next <= cursor) break;
+    cursor = next;
+    guard += 1;
+  }
+
+  return results;
+}
+
 export function calendarIndex(fromISO, toISO_) {
   const index = new Map();
 
@@ -318,6 +374,23 @@ export function calendarIndex(fromISO, toISO_) {
       amount: o.amount,
       occurrenceId: o.id,
       itemId: o.itemId,
+    });
+  });
+
+  // Vencimientos futuros aún no generados como registro real: se calculan
+  // al vuelo para que el calendario nunca "pierda" una obligación recurrente
+  // activa solo porque su vencimiento real todavía no llegó a ese mes.
+  Store.items().forEach((item) => {
+    projectOccurrences(item, fromISO, toISO_).forEach((virt) => {
+      const day = touch(virt.dueDate);
+      day.pending = true;
+      day.events.push({
+        type: virt.kind === KIND.INCOME ? "expected" : "due",
+        title: virt.name,
+        amount: virt.amount,
+        itemId: virt.itemId,
+        virtual: true,
+      });
     });
   });
 
