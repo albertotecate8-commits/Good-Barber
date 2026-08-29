@@ -1,5 +1,5 @@
 import * as data from "./data.js";
-import { toast, friendlyError, showLoading, confirmDialog, openModal, escapeHtml } from "./ui.js";
+import { toast, friendlyError, showLoading, confirmDialog, openModal, escapeHtml, animateNumberText } from "./ui.js";
 import { formatCents, toCents, fromCents } from "./money.js";
 import { dayTotalCents, groupRecordsByDate, weekTotalCents, settlementBreakdown, recordLineTotalCents } from "./calc.js";
 import { startOfWeek, endOfWeek, toISODate, todayISO, weekLabel, formatDateText, DIAS, dayNameFromDate, parseISODate } from "./dates.js";
@@ -151,6 +151,7 @@ async function openQuickRegister(ctx, onDone) {
   const cartBox = overlay.querySelector("#qr-cart");
   const totalEl = overlay.querySelector("#qr-total");
   const confirmBtn = overlay.querySelector("#qr-confirm");
+  let lastTotalCents = 0;
 
   function lineTotal(item) {
     return Math.max(0, item.service.price_cents * item.quantity - item.discountCents);
@@ -197,8 +198,23 @@ async function openQuickRegister(ctx, onDone) {
       );
       cartBox.querySelectorAll("[data-remove]").forEach((btn) =>
         btn.addEventListener("click", () => {
-          cart.splice(Number(btn.dataset.remove), 1);
-          renderCart();
+          const item = cart[Number(btn.dataset.remove)];
+          const row = btn.closest(".card-row");
+          let removed = false;
+          const removeNow = () => {
+            if (removed) return;
+            removed = true;
+            const i = cart.indexOf(item); // por identidad: sigue siendo correcto aunque el carrito haya cambiado mientras animaba
+            if (i !== -1) cart.splice(i, 1);
+            renderCart();
+          };
+          if (row && !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+            row.classList.add("cart-row-leaving");
+            row.addEventListener("animationend", removeNow, { once: true });
+            setTimeout(removeNow, 250); // respaldo
+          } else {
+            removeNow();
+          }
         })
       );
       cartBox.querySelectorAll("[data-discount]").forEach((inp) =>
@@ -213,7 +229,8 @@ async function openQuickRegister(ctx, onDone) {
 
   function updateTotal() {
     const total = cart.reduce((sum, item) => sum + lineTotal(item), 0);
-    totalEl.textContent = formatCents(total);
+    animateNumberText(totalEl, lastTotalCents, total, formatCents);
+    lastTotalCents = total;
     confirmBtn.disabled = cart.length === 0;
   }
 
@@ -226,6 +243,10 @@ async function openQuickRegister(ctx, onDone) {
       } else {
         cart.push({ service, quantity: 1, discountCents: 0 });
       }
+      btn.classList.remove("just-added");
+      // eslint-disable-next-line no-unused-expressions
+      void btn.offsetWidth; // reinicia la animación si se toca el mismo servicio dos veces seguidas
+      btn.classList.add("just-added");
       renderCart();
     });
   });
@@ -268,17 +289,38 @@ async function openQuickRegister(ctx, onDone) {
   });
 
   overlay.querySelector("#qr-new-client").addEventListener("click", () => {
-    const name = prompt("Nombre del nuevo cliente:");
-    if (!name || !name.trim()) return;
-    data
-      .createClient({ barberId: ctx.barber.id, name: name.trim() })
-      .then((client) => {
+    const { overlay: nc, close: closeNc } = openModal(`
+      <button type="button" class="btn btn-ghost btn-icon modal-close" data-close-modal aria-label="Cerrar">✕</button>
+      <h3>Nuevo cliente</h3>
+      <div class="field mt-16">
+        <label for="nc-name">Nombre</label>
+        <input id="nc-name" autocomplete="off">
+      </div>
+      <div id="nc-error" class="text-danger mt-8 hidden"></div>
+      <button type="button" class="btn btn-primary btn-block mt-16" id="nc-save">Agregar cliente</button>
+    `);
+    const input = nc.querySelector("#nc-name");
+    input.focus();
+    nc.querySelector("#nc-save").addEventListener("click", async () => {
+      const name = input.value.trim();
+      const errorBox = nc.querySelector("#nc-error");
+      if (!name) {
+        errorBox.textContent = "El nombre es obligatorio.";
+        errorBox.classList.remove("hidden");
+        return;
+      }
+      try {
+        const client = await data.createClient({ barberId: ctx.barber.id, name });
         selectedClient = client;
         selectedBox.textContent = `Cliente: ${client.name}`;
         selectedBox.classList.remove("hidden");
         toast("Cliente agregado.", "success");
-      })
-      .catch((error) => toast(friendlyError(error), "error"));
+        closeNc();
+      } catch (error) {
+        errorBox.textContent = friendlyError(error);
+        errorBox.classList.remove("hidden");
+      }
+    });
   });
 
   confirmBtn.addEventListener("click", async () => {
@@ -293,8 +335,12 @@ async function openQuickRegister(ctx, onDone) {
         createdBy: ctx.profile.id,
       });
       toast(cart.length > 1 ? "Servicios guardados correctamente." : "Servicio guardado correctamente.", "success");
-      close();
-      onDone();
+      confirmBtn.textContent = "✓ Guardado";
+      confirmBtn.classList.add("btn-success-state", "pulse-success");
+      setTimeout(() => {
+        close();
+        onDone();
+      }, 480);
     } catch (error) {
       toast(friendlyError(error), "error");
       confirmBtn.disabled = false;
@@ -467,12 +513,16 @@ async function openEditRecordForm(record, onDone) {
   const discountInput = overlay.querySelector("#er-discount");
   const totalEl = overlay.querySelector("#er-total");
   const errorBox = overlay.querySelector("#er-error");
+  let lastTotalCents = record.price_cents * (record.quantity || 1) - (record.discount_cents || 0);
+  totalEl.textContent = formatCents(lastTotalCents);
 
   function updateTotal() {
     const price = Number(serviceSelect.selectedOptions[0]?.dataset.price || 0);
     const qty = Math.max(1, Number(qtyInput.value || 1));
     const discountCents = Math.max(0, toCents(discountInput.value));
-    totalEl.textContent = formatCents(Math.max(0, price * qty - discountCents));
+    const total = Math.max(0, price * qty - discountCents);
+    animateNumberText(totalEl, lastTotalCents, total, formatCents);
+    lastTotalCents = total;
   }
   serviceSelect.addEventListener("change", updateTotal);
   qtyInput.addEventListener("input", updateTotal);
@@ -507,8 +557,12 @@ async function openEditRecordForm(record, onDone) {
         notes,
       });
       toast("Servicio actualizado.", "success");
-      close();
-      onDone();
+      btn.textContent = "✓ Guardado";
+      btn.classList.add("btn-success-state", "pulse-success");
+      setTimeout(() => {
+        close();
+        onDone();
+      }, 480);
     } catch (error) {
       errorBox.textContent = friendlyError(error);
       errorBox.classList.remove("hidden");

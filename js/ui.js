@@ -25,11 +25,13 @@ function updateConnectionBanner() {
   }
 }
 
+const TOAST_ICONS = { success: "✓", error: "✕", info: "i" };
+
 export function toast(message, type = "info") {
   if (!toastContainer) return;
   const el = document.createElement("div");
   el.className = `toast toast-${type}`;
-  el.textContent = message;
+  el.innerHTML = `<span class="toast-icon">${TOAST_ICONS[type] || TOAST_ICONS.info}</span><span>${escapeHtml(message)}</span>`;
   toastContainer.appendChild(el);
   requestAnimationFrame(() => el.classList.add("toast-in"));
   setTimeout(() => {
@@ -42,6 +44,25 @@ export function showLoading(show = true, label = "Cargando…") {
   if (!loadingOverlay) return;
   loadingOverlay.querySelector(".loading-label").textContent = label;
   loadingOverlay.classList.toggle("hidden", !show);
+}
+
+// Cierra un overlay reproduciendo su animación de salida (definida en CSS)
+// antes de quitarlo del DOM, en vez de desaparecer de golpe. Con
+// prefers-reduced-motion la duración de esa animación baja a ~0, así que
+// esto se resuelve casi al instante sin necesidad de una rama aparte.
+function closeOverlayAnimated(overlay, after) {
+  overlay.classList.add("closing");
+  const box = overlay.querySelector(".modal-box");
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    overlay.remove();
+    if (after) after();
+  };
+  if (box) box.addEventListener("animationend", finish, { once: true });
+  else overlay.addEventListener("animationend", finish, { once: true });
+  setTimeout(finish, 400); // respaldo por si el evento no llega a disparar
 }
 
 export function confirmDialog({ title = "Confirmar", message = "", confirmLabel = "Confirmar", danger = false }) {
@@ -59,10 +80,7 @@ export function confirmDialog({ title = "Confirmar", message = "", confirmLabel 
       </div>
     `;
     modalRoot.appendChild(overlay);
-    const close = (result) => {
-      overlay.remove();
-      resolve(result);
-    };
+    const close = (result) => closeOverlayAnimated(overlay, () => resolve(result));
     overlay.querySelector('[data-action="cancel"]').addEventListener("click", () => close(false));
     overlay.querySelector('[data-action="confirm"]').addEventListener("click", () => close(true));
     overlay.addEventListener("click", (e) => {
@@ -77,13 +95,33 @@ export function openModal(innerHtml, { onMount } = {}) {
   overlay.className = "modal-overlay";
   overlay.innerHTML = `<div class="modal-box modal-box-lg" role="dialog" aria-modal="true">${innerHtml}</div>`;
   modalRoot.appendChild(overlay);
-  const close = () => overlay.remove();
+  const close = () => closeOverlayAnimated(overlay);
   overlay.addEventListener("click", (e) => {
     if (e.target === overlay) close();
   });
   overlay.querySelectorAll("[data-close-modal]").forEach((btn) => btn.addEventListener("click", close));
   if (onMount) onMount(overlay, close);
   return { overlay, close };
+}
+
+// Anima el texto de un elemento de $0.00 (o su valor actual) hasta el nuevo
+// total, puramente visual — nunca recalcula ni toca datos, solo interpola el
+// número que ya se calculó en JS de negocio y lo formatea con formatCents.
+export function animateNumberText(el, fromCents, toCents, formatCents, duration = 320) {
+  if (!el) return;
+  if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches || fromCents === toCents) {
+    el.textContent = formatCents(toCents);
+    return;
+  }
+  const start = performance.now();
+  const ease = (t) => 1 - Math.pow(1 - t, 3);
+  function frame(now) {
+    const t = Math.min(1, (now - start) / duration);
+    const value = Math.round(fromCents + (toCents - fromCents) * ease(t));
+    el.textContent = formatCents(value);
+    if (t < 1) requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
 }
 
 export function escapeHtml(value) {
