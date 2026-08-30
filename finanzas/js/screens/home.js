@@ -121,6 +121,10 @@ function next7DaysCard() {
         <span class="date">${esc(formatShort(week.from))} → ${esc(formatShort(week.until))}</span>
       </div>
       <div class="body">
+        <div class="kv" style="padding-bottom:10px">
+          <span class="k">Disponible ahora (real, no proyectado)</span>
+          <span class="v num">${esc(money(week.available))}</span>
+        </div>
         <div class="mini-grid">
           <div class="mini">
             <div class="k">Ingresos esperados</div>
