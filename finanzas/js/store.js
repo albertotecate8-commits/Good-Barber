@@ -276,13 +276,50 @@ export async function ensureOccurrences() {
 /* ================================================== Dinero disponible ==== */
 
 /**
- * Dinero disponible = ingresos realmente recibidos − gastos realmente pagados.
- * Los pendientes NO se descuentan aquí (aparecen como dinero comprometido).
+ * Saldo inicial: lo que había antes de empezar a usar la app (efectivo en
+ * mano, cuenta bancaria, etc.). $0 si el usuario nunca lo configuró — NUNCA
+ * se inventa un valor. Editable desde Más.
+ */
+export function initialBalance() {
+  return Number(getMeta("initialBalance", 0)) || 0;
+}
+
+export async function setInitialBalance(value) {
+  const n = Number(value);
+  if (!isFinite(n)) throw new Error("El saldo inicial debe ser un número.");
+  await setMeta("initialBalance", round2(n));
+}
+
+/** Suma de todos los ingresos realmente recibidos (movimientos tipo income), histórico completo. */
+export function totalReceived() {
+  let total = 0;
+  state.movements.forEach((m) => { if (m.type === "income") total += m.amount; });
+  return round2(total);
+}
+
+/** Suma de todos los gastos/pagos realmente pagados (movimientos tipo expense), histórico completo. */
+export function totalPaid() {
+  let total = 0;
+  state.movements.forEach((m) => { if (m.type === "expense") total += m.amount; });
+  return round2(total);
+}
+
+/**
+ * Dinero disponible real = saldo inicial + ingresos realmente recibidos −
+ * gastos realmente pagados (histórico completo). Los pendientes NUNCA se
+ * suman ni se restan aquí — aparecen aparte, como dinero comprometido o
+ * esperado. Cada cifra de esta fórmula puede auditarse con Store.moneyBreakdown().
  */
 export function availableMoney() {
-  let total = 0;
-  state.movements.forEach((m) => { total += signedAmount(m); });
-  return round2(total);
+  return round2(initialBalance() + totalReceived() - totalPaid());
+}
+
+/** Desglose completo y auditable del dinero disponible. */
+export function moneyBreakdown() {
+  const initial = initialBalance();
+  const received = totalReceived();
+  const paid = totalPaid();
+  return { initial, received, paid, total: round2(initial + received - paid) };
 }
 
 /* ================================================== Altas y ediciones ==== */

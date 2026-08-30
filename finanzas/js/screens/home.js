@@ -3,8 +3,8 @@
 import * as Store from "../store.js";
 import * as Finance from "../finance.js";
 import { KIND } from "../model.js";
-import { money, moneyShort, esc, round2 } from "../format.js";
-import { todayISO, formatLong, formatMonthYear, startOfMonth, endOfMonth, addMonths } from "../dates.js";
+import { money, esc, round2 } from "../format.js";
+import { todayISO, formatLong, formatShort, formatMonthYear, startOfMonth, endOfMonth, addMonths } from "../dates.js";
 import { icon, empty } from "../ui.js";
 import { occurrenceRow, barsChart, donutChart } from "../components.js";
 
@@ -27,12 +27,15 @@ function greeting() {
 function heroCard() {
   const available = Store.availableMoney();
   const negative = available < 0;
+  const hasInitial = Store.initialBalance() !== 0;
 
   return `
     <section class="hero">
-      <div class="hero-label">Dinero disponible</div>
-      <div class="hero-amount num${negative ? " is-neg" : ""}">${esc(money(available))}</div>
-      <div class="hero-note">Ingresos recibidos menos gastos pagados</div>
+      <button class="hero-tap" data-action="show-breakdown" aria-label="Ver de dónde sale el dinero disponible">
+        <div class="hero-label">Dinero disponible ${icon("info", 13, 2.2)}</div>
+        <div class="hero-amount num${negative ? " is-neg" : ""}">${esc(money(available))}</div>
+        <div class="hero-note">${hasInitial ? "Saldo inicial + ingresos recibidos − gastos pagados" : "Ingresos recibidos menos gastos pagados"} · toca para ver el detalle</div>
+      </button>
 
       <div class="hero-actions">
         <button class="qa is-primary" data-action="quick-income">
@@ -56,6 +59,10 @@ function monthCard() {
   const summary = Finance.monthSummary(today);
   const snap = Finance.pendingSnapshot();
   const available = Store.availableMoney();
+  const expectedIncome = round2(
+    Finance.pendingIncomes({ from: startOfMonth(today), until: endOfMonth(today) })
+      .reduce((s, o) => s + o.amount, 0)
+  );
 
   return `
     <section class="stack-card mt-14">
@@ -66,56 +73,88 @@ function monthCard() {
       <div class="body">
         <div class="mini-grid">
           <div class="mini">
-            <div class="k">Ingresos recibidos</div>
+            <div class="k">Ingresos recibidos (mes)</div>
             <div class="v lime num">${esc(money(summary.income))}</div>
           </div>
           <div class="mini">
-            <div class="k">Gastos pagados</div>
+            <div class="k">Gastos pagados (mes)</div>
             <div class="v num">${esc(money(summary.paid))}</div>
           </div>
-          <div class="mini">
-            <div class="k">Disponible</div>
-            <div class="v num">${esc(money(available))}</div>
-          </div>
-        </div>
-        <div class="mini-grid mt-14">
           <div class="mini">
             <div class="k">Vencido</div>
             <div class="v num" style="${snap.overdueTotal ? "color:#ff9096" : ""}">${esc(money(snap.overdueTotal))}</div>
           </div>
+        </div>
+        <div class="mini-grid mt-14">
           <div class="mini">
-            <div class="k">Próximos 7 días</div>
+            <div class="k">Próximos pagos</div>
             <div class="v warn num">${esc(money(snap.upcomingTotal))}</div>
           </div>
           <div class="mini">
-            <div class="k">Total pendiente</div>
-            <div class="v num">${esc(money(snap.total))}</div>
+            <div class="k">Ingresos por recibir</div>
+            <div class="v num">${esc(money(expectedIncome))}</div>
+          </div>
+          <div class="mini">
+            <div class="k">Dinero disponible</div>
+            <div class="v num">${esc(money(available))}</div>
           </div>
         </div>
       </div>
     </section>`;
 }
 
-function needCard() {
+/**
+ * Próximos 7 días: ingresos esperados y pagos próximos son cifras del MISMO
+ * periodo (mañana → +7 días), nunca se mezclan con el dinero disponible
+ * actual. "Diferencia" es un escenario hipotético, no dinero que ya se tenga.
+ */
+function next7DaysCard() {
   const week = Finance.next7Days();
+  const diff = round2(week.expected - week.needed);
+  const scenarioA = week.available >= week.needed;
+  const scenarioB = round2(week.available + week.expected - week.needed);
 
   return `
-    <div class="pair mt-14">
-      <div class="stat-card">
-        <div class="k">Próximos 7 días</div>
-        <div class="v num">${esc(money(week.needed))}</div>
-        <div class="d"><span class="g">${week.list.length} pago${week.list.length === 1 ? "" : "s"} por cubrir</span></div>
+    <section class="stack-card mt-14">
+      <div class="top">
+        <span>Próximos 7 días</span>
+        <span class="date">${esc(formatShort(week.from))} → ${esc(formatShort(week.until))}</span>
       </div>
-      <button class="stat-card" data-action="nav" data-to="#/gastos" style="text-align:left">
-        <div class="k">¿Alcanza?</div>
-        <div class="v sm ${week.isEnough ? "pos" : "neg"}">${week.isEnough ? "Sí alcanza" : "No alcanza"}</div>
-        <div class="d">
-          ${week.isEnough
-            ? `<span class="pos">Te sobran ${esc(moneyShort(week.available - week.needed))}</span>`
-            : `<span class="neg">Faltan ${esc(moneyShort(week.missing))}</span>`}
+      <div class="body">
+        <div class="mini-grid">
+          <div class="mini">
+            <div class="k">Ingresos esperados</div>
+            <div class="v lime num">${esc(money(week.expected))}</div>
+          </div>
+          <div class="mini">
+            <div class="k">Pagos próximos</div>
+            <div class="v warn num">${esc(money(week.needed))}</div>
+          </div>
+          <div class="mini">
+            <div class="k">Diferencia</div>
+            <div class="v num ${diff >= 0 ? "pos" : "neg"}">${diff >= 0 ? "+" : "−"}${esc(money(Math.abs(diff)))}</div>
+          </div>
         </div>
-      </button>
-    </div>`;
+        <p class="tiny muted mt-14">
+          Si recibes todos los ingresos esperados de este periodo y cubres los pagos del mismo periodo,
+          quedarían ${diff >= 0 ? "+" : "−"}${esc(money(Math.abs(diff)))}. Esto NO es tu dinero disponible actual.
+        </p>
+
+        <button class="stat-card mt-14" data-action="nav" data-to="#/gastos" style="text-align:left;width:100%">
+          <div class="k">¿Alcanza para cubrir los próximos pagos?</div>
+          <div class="mt-8" style="display:flex;flex-direction:column;gap:6px">
+            <div class="flex" style="justify-content:space-between;align-items:baseline">
+              <span class="tiny muted">A. Solo con lo disponible ahora</span>
+              <span class="tiny strong ${scenarioA ? "pos" : "neg"}">${scenarioA ? "Sí alcanza" : "No alcanza"}</span>
+            </div>
+            <div class="flex" style="justify-content:space-between;align-items:baseline">
+              <span class="tiny muted">B. Si recibo los ingresos esperados</span>
+              <span class="tiny strong num">${esc(money(scenarioB))} ${scenarioB >= 0 ? "disponibles" : "en contra"}</span>
+            </div>
+          </div>
+        </button>
+      </div>
+    </section>`;
 }
 
 /** 🔴 Vencidos: su fecha ya llegó y siguen sin pagarse. Nunca se mezclan con los próximos. */
@@ -133,7 +172,7 @@ function overdueSection() {
     ${list.length > 6 ? `<button class="section-link" data-action="nav" data-to="#/gastos" style="display:block;margin:10px 2px 0">Ver todos ${icon("chevron", 13, 2.4)}</button>` : ""}`;
 }
 
-/** 🟠 Próximos 7 días (mañana en adelante): nunca incluye lo vencido. */
+/** 🟠 Pagos que vencen en los próximos 7 días (desde mañana): nunca incluye lo vencido. */
 function next7DaysSection() {
   const week = Finance.next7Days();
 
@@ -194,10 +233,10 @@ function summarySection() {
       </div>
       <div class="mt-14">${barsChart(groups)}</div>
       <div class="mt-14 stack" style="gap:0">
-        <div class="kv"><span class="k">Ingresos</span><span class="v num pos">${esc(money(range.income))}</span></div>
-        <div class="kv"><span class="k">Gastos pagados</span><span class="v num">${esc(money(range.paid))}</span></div>
+        <div class="kv"><span class="k">Ingresos del periodo</span><span class="v num pos">${esc(money(range.income))}</span></div>
+        <div class="kv"><span class="k">Gastos pagados del periodo</span><span class="v num">${esc(money(range.paid))}</span></div>
         <div class="kv"><span class="k">Pendiente del periodo</span><span class="v num">${esc(money(range.pending))}</span></div>
-        <div class="kv"><span class="k">Disponible ahora</span><span class="v num">${esc(money(available))}</span></div>
+        <div class="kv"><span class="k">Disponible ahora (total)</span><span class="v num">${esc(money(available))}</span></div>
       </div>
     </div>`;
 }
@@ -228,7 +267,7 @@ export default {
 
       ${heroCard()}
       ${monthCard()}
-      ${needCard()}
+      ${next7DaysCard()}
 
       <div class="search" data-action="nav" data-to="#/buscar" role="button" tabindex="0">
         <span class="mag">${icon("search", 16, 2.2)}</span>

@@ -21,11 +21,11 @@ function summaryCard() {
       <div class="hero-amount num" style="text-align:left;font-size:32px">${esc(money(summary.income))}</div>
       <div class="mini-grid mt-14">
         <div class="mini">
-          <div class="k">Por recibir</div>
+          <div class="k">Por recibir (mes)</div>
           <div class="v warn num">${esc(money(expected))}</div>
         </div>
         <div class="mini">
-          <div class="k">Disponible</div>
+          <div class="k">Disponible (total)</div>
           <div class="v num">${esc(money(Store.availableMoney()))}</div>
         </div>
         <div class="mini">
