@@ -200,6 +200,13 @@ export default {
       </div>
 
       <div class="section-head">
+        <h2 class="section-title">Ajustes</h2>
+      </div>
+      <div class="list">
+        ${tile("edit-initial-balance", "wallet", "Saldo inicial", `Lo que tenías antes de usar la app`, `<span class="muted num">${esc(money(Store.initialBalance()))}</span>`)}
+      </div>
+
+      <div class="section-head">
         <h2 class="section-title">Crear</h2>
       </div>
       <div class="list">

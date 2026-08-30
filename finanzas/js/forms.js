@@ -677,4 +677,72 @@ export function choosePayment(pending) {
   });
 }
 
+/* ======================================== Saldo inicial y desglose ======= */
+
+/** Permite configurar (o corregir) el saldo inicial — $0 si nunca se define. */
+export function editInitialBalance() {
+  const current = Store.initialBalance();
+  sheet({
+    title: "Saldo inicial",
+    subtitle: "Lo que tenías antes de usar la app (efectivo, cuenta…)",
+    body: `
+      ${fieldAmount(current || "", "Saldo inicial")}
+      <p class="tiny muted" style="margin:-8px 0 4px">
+        Si lo dejas en $0, el dinero disponible será exactamente ingresos recibidos menos gastos pagados.
+        Este monto se suma siempre a esa cuenta — nunca se inventa.
+      </p>
+      <div class="sheet-actions">
+        <button class="btn btn-ink" data-submit>Guardar saldo inicial</button>
+      </div>`,
+    onMount: (panel, close) => {
+      wire(panel, close, async (raw) => {
+        clearErrors(panel);
+        const amount = parseMoney(raw.amount === "" ? "0" : raw.amount);
+        if (!isFinite(amount)) {
+          showError(panel, "amount", "Escribe un monto válido.");
+          return;
+        }
+        await Store.setInitialBalance(amount);
+        close();
+        toast("Saldo inicial actualizado", "ok");
+      });
+    },
+  });
+}
+
+/** Muestra de dónde sale exactamente el dinero disponible mostrado en Inicio. */
+export function showAvailableBreakdown() {
+  const b = Store.moneyBreakdown();
+  sheet({
+    title: "Dinero disponible",
+    subtitle: "De dónde sale esta cifra",
+    body: `
+      <div class="card">
+        <div class="kv"><span class="k">Saldo inicial</span><span class="v num">${esc(money(b.initial))}</span></div>
+        <div class="kv"><span class="k">Ingresos recibidos (total)</span><span class="v num pos">+${esc(money(b.received))}</span></div>
+        <div class="kv"><span class="k">Gastos/pagos realizados (total)</span><span class="v num">−${esc(money(b.paid))}</span></div>
+        <div class="kv" style="border-top:1px solid rgba(19,19,19,.08);margin-top:6px;padding-top:10px">
+          <span class="k" style="font-weight:700">Dinero disponible</span>
+          <span class="v num" style="font-weight:700">${esc(money(b.total))}</span>
+        </div>
+      </div>
+      <p class="tiny muted mt-14">
+        No incluye ingresos esperados que aún no has recibido ni pagos pendientes que aún no haces —
+        esos se muestran aparte, en "Próximos 7 días" y en cada sección.
+      </p>
+      <div class="sheet-actions">
+        <button class="btn btn-outline" data-action-edit-initial>Editar saldo inicial</button>
+      </div>`,
+    onMount: (panel, close) => {
+      const btn = panel.querySelector("[data-action-edit-initial]");
+      if (btn) {
+        btn.addEventListener("click", () => {
+          close();
+          setTimeout(() => editInitialBalance(), 200);
+        });
+      }
+    },
+  });
+}
+
 export { STATUS };

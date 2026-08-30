@@ -170,6 +170,8 @@ const ACTIONS = {
   "quick-income": () => Forms.newIncome(),
   "quick-expense": () => Forms.newExpense(),
   "quick-pay": () => Forms.choosePayment(Finance.upcomingPayments()),
+  "show-breakdown": () => Forms.showAvailableBreakdown(),
+  "edit-initial-balance": () => Forms.editInitialBalance(),
 
   "open-item": (data) => { if (data.id) location.hash = `#/detalle/${encodeURIComponent(data.id)}`; },
   "open-movement": (data) => movementSheet(data.id),

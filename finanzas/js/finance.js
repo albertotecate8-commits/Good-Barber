@@ -169,20 +169,23 @@ export function debtsSummary(iso) {
 }
 
 /**
- * Tarjeta "Próximos 7 días": del día de mañana al séptimo día contando desde
- * hoy. NUNCA incluye vencidos — esos van aparte, en "Pagos vencidos".
+ * Tarjeta "Próximos 7 días": ventana de calendario de 7 días contando hoy
+ * (hoy → hoy+6, p. ej. 29 ago → 4 sep). Los PAGOS de hoy ya cuentan como
+ * vencidos (van aparte, en "Pagos vencidos"), así que la lista de pagos
+ * próximos empieza mañana — nunca se mezclan ambos conceptos. Los ingresos
+ * esperados sí incluyen los de hoy: no existe un "ingreso vencido" separado.
  */
 export function next7Days() {
   const today = todayISO();
-  const from = addDays(today, 1);
-  const until = addDays(today, 7);
-  const list = pendingPayments({ from, until });
+  const until = addDays(today, 6);
+  const paymentsFrom = addDays(today, 1);
+  const list = pendingPayments({ from: paymentsFrom, until });
   const needed = round2(list.reduce((sum, o) => sum + o.amount, 0));
   const available = Store.availableMoney();
-  const expected = round2(pendingIncomes({ from, until }).reduce((s, o) => s + o.amount, 0));
+  const expected = round2(pendingIncomes({ from: today, until }).reduce((s, o) => s + o.amount, 0));
 
   return {
-    from,
+    from: today,
     until,
     list,
     needed,
@@ -505,10 +508,14 @@ export function cutIncomeItems() {
  * Ventana del corte activo: la que contiene a hoy, salvo que ya se haya
  * cerrado por adelantado — en ese caso el corte activo es el siguiente.
  */
-/** Día de la semana en que cierra el corte (0=domingo … 6=sábado). Editable por el usuario. */
+/**
+ * Día de la semana en que cierra el corte (0=domingo … 6=sábado). Editable
+ * por el usuario. Por defecto viernes (5): el corte empieza siempre en
+ * sábado — p. ej. sábado 29 ago → viernes 4 sep, siguiente sábado 5 sep.
+ */
 export function cutClosingDay() {
-  const v = Store.getMeta("cutClosingDay", 6);
-  return Number.isInteger(v) && v >= 0 && v <= 6 ? v : 6;
+  const v = Store.getMeta("cutClosingDay", 5);
+  return Number.isInteger(v) && v >= 0 && v <= 6 ? v : 5;
 }
 
 export async function setCutClosingDay(day) {
