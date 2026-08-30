@@ -177,12 +177,13 @@ function wire(panel, close, onSubmit) {
 export function newIncome(prefill) {
   sheet({
     title: "Registrar ingreso",
-    subtitle: "Se suma al dinero disponible",
+    subtitle: "Solo aumenta el disponible si ya lo recibiste",
     body: `
-      ${fieldText("concept", "Concepto", prefill && prefill.concept, "Uñas, barbería, renta…")}
-      ${fieldAmount(prefill && prefill.amount, "Monto recibido")}
-      ${fieldDate("date", "Fecha", (prefill && prefill.date) || todayISO())}
+      ${fieldText("concept", "Concepto", prefill && prefill.concept, "Uñas, barbería, renta, Afores…")}
+      ${fieldAmount(prefill && prefill.amount, "Monto")}
+      ${fieldDate("date", "Fecha de cobro / recepción", (prefill && prefill.date) || todayISO())}
       ${fieldCategory((prefill && prefill.category) || "otros-ingresos", "income")}
+      ${fieldSwitch("received", "Ya lo recibí", "Si lo apagas queda como ingreso esperado para esa fecha — no se suma al disponible hasta que lo marques recibido", true)}
       ${fieldNote()}
       <div class="sheet-actions">
         <button class="btn btn-lime" data-submit>${icon("check", 18, 2.4)} Guardar ingreso</button>
@@ -191,16 +192,31 @@ export function newIncome(prefill) {
       wire(panel, close, async (raw) => {
         const data = validate(panel, raw, { requireConcept: true });
         if (!data) return;
-        await Store.addQuickMovement({
-          type: "income",
-          concept: data.concept,
-          amount: data.amount,
-          date: data.date,
-          category: data.category,
-          note: data.note,
-        });
-        close();
-        celebrate("Ingreso registrado", money(data.amount));
+
+        if (raw.received === "1") {
+          await Store.addQuickMovement({
+            type: "income",
+            concept: data.concept,
+            amount: data.amount,
+            date: data.date,
+            category: data.category,
+            note: data.note,
+          });
+          close();
+          celebrate("Ingreso registrado", money(data.amount));
+        } else {
+          await Store.saveItem({
+            kind: KIND.INCOME,
+            name: data.concept,
+            category: data.category,
+            amount: data.amount,
+            recurrence: "once",
+            startDate: data.date,
+            note: data.note,
+          });
+          close();
+          toast(`Ingreso esperado para el ${formatLong(data.date)} — no cuenta como disponible todavía`, "ok");
+        }
       });
     },
   });
