@@ -955,7 +955,12 @@ create extension if not exists btree_gist;
 -- 20.1  NORMALIZACIÓN DE TELÉFONO + CLIENTE ÚNICO POR BARBERÍA
 -- =========================================================
 
--- Deja solo dígitos: "+52 (664) 123-4567" -> "526641234567".
+-- Deja solo dígitos y reconoce un mismo número mexicano venga como venga:
+--   * 10 dígitos                    -> tal cual (ya es el número nacional).
+--   * 12 dígitos empezando en "52"  -> se quita la lada de país.
+--   * 13 dígitos empezando en "521" -> se quita el viejo prefijo de móvil
+--     mexicano (todavía aparece en datos históricos de WhatsApp).
+--   * cualquier otro caso (números extranjeros, etc.) -> los dígitos tal cual.
 -- IMMUTABLE porque se usa en una columna generada y en un índice.
 -- search_path fijo: sin esto, un rol capaz de crear objetos en el esquema
 -- public podría suplantar a regexp_replace. Lo detectó el linter de Supabase.
@@ -965,8 +970,36 @@ language sql
 immutable
 set search_path = pg_catalog
 as $$
-  select nullif(regexp_replace(coalesce(p_phone, ''), '[^0-9]', '', 'g'), '')
+  select case
+    when length(regexp_replace(coalesce(p_phone, ''), '[^0-9]', '', 'g')) = 10
+      then regexp_replace(coalesce(p_phone, ''), '[^0-9]', '', 'g')
+    when length(regexp_replace(coalesce(p_phone, ''), '[^0-9]', '', 'g')) = 12
+      and left(regexp_replace(coalesce(p_phone, ''), '[^0-9]', '', 'g'), 2) = '52'
+      then right(regexp_replace(coalesce(p_phone, ''), '[^0-9]', '', 'g'), 10)
+    when length(regexp_replace(coalesce(p_phone, ''), '[^0-9]', '', 'g')) = 13
+      and left(regexp_replace(coalesce(p_phone, ''), '[^0-9]', '', 'g'), 3) = '521'
+      then right(regexp_replace(coalesce(p_phone, ''), '[^0-9]', '', 'g'), 10)
+    else nullif(regexp_replace(coalesce(p_phone, ''), '[^0-9]', '', 'g'), '')
+  end
 $$;
+
+-- Si esta función ya existía con la regla vieja, la columna generada de más
+-- abajo NO se recalcula sola al reemplazar la función (es GENERATED ... STORED).
+-- Hay que soltarla y crearla de nuevo para que los teléfonos ya guardados
+-- también se normalicen con la regla nueva. Antes de hacerlo en un proyecto
+-- con clientes reales: comprobar que ningún par de teléfonos distintos
+-- colisione bajo la regla nueva (si colisionan, es un conflicto real que
+-- hay que resolver a mano, nunca automáticamente).
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema='public' and table_name='clients' and column_name='phone_normalized'
+  ) then
+    execute 'drop index if exists public.uq_clients_phone_normalized';
+    execute 'alter table public.clients drop column phone_normalized';
+  end if;
+end $$;
 
 -- barber_id deja de ser obligatorio: una reserva pública crea el cliente sin
 -- barbero "dueño". Se conserva la columna (y los datos existentes) como
@@ -1715,6 +1748,44 @@ create policy "media_admin_update" on storage.objects
 drop policy if exists "media_admin_delete" on storage.objects;
 create policy "media_admin_delete" on storage.objects
   for delete using (bucket_id = 'media' and (select public.is_admin()));
+
+-- =========================================================
+-- 20.13  ENDURECIMIENTO: quitar EXECUTE de anon en funciones que nunca
+-- debería invocar directamente
+-- =========================================================
+-- Estas 8 son funciones de trigger: Postgres ya impide llamarlas fuera de un
+-- trigger ("trigger functions can only be called as triggers"), así que esto
+-- es defensa en profundidad, no el cierre de un hueco real. Se revoca de
+-- PUBLIC (no solo de anon): Postgres concede EXECUTE a PUBLIC por defecto en
+-- toda función nueva, y anon hereda ese permiso igual que cualquier otro rol
+-- mientras no se revoque ahí. Revocar solo "FROM anon" es un no-op si PUBLIC
+-- lo sigue teniendo.
+--
+-- Disparar un trigger NO requiere que el rol que hizo el INSERT/UPDATE tenga
+-- EXECUTE sobre la función: el motor de triggers la invoca directamente. Por
+-- eso esto no afecta en nada a que los triggers seguirán disparando igual
+-- para barberos, admin y el service_role.
+--
+-- close_weekly_settlement ya tenía este mismo patrón desde que se creó (ver
+-- más arriba); aquí solo faltaban las funciones de trigger nuevas de la
+-- Etapa 1 y las ya existentes que compartían el mismo hueco cosmético.
+revoke execute on function public.appointment_to_service_record() from public;
+revoke execute on function public.enforce_service_record_client_owner() from public;
+revoke execute on function public.enqueue_appointment_notification() from public;
+revoke execute on function public.handle_new_auth_user() from public;
+revoke execute on function public.prevent_barber_reopen() from public;
+revoke execute on function public.prevent_edit_after_settlement_close() from public;
+revoke execute on function public.prevent_role_escalation() from public;
+revoke execute on function public.track_service_record_void() from public;
+
+grant execute on function public.appointment_to_service_record() to authenticated, service_role;
+grant execute on function public.enforce_service_record_client_owner() to authenticated, service_role;
+grant execute on function public.enqueue_appointment_notification() to authenticated, service_role;
+grant execute on function public.handle_new_auth_user() to authenticated, service_role;
+grant execute on function public.prevent_barber_reopen() to authenticated, service_role;
+grant execute on function public.prevent_edit_after_settlement_close() to authenticated, service_role;
+grant execute on function public.prevent_role_escalation() to authenticated, service_role;
+grant execute on function public.track_service_record_void() to authenticated, service_role;
 
 -- =========================================================
 -- FIN ETAPA 1
