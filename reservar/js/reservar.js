@@ -46,6 +46,21 @@ function dateLong(iso) {
   return new Date(y, m - 1, d).toLocaleDateString("es-MX", { weekday: "long", day: "2-digit", month: "long" });
 }
 
+// Puramente visual: una barra de progreso de 5 segmentos sobre los mismos
+// 5 pasos que ya describe el texto "Paso X de 5" (sin cambiar ese texto ni
+// el orden real de state.step). No participa en ninguna decisión de flujo.
+const STEP_ORDER = ["servicio", "barbero", "fecha", "horario", "datos"];
+function stepProgressHTML(stepKey) {
+  const idx = STEP_ORDER.indexOf(stepKey);
+  return `
+    <div class="booking-progress">
+      <div class="booking-progress-track">
+        ${STEP_ORDER.map((_, i) => `<span class="booking-progress-seg ${i <= idx ? "done" : ""}"></span>`).join("")}
+      </div>
+    </div>
+  `;
+}
+
 async function boot() {
   showLoading(true, "Cargando…");
   try {
@@ -119,13 +134,15 @@ function renderServicio() {
   root.innerHTML = `
     <div class="booking-page">
       ${header()}
+      ${stepProgressHTML("servicio")}
       <div class="booking-step-label">Paso 1 de 5 · Elige un servicio</div>
       <div class="service-picker">
         ${state.services
           .map(
             (s) => `
-          <button type="button" class="service-pick" data-id="${s.id}">
-            <div class="service-pick-name">${s.icon ? s.icon + " " : ""}${escapeHtml(s.name)}</div>
+          <button type="button" class="service-pick ${state.service?.id === s.id ? "service-pick-selected" : ""}" data-id="${s.id}">
+            ${s.icon ? `<div class="service-pick-icon">${s.icon}</div>` : ""}
+            <div class="service-pick-name">${escapeHtml(s.name)}</div>
             <div class="service-pick-price">${formatCents(s.price_cents)} · ${s.duration_minutes} min</div>
           </button>
         `
@@ -149,12 +166,13 @@ function renderBarbero() {
     <div class="booking-page">
       ${header()}
       <button type="button" class="btn btn-ghost btn-sm" id="rv-back">← ${escapeHtml(state.service.name)}</button>
+      ${stepProgressHTML("barbero")}
       <div class="booking-step-label mt-16">Paso 2 de 5 · Elige un barbero</div>
       <div class="barber-picker">
         ${state.barbers
           .map(
             (bb) => `
-          <button type="button" class="barber-pick" data-id="${bb.id}">
+          <button type="button" class="barber-pick ${state.barber?.id === bb.id ? "selected" : ""}" data-id="${bb.id}">
             <div class="barber-pick-avatar">${bb.photo_url ? `<img src="${escapeHtml(bb.photo_url)}" alt="">` : escapeHtml((bb.name || "?").slice(0, 1))}</div>
             <div class="barber-pick-name">${escapeHtml(bb.name)}</div>
             ${bb.bio ? `<div class="barber-pick-bio">${escapeHtml(bb.bio)}</div>` : ""}
@@ -186,6 +204,7 @@ function renderFecha() {
     <div class="booking-page">
       ${header()}
       <button type="button" class="btn btn-ghost btn-sm" id="rv-back">← ${escapeHtml(state.barber.name)}</button>
+      ${stepProgressHTML("fecha")}
       <div class="booking-step-label mt-16">Paso 3 de 5 · Elige una fecha</div>
       <div class="card">
         <div class="field" style="margin-bottom:0">
@@ -217,6 +236,7 @@ async function renderHorario() {
     <div class="booking-page">
       ${header()}
       <button type="button" class="btn btn-ghost btn-sm" id="rv-back">← ${escapeHtml(dateLong(state.dateISO))}</button>
+      ${stepProgressHTML("horario")}
       <div class="booking-step-label mt-16">Paso 4 de 5 · Elige un horario</div>
       <div id="rv-slots"><div class="text-center" style="padding:30px"><div class="spinner" style="margin:auto"></div></div></div>
     </div>
@@ -244,7 +264,7 @@ async function renderHorario() {
       box.innerHTML = `<div class="card empty-state"><div class="icon">🗓️</div>No hay horarios disponibles ese día para ${escapeHtml(state.barber.name)}. Prueba con otra fecha.</div>`;
       return;
     }
-    box.innerHTML = `<div class="slot-grid">${state.slots.map((s) => `<button type="button" class="slot-btn" data-start="${s.slot_start}">${timeHHMM(s.slot_start)}</button>`).join("")}</div>`;
+    box.innerHTML = `<div class="slot-grid">${state.slots.map((s) => `<button type="button" class="slot-btn ${state.slot?.slot_start === s.slot_start ? "selected" : ""}" data-start="${s.slot_start}">${timeHHMM(s.slot_start)}</button>`).join("")}</div>`;
     box.querySelectorAll(".slot-btn").forEach((btn) =>
       btn.addEventListener("click", () => {
         // Se guarda literal la cadena que devolvió Supabase: es la que se
@@ -264,13 +284,14 @@ function renderDatos() {
     <div class="booking-page">
       ${header()}
       <button type="button" class="btn btn-ghost btn-sm" id="rv-back">← Elegir otro horario</button>
+      ${stepProgressHTML("datos")}
       <div class="booking-step-label mt-16">Paso 5 de 5 · Tus datos</div>
       <div class="card">
-        <div class="booking-summary-row"><span class="text-muted">Servicio</span><strong>${escapeHtml(state.service.name)}</strong></div>
-        <div class="booking-summary-row"><span class="text-muted">Barbero</span><strong>${escapeHtml(state.barber.name)}</strong></div>
-        <div class="booking-summary-row"><span class="text-muted">Fecha</span><strong>${escapeHtml(dateLong(state.dateISO))}</strong></div>
-        <div class="booking-summary-row"><span class="text-muted">Hora</span><strong>${timeHHMM(state.slot.slot_start)}</strong></div>
-        <div class="booking-summary-row"><span class="text-muted">Precio</span><strong>${formatCents(state.service.price_cents)}</strong></div>
+        <div class="booking-summary-row"><span class="text-muted">✂️ Servicio</span><strong>${escapeHtml(state.service.name)}</strong></div>
+        <div class="booking-summary-row"><span class="text-muted">💈 Barbero</span><strong>${escapeHtml(state.barber.name)}</strong></div>
+        <div class="booking-summary-row"><span class="text-muted">📅 Fecha</span><strong>${escapeHtml(dateLong(state.dateISO))}</strong></div>
+        <div class="booking-summary-row"><span class="text-muted">🕐 Hora</span><strong>${timeHHMM(state.slot.slot_start)}</strong></div>
+        <div class="booking-summary-row"><span class="text-muted">💰 Precio</span><strong>${formatCents(state.service.price_cents)}</strong></div>
       </div>
       <div class="card">
         <div class="field"><label for="rv-name">Nombre</label><input id="rv-name" autocomplete="name" required></div>
@@ -345,7 +366,7 @@ function renderListo() {
     <div class="booking-page">
       ${header()}
       <div class="card confirmation-box">
-        <div style="font-size:40px">✓</div>
+        <div class="confirmation-icon">✓</div>
         <h3 class="mt-8">¡Reserva confirmada!</h3>
         <p class="text-muted mt-8">Guarda tu código de reserva:</p>
         <div class="confirmation-code">${escapeHtml(appt.booking_code)}</div>
