@@ -57,6 +57,7 @@
 
   /* ---- Superficie "glass" discreta (paneles flotantes: toasts, modales) ---- */
   --glass-bg: rgba(20, 22, 30, 0.74);
+  --glass-bg-strong: rgba(19, 21, 28, 0.9);
   --glass-border: rgba(255, 255, 255, 0.07);
   --glass-blur: 18px;
 
@@ -262,6 +263,13 @@ p {
   color: #fff;
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.25) inset, 0 8px 18px rgba(240, 85, 76, 0.28);
 }
+.btn-danger:hover {
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.32) inset, 0 12px 26px rgba(240, 85, 76, 0.36);
+  transform: translateY(-1px);
+}
+.btn-danger:active {
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.2) inset, 0 4px 10px rgba(240, 85, 76, 0.26);
+}
 
 .btn-success-state {
   background: linear-gradient(160deg, #4fdb9a, #22a866) !important;
@@ -316,6 +324,15 @@ textarea {
   min-height: 80px;
   resize: vertical;
 }
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%239aa1ad' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='5 8 10 13 15 8'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 18px;
+  padding-right: 42px;
+}
 input:hover,
 select:hover,
 textarea:hover {
@@ -326,7 +343,7 @@ select:focus,
 textarea:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft), inset 0 1px 4px rgba(0, 0, 0, 0.34);
-  background: var(--bg-card);
+  background-color: var(--bg-card);
 }
 button:focus-visible {
   outline: 2px solid var(--accent);
@@ -494,6 +511,19 @@ button:focus-visible {
 .badge-warning { background: var(--warning-bg); color: var(--warning); border-color: rgba(232, 185, 104, 0.25); }
 .badge-info { background: var(--info-bg); color: var(--info); border-color: rgba(90, 169, 230, 0.25); }
 .badge-neutral { background: var(--bg-elevated); color: var(--text-muted); border-color: var(--border); }
+/* Cada variante también lleva un icono fijo (::before) para que el estado
+   nunca dependa solo del color — cubre TODOS los usos de .badge-* en la
+   app (activo/inactivo, completado/anulado, cerrado/cancelado/abierta,
+   etc.), sin tocar ningún render. La agenda ya pinta su propio icono por
+   estado (STATUS_ICON, Etapa 3.6): se anula aquí para no duplicarlo. */
+.badge-success::before { content: "✓"; }
+.badge-danger::before { content: "✕"; }
+.badge-warning::before { content: "!"; font-weight: 900; }
+.badge-info::before { content: "ℹ"; }
+.badge-neutral::before { content: "•"; }
+.appt-status-badge::before {
+  content: none;
+}
 
 /* ---------- Listas de servicios / clientes ---------- */
 .list-item {
@@ -824,45 +854,64 @@ button:focus-visible {
   box-shadow: var(--shadow-glow);
 }
 
-/* ---------- Tabla ---------- */
+/* ---------- Tabla ----------
+   Misma información, mismas columnas, mismos datos: overflow-x sigue
+   siendo la estrategia en móvil (no se convierte en tarjetas ni se
+   quita ninguna columna), solo se hace más evidente y cómoda de usar. */
 .table-wrap {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  box-shadow: inset -14px 0 12px -12px rgba(0, 0, 0, 0.4), inset 14px 0 12px -12px rgba(0, 0, 0, 0.4);
 }
 table {
   width: 100%;
+  min-width: 540px;
   border-collapse: collapse;
   font-size: 14px;
 }
 th, td {
-  padding: 12px 14px;
+  padding: 14px 16px;
   border-bottom: 1px solid var(--border-soft);
   text-align: left;
   white-space: nowrap;
 }
 th {
   color: var(--text-muted);
-  font-size: 11.5px;
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 700;
+  letter-spacing: 0.07em;
+  font-weight: 800;
+  background: var(--bg-elevated);
 }
 tbody tr {
-  transition: background var(--dur-fast) ease;
+  transition: background var(--dur-fast) var(--ease-premium);
 }
 tbody tr:hover {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.03);
+}
+tbody tr:active {
+  background: var(--accent-soft-2);
 }
 
 /* ---------- Estado vacío ---------- */
 .empty-state {
   text-align: center;
-  padding: 40px 20px;
+  padding: 44px 20px;
   color: var(--text-muted);
+  font-size: 14px;
+  animation: fade-up var(--dur-slow) var(--ease-premium) both;
 }
 .empty-state .icon {
-  font-size: 32px;
-  margin-bottom: 10px;
-  opacity: 0.85;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  box-shadow: var(--inset-hairline), var(--shadow-xs);
 }
 
 /* ---------- Navegación inferior (móvil): panel flotante premium ---------- */
@@ -1234,8 +1283,10 @@ tbody tr:hover {
   animation: overlay-out var(--dur-fast) var(--ease-press) forwards;
 }
 .modal-box {
-  background: linear-gradient(180deg, var(--bg-card-2) 0%, var(--bg-card) 100%);
-  border: 1px solid var(--border);
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   padding: 24px;
   width: 100%;
@@ -1273,6 +1324,11 @@ tbody tr:hover {
 }
 .modal-actions .btn {
   flex: 1;
+}
+/* El CTA principal pesa un poco más que "Cancelar" — mismo data-action de
+   siempre, solo se refuerza visualmente cuál es la acción por defecto. */
+.modal-actions [data-action="confirm"] {
+  flex: 1.25;
 }
 .modal-close {
   position: absolute;
@@ -1339,7 +1395,17 @@ tbody tr:hover {
 .mt-16 { margin-top: 16px; }
 .text-muted { color: var(--text-muted); }
 .text-accent { color: var(--accent-strong); }
-.text-danger { color: var(--danger); }
+/* .text-danger se usa exclusivamente para mensajes de error (verificado:
+   toda instancia en los renders es un error de formulario o de carga) —
+   por eso es seguro darle aquí un icono fijo, para que el error nunca
+   dependa solo del color. */
+.text-danger {
+  color: var(--danger);
+  font-weight: 600;
+}
+.text-danger::before {
+  content: "⚠ ";
+}
 .text-success { color: var(--success); }
 .text-center { text-align: center; }
 .w-full { width: 100%; }
