@@ -4,6 +4,26 @@
 
 const MAX_BOTTOM_ITEMS = 4;
 
+// Cierre animado de "Más": añade .closing (dispara overlay-out/sheet-out,
+// ya definidas en css/styles.css para .modal-overlay/.modal-box) y espera a
+// que termine la animación antes de volver a aplicar .hidden — el mismo
+// patrón que ya usa el modal genérico en ui.js, reimplementado aquí porque
+// esta etapa solo puede tocar shell.js y css/styles.css. El comportamiento
+// (qué lo abre, qué lo cierra, y que sigue rigiéndose por .hidden) no cambia.
+function closeMoreSheet(sheet) {
+  if (sheet.classList.contains("hidden") || sheet.classList.contains("closing")) return;
+  sheet.classList.add("closing");
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    sheet.classList.add("hidden");
+    sheet.classList.remove("closing");
+  };
+  sheet.addEventListener("animationend", finish, { once: true });
+  setTimeout(finish, 380);
+}
+
 export function mountShell(root, { title, subtitle, navItems, activeId, onNavigate, onLogout }) {
   const visibleItems = navItems.slice(0, MAX_BOTTOM_ITEMS);
   const overflowItems = navItems.slice(MAX_BOTTOM_ITEMS);
@@ -94,10 +114,10 @@ export function mountShell(root, { title, subtitle, navItems, activeId, onNaviga
   const moreBtn = root.querySelector("#nav-more-btn");
   const moreSheet = root.querySelector("#more-sheet");
   if (moreBtn) {
-    moreBtn.addEventListener("click", () => moreSheet.classList.remove("hidden"));
-    root.querySelector("#more-close").addEventListener("click", () => moreSheet.classList.add("hidden"));
+    moreBtn.addEventListener("click", () => moreSheet.classList.remove("hidden", "closing"));
+    root.querySelector("#more-close").addEventListener("click", () => closeMoreSheet(moreSheet));
     moreSheet.addEventListener("click", (e) => {
-      if (e.target === moreSheet) moreSheet.classList.add("hidden");
+      if (e.target === moreSheet) closeMoreSheet(moreSheet);
     });
   }
 

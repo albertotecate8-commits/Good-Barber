@@ -78,8 +78,8 @@
   --inset-hairline-strong: inset 0 1px 0 rgba(255, 255, 255, 0.09);
 
   /* ---- Layout ---- */
-  --nav-height: 70px;
-  --sidebar-width: 248px;
+  --nav-height: 64px;
+  --sidebar-width: 252px;
   --header-height: 64px;
   --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 
@@ -340,7 +340,9 @@ button:focus-visible {
 /* ---------- Layout de app ---------- */
 #app {
   min-height: 100vh;
-  padding-bottom: calc(var(--nav-height) + 16px);
+  /* Espacio para la barra flotante: su altura + separación del borde +
+     aire de respiro para que no tape la última tarjeta del contenido. */
+  padding-bottom: calc(var(--nav-height) + 46px);
 }
 
 .app-shell {
@@ -361,15 +363,16 @@ button:focus-visible {
   position: sticky;
   top: 0;
   z-index: 20;
-  background: rgba(10, 11, 14, 0.82);
-  backdrop-filter: blur(16px) saturate(140%);
-  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  background: rgba(7, 8, 11, 0.86);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
   border-bottom: 1px solid var(--border-soft);
-  padding: 14px 18px;
+  padding: 16px 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  box-shadow: var(--inset-hairline), 0 14px 26px -18px rgba(0, 0, 0, 0.65);
 }
 
 .topbar-title {
@@ -378,8 +381,9 @@ button:focus-visible {
   letter-spacing: -0.01em;
 }
 .topbar-sub {
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--text-muted);
+  margin-top: 1px;
 }
 
 .container {
@@ -636,60 +640,141 @@ tbody tr:hover {
   opacity: 0.85;
 }
 
-/* ---------- Navegación inferior (móvil) ---------- */
+/* ---------- Navegación inferior (móvil): panel flotante premium ---------- */
 .bottom-nav {
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
   height: var(--nav-height);
-  background: rgba(15, 17, 22, 0.85);
-  backdrop-filter: blur(18px) saturate(150%);
-  -webkit-backdrop-filter: blur(18px) saturate(150%);
-  border-top: 1px solid var(--border-soft);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-2xl);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
   display: flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 6px;
   z-index: 30;
-  padding-bottom: env(safe-area-inset-bottom);
-  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--inset-hairline), var(--shadow-lg);
 }
 .nav-item {
   flex: 1;
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 3px;
   background: transparent;
   border: 0;
+  border-radius: var(--radius-lg);
   color: var(--text-faint);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
-  padding: 8px 2px;
+  letter-spacing: 0.01em;
+  padding: 6px 2px;
   cursor: pointer;
   min-height: 48px;
-  transition: color var(--dur-base) ease;
+  transition: color var(--dur-base) var(--ease-premium);
+  -webkit-tap-highlight-color: transparent;
+}
+/* Cápsula del estado activo: capa independiente detrás del contenido del
+   botón, así se puede animar su aparición sin mover el icono ni el texto. */
+.nav-item::before {
+  content: "";
+  position: absolute;
+  inset: 2px 3px;
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  opacity: 0;
+  transform: scale(0.82);
+  transition: opacity var(--dur-base) var(--ease-premium), transform var(--dur-base) var(--ease-premium);
+  z-index: -1;
+}
+.nav-item:active {
+  transform: scale(0.96);
+  transition: transform var(--dur-fast) var(--ease-press);
 }
 .nav-item .nav-icon {
   font-size: 19px;
   line-height: 1;
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
-  transition: background var(--dur-base) var(--ease-premium), transform var(--dur-fast) var(--ease-press),
-    box-shadow var(--dur-base) ease;
+  transition: transform var(--dur-fast) var(--ease-press), filter var(--dur-base) ease;
 }
 .nav-item:active .nav-icon {
-  transform: scale(0.9);
+  transform: scale(0.88);
 }
 .nav-item.active {
   color: var(--accent-strong);
 }
+.nav-item.active::before {
+  opacity: 1;
+  transform: scale(1);
+  animation: nav-pill-in var(--dur-slow) var(--ease-premium);
+}
 .nav-item.active .nav-icon {
-  background: var(--accent-soft);
-  box-shadow: 0 0 0 1px rgba(212, 162, 78, 0.28), 0 4px 14px rgba(212, 162, 78, 0.22);
+  filter: drop-shadow(0 0 7px rgba(212, 162, 78, 0.45));
+}
+@keyframes nav-pill-in {
+  0% { opacity: 0; transform: scale(0.7); }
+  60% { opacity: 1; transform: scale(1.06); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* ---------- Bottom sheet "Más" (panel nativo premium) ----------
+   Reutiliza .modal-overlay/.modal-box (mismo comportamiento, mismas
+   animaciones de entrada/salida ya definidas para esas clases); aquí solo
+   se afina la presentación específica de #more-sheet sin tocar el modal
+   genérico que usa ui.js en el resto de la app. */
+#more-sheet .modal-box {
+  background: linear-gradient(180deg, var(--bg-card-2) 0%, var(--bg-card) 100%);
+  border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+  padding: 22px 12px calc(16px + env(safe-area-inset-bottom));
+}
+#more-sheet .modal-box::after {
+  content: "";
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  width: 36px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border-strong);
+  transform: translateX(-50%);
+}
+#more-sheet h3 {
+  padding: 0 10px 4px;
+  font-size: 16px;
+}
+#more-sheet .mt-16 {
+  margin-top: 14px;
+}
+#more-sheet .card-row {
+  border-bottom: 0;
+  border-radius: var(--radius-md);
+  padding: 15px 14px;
+  transition: background var(--dur-fast) var(--ease-premium), transform var(--dur-fast) var(--ease-press);
+}
+#more-sheet .card-row:hover {
+  background: var(--bg-elevated);
+}
+#more-sheet .card-row:active {
+  background: var(--accent-soft-2);
+  transform: scale(0.98);
+}
+@media (min-width: 640px) {
+  #more-sheet .modal-box {
+    border-radius: var(--radius-2xl);
+  }
+  #more-sheet .modal-box::after {
+    display: none;
+  }
 }
 
 /* ---------- Login ---------- */
@@ -1017,26 +1102,28 @@ tbody tr:hover {
     flex-direction: column;
     width: var(--sidebar-width);
     flex-shrink: 0;
-    background: linear-gradient(180deg, var(--bg-elevated), var(--bg));
+    background: linear-gradient(180deg, var(--bg-elevated) 0%, var(--bg) 100%);
     border-right: 1px solid var(--border-soft);
-    padding: 24px 16px;
+    padding: 22px 14px 18px;
     position: sticky;
     top: 0;
     height: 100vh;
+    box-shadow: var(--inset-hairline), 10px 0 32px -12px rgba(0, 0, 0, 0.55);
+    z-index: 5;
   }
   .sidebar-brand {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 0 8px 24px;
+    gap: 11px;
+    padding: 4px 8px 22px;
     font-weight: 800;
-    font-size: 17px;
-    letter-spacing: 0.02em;
+    font-size: 16px;
+    letter-spacing: 0.04em;
   }
   .sidebar-brand .logo-mark {
-    width: 36px;
-    height: 36px;
-    border-radius: 11px;
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
     background: var(--accent-gradient);
     color: var(--accent-contrast);
     display: flex;
@@ -1048,33 +1135,55 @@ tbody tr:hover {
   .sidebar-nav {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 3px;
     flex: 1;
+    margin-top: 4px;
   }
   .sidebar-nav .nav-item {
     flex-direction: row;
     justify-content: flex-start;
-    padding: 12px 14px;
+    padding: 11px 14px;
     border-radius: var(--radius-md);
     font-size: 14px;
+    font-weight: 600;
     min-height: 44px;
     gap: 12px;
+    color: var(--text-muted);
+  }
+  .sidebar-nav .nav-item::before {
+    inset: 0;
+    border-radius: var(--radius-md);
   }
   .sidebar-nav .nav-item .nav-icon {
-    width: 28px;
-    height: 28px;
+    width: 26px;
+    height: 26px;
     font-size: 16px;
   }
-  .sidebar-nav .nav-item:hover {
-    background: var(--bg-card);
+  .sidebar-nav .nav-item:hover:not(.active) {
+    background: var(--bg-card-2);
+    color: var(--text);
+  }
+  .sidebar-nav .nav-item:active {
+    transform: scale(0.985);
+    transition: transform var(--dur-fast) var(--ease-press);
   }
   .sidebar-nav .nav-item.active {
-    background: var(--accent-soft);
-    box-shadow: inset 0 0 0 1px rgba(212, 162, 78, 0.25);
+    color: var(--accent-strong);
+    font-weight: 700;
+  }
+  .sidebar-nav .nav-item.active::before {
+    box-shadow: inset 0 0 0 1px rgba(212, 162, 78, 0.28), var(--shadow-glow);
   }
   .sidebar-footer {
     border-top: 1px solid var(--border-soft);
-    padding-top: 14px;
+    padding-top: 16px;
+    margin-top: 6px;
+  }
+  .topbar {
+    padding: 18px 32px;
+  }
+  .topbar-title {
+    font-size: 22px;
   }
   .container {
     padding: 28px 32px;
