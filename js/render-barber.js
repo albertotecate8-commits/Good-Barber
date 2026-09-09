@@ -48,44 +48,55 @@ export async function renderBarberHome(container, ctx) {
     });
 
     container.innerHTML = `
-      <h2 class="view-title">Hola, ${escapeHtml(ctx.barber.name)}</h2>
-      <p class="view-sub">${formatDateText(new Date())}</p>
+      <div class="dashboard-view">
+        <div class="dash-header">
+          <h2 class="view-title">Hola, ${escapeHtml(ctx.barber.name)}</h2>
+          <p class="view-sub">${formatDateText(new Date())}</p>
+        </div>
 
-      <div class="stat-grid">
-        <div class="stat-box">
-          <div class="stat-label">Hoy — ingresos</div>
-          <div class="stat-value accent">${formatCents(todayTotal)}</div>
+        <div class="card dash-hero">
+          <div class="dash-hero-label">Hoy — ingresos</div>
+          <div class="dash-hero-value" id="dash-today-total">${formatCents(0)}</div>
+          <div class="dash-hero-sub">${completedToday.length} servicio${completedToday.length === 1 ? "" : "s"} · ${clientsToday} cliente${clientsToday === 1 ? "" : "s"} hoy</div>
         </div>
-        <div class="stat-box">
-          <div class="stat-label">Hoy — servicios</div>
-          <div class="stat-value">${completedToday.length}</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-label">Hoy — clientes</div>
-          <div class="stat-value">${clientsToday}</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-label">Semana — total</div>
-          <div class="stat-value">${formatCents(weekTotal)}</div>
-        </div>
-      </div>
 
-      <div class="card mt-16">
-        <h3>Resumen semanal (${weekLabel(weekStart)})</h3>
-        <div class="stat-grid mt-8">
-          <div class="stat-box">
-            <div class="stat-label">Tu parte (${ctx.barber.default_percentage}%)</div>
-            <div class="stat-value text-success">${formatCents(barberShare)}</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-label">Good Barber</div>
-            <div class="stat-value">${formatCents(businessShare)}</div>
+        <div class="stat-grid">
+          <div class="stat-box"><div class="stat-label">Hoy — servicios</div><div class="stat-value" id="dash-today-count">0</div></div>
+          <div class="stat-box"><div class="stat-label">Hoy — clientes</div><div class="stat-value" id="dash-today-clients">0</div></div>
+          <div class="stat-box"><div class="stat-label">Semana — total</div><div class="stat-value" id="dash-week-total">${formatCents(0)}</div></div>
+        </div>
+
+        <div class="card mt-16 dash-split-card">
+          <h3 class="dash-section-title">Resumen semanal (${weekLabel(weekStart)})</h3>
+          <div class="stat-grid mt-8">
+            <div class="stat-box">
+              <div class="stat-label">Tu parte (${ctx.barber.default_percentage}%)</div>
+              <div class="stat-value text-success" id="dash-barber-share">${formatCents(0)}</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">Good Barber</div>
+              <div class="stat-value" id="dash-business-share">${formatCents(0)}</div>
+            </div>
           </div>
         </div>
-      </div>
 
-      <button class="btn btn-primary btn-block mt-16" id="quick-register-home">+ Registrar servicio</button>
+        <button type="button" class="dash-quick-action" id="quick-register-home">
+          <span class="dash-quick-action-icon">➕</span>
+          <span class="dash-quick-action-text">
+            <span class="dash-quick-action-title">Registrar servicio</span>
+            <span class="dash-quick-action-sub">Nueva venta rápida para un cliente</span>
+          </span>
+          <span class="dash-quick-action-arrow">→</span>
+        </button>
+      </div>
     `;
+
+    animateNumberText(container.querySelector("#dash-today-total"), 0, todayTotal, formatCents);
+    animateNumberText(container.querySelector("#dash-today-count"), 0, completedToday.length, (v) => String(Math.round(v)));
+    animateNumberText(container.querySelector("#dash-today-clients"), 0, clientsToday, (v) => String(Math.round(v)));
+    animateNumberText(container.querySelector("#dash-week-total"), 0, weekTotal, formatCents);
+    animateNumberText(container.querySelector("#dash-barber-share"), 0, barberShare, formatCents);
+    animateNumberText(container.querySelector("#dash-business-share"), 0, businessShare, formatCents);
 
     container.querySelector("#quick-register-home").addEventListener("click", () => openQuickRegister(ctx, () => renderBarberHome(container, ctx)));
   } catch (error) {

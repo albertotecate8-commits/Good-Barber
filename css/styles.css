@@ -1381,3 +1381,235 @@ tbody tr:hover {
 .appointment-card + .appointment-card {
   margin-top: 12px;
 }
+
+/* ---------- Dashboard / Home premium (Etapa 3.4) ----------
+   Todo lo de aquí cuelga de .dashboard-view (envoltorio añadido solo en
+   renderAdminDashboard y renderBarberHome), así que no afecta a
+   .stat-grid/.stat-box/.card en servicios, historial, barberos, ventas
+   o semanas — esas pantallas no se tocan en esta etapa y su .stat-box ya
+   existente sigue viéndose exactamente igual que antes. */
+.dashboard-view {
+  animation: view-enter var(--dur-slow) var(--ease-premium) both;
+}
+.dash-header {
+  margin-bottom: 18px;
+}
+.dash-section-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0 0 12px;
+}
+
+/* Tarjeta hero: el número más importante de la pantalla, con mucho más
+   protagonismo que un stat-box normal — es la primera parada visual. */
+.dash-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 26px 24px;
+  margin-bottom: 16px;
+  background: linear-gradient(165deg, var(--bg-card-2) 0%, var(--bg-card) 68%, var(--bg-elevated) 100%);
+  animation: card-enter var(--dur-slow) var(--ease-premium) both;
+}
+.dash-hero::before {
+  content: "";
+  position: absolute;
+  top: -46%;
+  right: -16%;
+  width: 230px;
+  height: 230px;
+  background: radial-gradient(circle, rgba(212, 162, 78, 0.16), transparent 70%);
+  pointer-events: none;
+}
+.dash-hero-label {
+  position: relative;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.dash-hero-value {
+  position: relative;
+  font-size: 42px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  margin-top: 8px;
+  color: var(--accent-strong);
+  text-shadow: 0 0 32px rgba(212, 162, 78, 0.26);
+  font-variant-numeric: tabular-nums;
+}
+.dash-hero-sub {
+  position: relative;
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 13.5px;
+}
+
+/* stat-grid/stat-box del dashboard: mismos componentes que el resto de
+   la app (sin tocar su definición global), con un poco más de tacto ya
+   que aquí son protagonistas secundarios detrás del hero. */
+.dashboard-view .stat-box {
+  transition: transform var(--dur-base) var(--ease-premium), border-color var(--dur-base) ease,
+    box-shadow var(--dur-base) ease;
+}
+.dashboard-view .stat-box:active {
+  transform: scale(0.97);
+}
+.dashboard-view .stat-value {
+  font-size: 21px;
+}
+.dash-split-card .stat-grid {
+  margin-top: 4px;
+}
+
+/* Rendimiento por barbero: fila con jerarquía interna en vez de tabla,
+   pensada para verse bien también a 375px sin scroll horizontal. */
+.dash-perf-list {
+  padding: 4px;
+}
+.dash-perf-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 15px 14px;
+  border-radius: var(--radius-md);
+  transition: background var(--dur-fast) var(--ease-premium), transform var(--dur-fast) var(--ease-press);
+}
+.dash-perf-row + .dash-perf-row {
+  margin-top: 2px;
+}
+.dash-perf-row:hover {
+  background: var(--bg-elevated);
+}
+.dash-perf-row:active {
+  transform: scale(0.99);
+  background: var(--accent-soft-2);
+}
+.dash-perf-id {
+  min-width: 0;
+}
+.dash-perf-name {
+  font-weight: 700;
+  font-size: 14.5px;
+}
+.dash-perf-meta {
+  color: var(--text-muted);
+  font-size: 12.5px;
+  margin-top: 2px;
+}
+.dash-perf-amounts {
+  text-align: right;
+  flex-shrink: 0;
+}
+.dash-perf-total {
+  font-weight: 800;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-strong);
+}
+.dash-perf-split {
+  color: var(--text-faint);
+  font-size: 11px;
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+/* Acción rápida del home de barbero: mismo id/click de siempre, solo se
+   redibuja como un botón grande, táctil, con icono + título + detalle. */
+.dash-quick-action {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 18px;
+  padding: 18px 20px;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--accent-gradient);
+  color: var(--accent-contrast);
+  cursor: pointer;
+  text-align: left;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.4) inset, 0 -2px 0 rgba(0, 0, 0, 0.16) inset,
+    0 14px 30px rgba(212, 162, 78, 0.26), 0 3px 8px rgba(0, 0, 0, 0.3);
+  transition: transform var(--dur-fast) var(--ease-press), box-shadow var(--dur-base) var(--ease-premium);
+}
+.dash-quick-action:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.45) inset, 0 -2px 0 rgba(0, 0, 0, 0.16) inset,
+    0 18px 38px rgba(212, 162, 78, 0.32), 0 3px 8px rgba(0, 0, 0, 0.3);
+}
+.dash-quick-action:active {
+  transform: scale(0.98) translateY(1px);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.26) inset, 0 -1px 0 rgba(0, 0, 0, 0.2) inset,
+    0 6px 14px rgba(212, 162, 78, 0.22);
+}
+.dash-quick-action-icon {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  background: rgba(23, 19, 10, 0.16);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 19px;
+}
+.dash-quick-action-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.dash-quick-action-title {
+  font-weight: 800;
+  font-size: 15px;
+}
+.dash-quick-action-sub {
+  font-size: 12.5px;
+  opacity: 0.75;
+  margin-top: 1px;
+}
+.dash-quick-action-arrow {
+  font-size: 18px;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+/* Desktop: hero y stats secundarios lado a lado para aprovechar el
+   espacio sin convertir el dashboard en un panel saturado. El resto del
+   contenido (título, listas, tarjetas siguientes) sigue a ancho completo. */
+@media (min-width: 1024px) {
+  .dashboard-view {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    gap: 16px 20px;
+    align-items: start;
+  }
+  /* Orden fijo en ambas plantillas (admin y barbero): 1) encabezado,
+     2) hero, 3) primer stat-grid, 4) en adelante, resto a ancho completo. */
+  .dashboard-view > :nth-child(1) {
+    grid-column: 1 / -1;
+  }
+  .dashboard-view > :nth-child(2) {
+    grid-column: 1;
+    margin-bottom: 0;
+  }
+  .dashboard-view > :nth-child(3) {
+    grid-column: 2;
+  }
+  .dashboard-view > :nth-child(n + 4) {
+    grid-column: 1 / -1;
+  }
+  /* El primer stat-grid siempre trae 3 datos en ambas plantillas — se fija
+     a 3 columnas aquí para no heredar el repeat(4,1fr) genérico de
+     escritorio, que en esta columna angosta partía las etiquetas en dos
+     líneas. */
+  .dashboard-view > :nth-child(3).stat-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .dash-hero-value {
+    font-size: 48px;
+  }
+}

@@ -1,5 +1,5 @@
 import * as data from "./data.js";
-import { toast, friendlyError, showLoading, confirmDialog, openModal, escapeHtml } from "./ui.js";
+import { toast, friendlyError, showLoading, confirmDialog, openModal, escapeHtml, animateNumberText } from "./ui.js";
 import { formatCents, toCents } from "./money.js";
 import { dayTotalCents, groupRecordsByDate, weekTotalCents, settlementBreakdown, recordsTotalCents, recordLineTotalCents } from "./calc.js";
 import { startOfWeek, endOfWeek, toISODate, todayISO, weekLabel, formatDateText, parseISODate } from "./dates.js";
@@ -56,38 +56,54 @@ export async function renderAdminDashboard(container) {
     });
 
     container.innerHTML = `
-      <h2 class="view-title">Dashboard</h2>
-      <p class="view-sub">${formatDateText(new Date())}</p>
+      <div class="dashboard-view">
+        <div class="dash-header">
+          <h2 class="view-title">Dashboard</h2>
+          <p class="view-sub">${formatDateText(new Date())}</p>
+        </div>
 
-      <div class="stat-grid">
-        <div class="stat-box"><div class="stat-label">Ventas de hoy</div><div class="stat-value accent">${formatCents(todayTotal)}</div></div>
-        <div class="stat-box"><div class="stat-label">Ventas de la semana</div><div class="stat-value">${formatCents(weekTotal)}</div></div>
-        <div class="stat-box"><div class="stat-label">Ventas del mes</div><div class="stat-value">${formatCents(monthTotal)}</div></div>
-        <div class="stat-box"><div class="stat-label">Servicios (semana)</div><div class="stat-value">${completedWeek.length}</div></div>
-      </div>
+        <div class="card dash-hero">
+          <div class="dash-hero-label">Ventas de hoy</div>
+          <div class="dash-hero-value" id="dash-today-total">${formatCents(0)}</div>
+          <div class="dash-hero-sub">${todayRecords.length} servicio${todayRecords.length === 1 ? "" : "s"} registrado${todayRecords.length === 1 ? "" : "s"} hoy</div>
+        </div>
 
-      <h3 class="mt-16">Comparativa de barberos (semana actual)</h3>
-      <div class="table-wrap card card-flush">
-        <table>
-          <thead><tr><th>Barbero</th><th>Servicios</th><th>Ventas</th><th>Su parte</th><th>Good Barber</th></tr></thead>
-          <tbody>
-            ${perBarber
-              .map(
-                (p) => `
-              <tr>
-                <td>${escapeHtml(p.barber.name)}</td>
-                <td>${p.count}</td>
-                <td>${formatCents(p.total)}</td>
-                <td>${formatCents(p.barberShare)}</td>
-                <td>${formatCents(p.businessShare)}</td>
-              </tr>
+        <div class="stat-grid">
+          <div class="stat-box"><div class="stat-label">Ventas de la semana</div><div class="stat-value" id="dash-week-total">${formatCents(0)}</div></div>
+          <div class="stat-box"><div class="stat-label">Ventas del mes</div><div class="stat-value" id="dash-month-total">${formatCents(0)}</div></div>
+          <div class="stat-box"><div class="stat-label">Servicios (semana)</div><div class="stat-value" id="dash-week-count">0</div></div>
+        </div>
+
+        <h3 class="dash-section-title mt-16">Rendimiento por barbero — semana actual</h3>
+        <div class="card card-flush dash-perf-list">
+          ${
+            perBarber.length
+              ? perBarber
+                  .map(
+                    (p) => `
+              <div class="dash-perf-row">
+                <div class="dash-perf-id">
+                  <div class="dash-perf-name">${escapeHtml(p.barber.name)}</div>
+                  <div class="dash-perf-meta">${p.count} servicio${p.count === 1 ? "" : "s"}</div>
+                </div>
+                <div class="dash-perf-amounts">
+                  <div class="dash-perf-total">${formatCents(p.total)}</div>
+                  <div class="dash-perf-split">${formatCents(p.barberShare)} barbero · ${formatCents(p.businessShare)} Good Barber</div>
+                </div>
+              </div>
             `
-              )
-              .join("")}
-          </tbody>
-        </table>
+                  )
+                  .join("")
+              : `<div class="empty-state"><div class="icon">💈</div>Sin barberos registrados todavía.</div>`
+          }
+        </div>
       </div>
     `;
+
+    animateNumberText(container.querySelector("#dash-today-total"), 0, todayTotal, formatCents);
+    animateNumberText(container.querySelector("#dash-week-total"), 0, weekTotal, formatCents);
+    animateNumberText(container.querySelector("#dash-month-total"), 0, monthTotal, formatCents);
+    animateNumberText(container.querySelector("#dash-week-count"), 0, completedWeek.length, (v) => String(Math.round(v)));
   } catch (error) {
     container.innerHTML = `<div class="card text-danger">${escapeHtml(friendlyError(error))}</div>`;
   }
