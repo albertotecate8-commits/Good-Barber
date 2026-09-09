@@ -1,33 +1,49 @@
 /* =========================================================
    GOOD BARBER — SISTEMA DE DISEÑO PREMIUM
-   Mobile-first, oscuro, masculino, elegante. Negro profundo /
-   grafito / carbón / blanco, con dorado champagne como acento
-   moderado (botones principales, estados activos, highlights).
+   Mobile-first, oscuro, elegante. Negro profundo / grafito /
+   carbón / blanco, con dorado champagne como identidad principal
+   y un acento frío muy sutil como contrapunto de temperatura.
+
+   ETAPA 3.1 — FUNDACIÓN VISUAL: esta sección de :root y los
+   componentes base globales (botones, formularios, tarjetas,
+   badges, tabs, modal, toast, loading) son la base de tokens
+   sobre la que se construirán las etapas siguientes del
+   rediseño (navegación, dashboard, login, agenda, reserva).
+   Nada de HTML/JS ni de selectores funcionales cambia aquí.
 ========================================================= */
 
 :root {
   /* ---- Superficies (profundidad por capas) ---- */
-  --bg: #0a0b0e;
-  --bg-elevated: #14161c;
-  --bg-card: #191c23;
-  --bg-card-2: #20232c;
-  --bg-input: #0f1116;
-  --border: #2a2e38;
-  --border-soft: #1f232c;
-  --border-strong: #3a4050;
+  --bg: #07080b;
+  --bg-elevated: #121319;
+  --bg-card: #171922;
+  --bg-card-2: #1e212b;
+  --bg-input: #0d0e13;
+  --border: #292d38;
+  --border-soft: #1c1f28;
+  --border-strong: #3c4252;
 
   /* ---- Texto ---- */
-  --text: #f5f6f8;
+  --text: #f6f7f9;
   --text-muted: #9aa1ad;
-  --text-faint: #666c78;
+  --text-faint: #626975;
 
-  /* ---- Acento dorado champagne (uso moderado) ---- */
+  /* ---- Acento dorado champagne (identidad principal, uso moderado) ---- */
   --accent: #d4a24e;
-  --accent-strong: #ecc478;
+  --accent-strong: #eec988;
   --accent-soft: rgba(212, 162, 78, 0.14);
   --accent-soft-2: rgba(212, 162, 78, 0.08);
   --accent-contrast: #17130a;
-  --accent-gradient: linear-gradient(160deg, #ecc478 0%, #cf9a44 55%, #b9832f 100%);
+  --accent-gradient: linear-gradient(160deg, #f0cd8e 0%, #d4a24e 46%, #b3812f 100%);
+
+  /* ---- Acento frío secundario: apoyo muy sutil para dar contraste de
+     temperatura a la profundidad (fondos ambientales, resplandores
+     alternos). Nunca sustituye al dorado como color de acción. ---- */
+  --accent-cool: #7fa4c9;
+  --accent-cool-strong: #a8c5e2;
+  --accent-cool-soft: rgba(127, 164, 201, 0.1);
+  --accent-cool-soft-2: rgba(127, 164, 201, 0.05);
+  --accent-cool-contrast: #0b1116;
 
   /* ---- Estado ---- */
   --success: #35c780;
@@ -39,19 +55,27 @@
   --info: #5aa9e6;
   --info-bg: rgba(90, 169, 230, 0.14);
 
-  /* ---- Radios ---- */
+  /* ---- Superficie "glass" discreta (paneles flotantes: toasts, modales) ---- */
+  --glass-bg: rgba(20, 22, 30, 0.74);
+  --glass-border: rgba(255, 255, 255, 0.07);
+  --glass-blur: 18px;
+
+  /* ---- Radios (premium, más redondeados en superficies grandes) ---- */
   --radius-sm: 10px;
   --radius-md: 16px;
   --radius-lg: 22px;
   --radius-xl: 28px;
+  --radius-2xl: 34px;
 
-  /* ---- Sombras (profundidad) ---- */
-  --shadow-xs: 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.32), 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 14px 36px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.35);
-  --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.5), 0 4px 12px rgba(0, 0, 0, 0.4);
-  --shadow-glow: 0 0 0 1px rgba(212, 162, 78, 0.35), 0 6px 20px rgba(212, 162, 78, 0.16);
-  --inset-hairline: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  /* ---- Sombras (profundidad / elevación 3D real) ---- */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-sm: 0 6px 18px rgba(0, 0, 0, 0.38), 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 16px 42px rgba(0, 0, 0, 0.46), 0 3px 8px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 30px 72px rgba(0, 0, 0, 0.56), 0 6px 18px rgba(0, 0, 0, 0.46);
+  --shadow-glow: 0 0 0 1px rgba(212, 162, 78, 0.35), 0 8px 24px rgba(212, 162, 78, 0.18);
+  --shadow-glow-cool: 0 0 0 1px rgba(127, 164, 201, 0.26), 0 8px 22px rgba(127, 164, 201, 0.13);
+  --inset-hairline: inset 0 1px 0 rgba(255, 255, 255, 0.055);
+  --inset-hairline-strong: inset 0 1px 0 rgba(255, 255, 255, 0.09);
 
   /* ---- Layout ---- */
   --nav-height: 70px;
@@ -62,6 +86,7 @@
   /* ---- Movimiento ---- */
   --ease-premium: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-press: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-elastic: cubic-bezier(0.34, 1.56, 0.64, 1);
   --dur-fast: 140ms;
   --dur-base: 220ms;
   --dur-slow: 340ms;
@@ -99,12 +124,31 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Textura ambiental sutil: un resplandor superior y grano casi imperceptible,
-   para que el negro plano tenga algo de vida sin distraer. */
+/* Textura ambiental: un resplandor dorado superior, un contrapunto frío muy
+   sutil en la esquina opuesta y grano casi imperceptible — para que el
+   negro profundo tenga volumen real sin distraer del contenido. */
 body {
-  background-image: radial-gradient(circle at 18% -8%, rgba(212, 162, 78, 0.05) 0%, transparent 42%),
-    radial-gradient(circle at 100% 0%, rgba(255, 255, 255, 0.025) 0%, transparent 38%);
+  background-image: radial-gradient(circle at 15% -10%, rgba(212, 162, 78, 0.055) 0%, transparent 42%),
+    radial-gradient(circle at 100% 6%, rgba(127, 164, 201, 0.035) 0%, transparent 40%),
+    radial-gradient(circle at 50% 120%, rgba(255, 255, 255, 0.02) 0%, transparent 46%);
   background-attachment: fixed;
+}
+
+/* Scroll discreto y consistente con el resto del sistema (no funcional). */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
 }
 
 .hidden {
@@ -138,7 +182,7 @@ p {
   color: var(--text);
 }
 
-/* ---------- Botones (volumen premium) ---------- */
+/* ---------- Botones (volumen premium, tacto real) ---------- */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -151,14 +195,17 @@ p {
   font-size: 15px;
   cursor: pointer;
   min-height: 48px;
-  transition: transform var(--dur-fast) var(--ease-press), box-shadow var(--dur-fast) var(--ease-press),
+  transition: transform var(--dur-fast) var(--ease-press), box-shadow var(--dur-base) var(--ease-premium),
     background var(--dur-base) var(--ease-premium), opacity var(--dur-base) ease;
   white-space: nowrap;
   position: relative;
+  overflow: hidden;
+  isolation: isolate;
   will-change: transform;
 }
 .btn:active {
-  transform: scale(0.97) translateY(1px);
+  transform: scale(0.965) translateY(1px);
+  transition-timing-function: var(--ease-elastic);
 }
 .btn:disabled {
   opacity: 0.45;
@@ -169,17 +216,32 @@ p {
 .btn-primary {
   background: var(--accent-gradient);
   color: var(--accent-contrast);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) inset, 0 -2px 0 rgba(0, 0, 0, 0.16) inset,
-    0 10px 22px rgba(212, 162, 78, 0.22), 0 2px 4px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.4) inset, 0 -2px 0 rgba(0, 0, 0, 0.18) inset,
+    0 12px 26px rgba(212, 162, 78, 0.24), 0 2px 5px rgba(0, 0, 0, 0.32);
+}
+/* Brillo sutil que recorre el botón al pasar el cursor: sensación táctil,
+   sin necesitar más marcado que el propio botón. */
+.btn-primary::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(115deg, transparent 20%, rgba(255, 255, 255, 0.28) 45%, transparent 65%);
+  transform: translateX(-120%);
+  transition: transform var(--dur-slow) var(--ease-premium);
+  pointer-events: none;
+}
+.btn-primary:hover::before {
+  transform: translateX(120%);
 }
 .btn-primary:hover {
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.4) inset, 0 -2px 0 rgba(0, 0, 0, 0.16) inset,
-    0 14px 30px rgba(212, 162, 78, 0.3), 0 2px 4px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.45) inset, 0 -2px 0 rgba(0, 0, 0, 0.18) inset,
+    0 16px 34px rgba(212, 162, 78, 0.32), 0 2px 5px rgba(0, 0, 0, 0.32);
   transform: translateY(-1px);
 }
 .btn-primary:active {
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.25) inset, 0 -1px 0 rgba(0, 0, 0, 0.2) inset,
-    0 4px 10px rgba(212, 162, 78, 0.2);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.28) inset, 0 -1px 0 rgba(0, 0, 0, 0.22) inset,
+    0 5px 12px rgba(212, 162, 78, 0.22);
 }
 
 .btn-ghost {
@@ -191,6 +253,7 @@ p {
 .btn-ghost:hover {
   background: var(--bg-card-2);
   border-color: var(--border-strong);
+  box-shadow: var(--inset-hairline-strong), var(--shadow-sm);
 }
 
 .btn-danger {
@@ -244,8 +307,9 @@ textarea {
   outline: none;
   font-size: 16px;
   min-height: 48px;
-  transition: border-color var(--dur-base) ease, box-shadow var(--dur-base) ease, background var(--dur-base) ease;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: border-color var(--dur-base) var(--ease-premium), box-shadow var(--dur-base) var(--ease-premium),
+    background var(--dur-base) ease;
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.34);
 }
 textarea {
   min-height: 80px;
@@ -260,7 +324,7 @@ input:focus,
 select:focus,
 textarea:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft), inset 0 1px 3px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 0 0 3px var(--accent-soft), inset 0 1px 4px rgba(0, 0, 0, 0.34);
   background: var(--bg-card);
 }
 button:focus-visible {
@@ -335,7 +399,7 @@ button:focus-visible {
   margin-bottom: 20px;
 }
 
-/* ---------- Tarjetas (profundidad por capas) ---------- */
+/* ---------- Tarjetas (profundidad por capas, base global) ---------- */
 .card {
   background: linear-gradient(180deg, var(--bg-card-2) 0%, var(--bg-card) 100%);
   border: 1px solid var(--border-soft);
@@ -343,6 +407,7 @@ button:focus-visible {
   padding: 20px;
   margin-bottom: 16px;
   box-shadow: var(--inset-hairline), var(--shadow-sm);
+  transition: box-shadow var(--dur-base) var(--ease-premium), border-color var(--dur-base) ease;
   animation: card-enter var(--dur-slow) var(--ease-premium) both;
 }
 
@@ -364,7 +429,7 @@ button:focus-visible {
   border-bottom: 0;
 }
 .card-flush .card-row:hover {
-  background: rgba(255, 255, 255, 0.015);
+  background: rgba(255, 255, 255, 0.018);
 }
 
 /* ---------- Grid de stats ---------- */
@@ -417,6 +482,7 @@ button:focus-visible {
   font-size: 12px;
   font-weight: 700;
   border: 1px solid transparent;
+  box-shadow: var(--inset-hairline);
 }
 .badge-success { background: var(--success-bg); color: var(--success); border-color: rgba(53, 199, 128, 0.25); }
 .badge-danger { background: var(--danger-bg); color: var(--danger); border-color: rgba(240, 85, 76, 0.25); }
@@ -516,7 +582,11 @@ button:focus-visible {
   font-size: 13px;
   white-space: nowrap;
   cursor: pointer;
-  transition: background var(--dur-base) ease, color var(--dur-base) ease, box-shadow var(--dur-base) ease;
+  transition: background var(--dur-base) var(--ease-premium), color var(--dur-base) ease,
+    box-shadow var(--dur-base) ease, border-color var(--dur-base) ease;
+}
+.tab-btn:hover {
+  border-color: var(--border-strong);
 }
 .tab-btn.active {
   background: var(--accent-gradient);
@@ -704,12 +774,14 @@ tbody tr:hover {
   width: min(92vw, 420px);
 }
 .toast {
-  background: linear-gradient(165deg, var(--bg-card-2), var(--bg-elevated));
-  border: 1px solid var(--border);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
   color: var(--text);
   padding: 14px 16px;
   border-radius: var(--radius-md);
   box-shadow: var(--inset-hairline), var(--shadow-md);
+  backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%);
   font-size: 14px;
   font-weight: 600;
   opacity: 0;
@@ -745,9 +817,9 @@ tbody tr:hover {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(6, 7, 10, 0.6);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: rgba(5, 6, 9, 0.64);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -781,7 +853,7 @@ tbody tr:hover {
     align-items: center;
   }
   .modal-box {
-    border-radius: var(--radius-xl);
+    border-radius: var(--radius-2xl);
     transform: translateY(16px) scale(0.97);
   }
 }
@@ -810,8 +882,8 @@ tbody tr:hover {
 #loading-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(10, 11, 14, 0.8);
-  backdrop-filter: blur(4px);
+  background: rgba(7, 8, 11, 0.82);
+  backdrop-filter: blur(5px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -826,7 +898,7 @@ tbody tr:hover {
   border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
-  box-shadow: 0 0 16px rgba(212, 162, 78, 0.18);
+  box-shadow: 0 0 18px rgba(212, 162, 78, 0.2);
 }
 @keyframes spin {
   to { transform: rotate(360deg); }
@@ -847,6 +919,7 @@ tbody tr:hover {
   position: sticky;
   top: 0;
   z-index: 40;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
 }
 
 /* ---------- Utilidades ---------- */
