@@ -6,6 +6,7 @@ import { startOfWeek, endOfWeek, toISODate, todayISO, weekLabel, formatDateText,
 
 const NAV_ITEMS = [
   { id: "dashboard", label: "Dashboard", icon: "📊" },
+  { id: "agenda", label: "Agenda", icon: "🗓️" },
   { id: "barbers", label: "Barberos", icon: "💈" },
   { id: "clients", label: "Clientes", icon: "👥" },
   { id: "services", label: "Servicios", icon: "✂️" },

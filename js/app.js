@@ -14,6 +14,8 @@ import {
   renderAdminHistory,
   renderAdminSettings,
 } from "./render-admin.js";
+import { renderAdminAgenda } from "./render-agenda-admin.js";
+import { renderBarberAgenda } from "./render-agenda-barber.js";
 
 const root = document.getElementById("app");
 let currentView = null;
@@ -157,6 +159,7 @@ async function handleLogout() {
 function mountBarberShell(ctx) {
   const barberViews = {
     home: renderBarberHome,
+    agenda: renderBarberAgenda,
     services: renderBarberServices,
     clients: renderBarberClients,
     history: renderBarberHistory,
@@ -182,6 +185,7 @@ function mountBarberShell(ctx) {
 function mountAdminShell(profile) {
   const adminViews = {
     dashboard: renderAdminDashboard,
+    agenda: renderAdminAgenda,
     barbers: renderAdminBarbers,
     clients: renderAdminClients,
     services: renderAdminServices,

@@ -7,6 +7,7 @@ import { updatePassword } from "./auth.js";
 
 const NAV_ITEMS = [
   { id: "home", label: "Inicio", icon: "🏠" },
+  { id: "agenda", label: "Agenda", icon: "🗓️" },
   { id: "services", label: "Servicios", icon: "✂️" },
   { id: "clients", label: "Clientes", icon: "👥" },
   { id: "history", label: "Historial", icon: "📅" },
