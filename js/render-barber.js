@@ -121,44 +121,55 @@ async function openQuickRegister(ctx, onDone) {
     <button class="btn btn-ghost btn-icon modal-close" data-close-modal aria-label="Cerrar">✕</button>
     <h3>Registrar servicio</h3>
 
-    <div class="field mt-16">
-      <label>Cliente</label>
-      <input id="qr-client-search" placeholder="Buscar cliente por nombre…" autocomplete="off">
-      <div id="qr-client-results" class="mt-8"></div>
-      <div id="qr-client-selected" class="badge badge-info mt-8 hidden"></div>
-      <button type="button" class="btn btn-ghost btn-sm mt-8" id="qr-new-client">+ Nuevo cliente</button>
-    </div>
+    <div class="qr-layout mt-16">
+      <div class="qr-col-left">
+        <div class="field">
+          <label>Cliente</label>
+          <input id="qr-client-search" placeholder="Buscar cliente por nombre…" autocomplete="off">
+          <div id="qr-client-results" class="mt-8"></div>
+          <div id="qr-client-selected" class="badge badge-info mt-8 hidden"></div>
+          <button type="button" class="btn btn-ghost btn-sm mt-8" id="qr-new-client">+ Nuevo cliente</button>
+        </div>
 
-    <div class="field">
-      <label>Servicios (toca para agregar; puedes elegir varios)</label>
-      <div class="service-picker" id="qr-service-picker">
-        ${services
-          .map(
-            (s) => `
-          <button type="button" class="service-pick" data-service-id="${s.id}">
-            <div class="service-pick-name">${escapeHtml(s.name)}</div>
-            <div class="service-pick-price">${formatCents(s.price_cents)}</div>
-          </button>
-        `
-          )
-          .join("")}
+        <div class="field">
+          <label>Servicios (toca para agregar; puedes elegir varios)</label>
+          <div class="service-picker" id="qr-service-picker">
+            ${services
+              .map(
+                (s) => `
+              <button type="button" class="service-pick" data-service-id="${s.id}">
+                <div class="service-pick-icon">✂️</div>
+                <div class="service-pick-name">${escapeHtml(s.name)}</div>
+                <div class="service-pick-meta">
+                  <span class="service-pick-price">${formatCents(s.price_cents)}</span>
+                  ${s.duration_minutes ? `<span class="service-pick-duration">${s.duration_minutes} min</span>` : ""}
+                </div>
+              </button>
+            `
+              )
+              .join("")}
+          </div>
+        </div>
+      </div>
+
+      <div class="qr-col-right">
+        <div class="field">
+          <label>Servicios seleccionados</label>
+          <div id="qr-cart" class="card card-flush"></div>
+        </div>
+
+        <div class="qr-sticky-footer">
+          <div class="card dash-hero qr-total-card">
+            <div class="dash-hero-label">Total</div>
+            <div class="dash-hero-value" id="qr-total">$0.00</div>
+          </div>
+          <button type="button" class="btn btn-primary btn-block qr-confirm-cta" id="qr-confirm" disabled>Guardar servicio(s)</button>
+        </div>
       </div>
     </div>
-
-    <div class="field">
-      <label>Servicios seleccionados</label>
-      <div id="qr-cart" class="card card-flush"></div>
-    </div>
-
-    <div class="card">
-      <div class="flex-between">
-        <span class="text-muted">Total</span>
-        <strong id="qr-total" class="text-accent">$0.00</strong>
-      </div>
-    </div>
-
-    <button type="button" class="btn btn-primary btn-block mt-16" id="qr-confirm" disabled>Guardar servicio(s)</button>
   `);
+
+  overlay.querySelector(".modal-box").classList.add("qr-modal-box");
 
   const cartBox = overlay.querySelector("#qr-cart");
   const totalEl = overlay.querySelector("#qr-total");
@@ -171,24 +182,27 @@ async function openQuickRegister(ctx, onDone) {
 
   function renderCart() {
     if (cart.length === 0) {
-      cartBox.innerHTML = `<div class="text-muted" style="padding:12px">Todavía no agregas ningún servicio.</div>`;
+      cartBox.innerHTML = `<div class="empty-state"><div class="icon">🧺</div>Todavía no agregas ningún servicio.</div>`;
     } else {
       cartBox.innerHTML = cart
         .map(
           (item, idx) => `
-        <div class="card-row">
-          <div class="list-item-main">
-            <div class="list-item-title">${escapeHtml(item.service.name)}</div>
-            <div class="list-item-sub flex gap-8" style="align-items:center;flex-wrap:wrap">
-              <button type="button" class="btn btn-ghost btn-icon btn-sm" data-qty-minus="${idx}" aria-label="Menos">−</button>
-              <span>${item.quantity}</span>
-              <button type="button" class="btn btn-ghost btn-icon btn-sm" data-qty-plus="${idx}" aria-label="Más">+</button>
-              <input type="number" min="0" step="0.01" placeholder="Descuento" value="${item.discountCents ? fromCents(item.discountCents) : ""}" data-discount="${idx}" style="width:100px">
+        <div class="card-row qr-cart-row">
+          <div class="qr-cart-row-main">
+            <div class="qr-cart-row-name">${escapeHtml(item.service.name)}</div>
+            <div class="qr-cart-row-price">${formatCents(item.service.price_cents)} c/u${item.discountCents ? ` · −${formatCents(item.discountCents)}` : ""}</div>
+            <div class="qr-cart-row-controls">
+              <div class="qr-qty-stepper">
+                <button type="button" class="qr-qty-btn" data-qty-minus="${idx}" aria-label="Menos">−</button>
+                <span class="qr-qty-value">${item.quantity}</span>
+                <button type="button" class="qr-qty-btn" data-qty-plus="${idx}" aria-label="Más">+</button>
+              </div>
+              <input type="number" min="0" step="0.01" placeholder="Descuento" value="${item.discountCents ? fromCents(item.discountCents) : ""}" data-discount="${idx}" class="qr-discount-input">
             </div>
           </div>
-          <div class="flex gap-8" style="align-items:center">
+          <div class="qr-cart-row-total">
             <strong>${formatCents(lineTotal(item))}</strong>
-            <button type="button" class="btn btn-ghost btn-icon btn-sm" data-remove="${idx}" aria-label="Quitar">✕</button>
+            <button type="button" class="qr-remove-btn" data-remove="${idx}" aria-label="Quitar">✕</button>
           </div>
         </div>
       `
@@ -237,6 +251,7 @@ async function openQuickRegister(ctx, onDone) {
       );
     }
     updateTotal();
+    syncServicePicker();
   }
 
   function updateTotal() {
@@ -244,6 +259,28 @@ async function openQuickRegister(ctx, onDone) {
     animateNumberText(totalEl, lastTotalCents, total, formatCents);
     lastTotalCents = total;
     confirmBtn.disabled = cart.length === 0;
+  }
+
+  // Puramente visual: refleja en el selector cuántas unidades de cada
+  // servicio ya están en el carrito (borde/glow + contador). No toca el
+  // array `cart` ni la lógica de qué botón agrega o incrementa una línea.
+  function syncServicePicker() {
+    overlay.querySelectorAll(".service-pick").forEach((btn) => {
+      const id = btn.dataset.serviceId;
+      const totalQty = cart.filter((item) => item.service.id === id).reduce((sum, item) => sum + item.quantity, 0);
+      btn.classList.toggle("service-pick-selected", totalQty > 0);
+      let badge = btn.querySelector(".service-pick-qty");
+      if (totalQty > 0) {
+        if (!badge) {
+          badge = document.createElement("span");
+          badge.className = "service-pick-qty";
+          btn.appendChild(badge);
+        }
+        badge.textContent = String(totalQty);
+      } else if (badge) {
+        badge.remove();
+      }
+    });
   }
 
   overlay.querySelectorAll(".service-pick").forEach((btn) => {
@@ -281,7 +318,7 @@ async function openQuickRegister(ctx, onDone) {
       try {
         const results = await data.searchClients(ctx.barber.id, term);
         resultsBox.innerHTML = results
-          .map((c) => `<div class="list-item" style="cursor:pointer" data-client-id="${c.id}" data-client-name="${escapeHtml(c.name)}">
+          .map((c) => `<div class="list-item qr-client-result" data-client-id="${c.id}" data-client-name="${escapeHtml(c.name)}">
             <div class="list-item-title">${escapeHtml(c.name)}</div>
           </div>`)
           .join("") || `<div class="text-muted" style="padding:8px 0">Sin resultados.</div>`;
@@ -381,21 +418,31 @@ export async function renderBarberServices(container, ctx) {
 
   async function draw() {
     container.innerHTML = `
-      <h2 class="view-title">Servicios</h2>
-      <button class="btn btn-primary btn-block" id="new-service-btn">+ Registrar servicio</button>
+      <div class="services-view">
+        <h2 class="view-title">Servicios</h2>
+        <button type="button" class="dash-quick-action" id="new-service-btn">
+          <span class="dash-quick-action-icon">➕</span>
+          <span class="dash-quick-action-text">
+            <span class="dash-quick-action-title">Registrar servicio</span>
+            <span class="dash-quick-action-sub">Nueva venta rápida para un cliente</span>
+          </span>
+          <span class="dash-quick-action-arrow">→</span>
+        </button>
 
-      <div class="card mt-16">
-        <div class="field">
-          <label for="services-date">Ver día</label>
-          <input type="date" id="services-date" value="${state.date}">
+        <div class="card mt-16">
+          <div class="field">
+            <label for="services-date">Ver día</label>
+            <input type="date" id="services-date" value="${state.date}">
+          </div>
         </div>
-        <div id="services-day-total" class="stat-box">
-          <div class="stat-label">Total del día</div>
-          <div class="stat-value accent" id="services-day-total-value">$0.00</div>
+
+        <div class="card dash-hero" id="services-day-total">
+          <div class="dash-hero-label">Total del día</div>
+          <div class="dash-hero-value" id="services-day-total-value">$0.00</div>
         </div>
+
+        <div class="card card-flush" id="services-list"><div class="text-center" style="padding:30px"><div class="spinner" style="margin:auto"></div></div></div>
       </div>
-
-      <div class="card card-flush" id="services-list"><div class="text-center" style="padding:30px"><div class="spinner" style="margin:auto"></div></div></div>
     `;
 
     container.querySelector("#new-service-btn").addEventListener("click", () => openQuickRegister(ctx, draw));
@@ -410,7 +457,7 @@ export async function renderBarberServices(container, ctx) {
         data.getDailyPromotion(ctx.barber.id, state.date),
       ]);
       const total = dayTotalCents(records, promo?.discount_cents || 0);
-      container.querySelector("#services-day-total-value").textContent = formatCents(total);
+      animateNumberText(container.querySelector("#services-day-total-value"), 0, total, formatCents);
 
       const listBox = container.querySelector("#services-list");
       if (records.length === 0) {
@@ -419,7 +466,7 @@ export async function renderBarberServices(container, ctx) {
         listBox.innerHTML = records
           .map(
             (r) => `
-          <div class="card-row">
+          <div class="card-row svc-record-row">
             <div class="list-item-main">
               <div class="list-item-title">${escapeHtml(r.service_name)}${r.quantity > 1 ? ` ×${r.quantity}` : ""} ${r.status === "cancelled" ? '<span class="badge badge-danger">Cancelado</span>' : ""}</div>
               <div class="list-item-sub">${r.clients?.name ? escapeHtml(r.clients.name) : "Sin cliente"} · ${r.record_time?.slice(0, 5) || ""}</div>
@@ -524,14 +571,12 @@ async function openEditRecordForm(record, onDone) {
       <label for="er-notes">Nota (opcional)</label>
       <input id="er-notes" value="${escapeHtml(record.notes || "")}">
     </div>
-    <div class="card">
-      <div class="flex-between">
-        <span class="text-muted">Total</span>
-        <strong id="er-total" class="text-accent">$0.00</strong>
-      </div>
+    <div class="card dash-hero qr-total-card mt-16">
+      <div class="dash-hero-label">Total</div>
+      <div class="dash-hero-value" id="er-total">$0.00</div>
     </div>
     <div id="er-error" class="text-danger mt-8 hidden"></div>
-    <button type="button" class="btn btn-primary btn-block mt-16" id="er-save">Guardar cambios</button>
+    <button type="button" class="btn btn-primary btn-block mt-16 qr-confirm-cta" id="er-save">Guardar cambios</button>
   `);
 
   const serviceSelect = overlay.querySelector("#er-service");

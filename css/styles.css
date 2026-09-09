@@ -549,24 +549,248 @@ button:focus-visible {
 .service-pick.just-added {
   animation: service-pop var(--dur-slow) var(--ease-premium);
 }
+.service-pick-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  background: var(--bg-elevated);
+  margin-bottom: 8px;
+}
 .service-pick-name {
   font-weight: 700;
   font-size: 14px;
 }
+.service-pick-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 4px;
+}
 .service-pick-price {
   color: var(--accent);
   font-weight: 800;
-  margin-top: 4px;
   font-variant-numeric: tabular-nums;
 }
+.service-pick-duration {
+  color: var(--text-faint);
+  font-size: 11.5px;
+}
+/* Estado seleccionado: se activa/desactiva vía JS (syncServicePicker) según
+   cuántas unidades de este servicio ya están en el carrito — puramente
+   visual, no participa en la lógica de qué botón agrega o incrementa una
+   línea (eso sigue siendo el mismo listener de siempre). */
+.service-pick-selected {
+  border-color: var(--accent);
+  background: linear-gradient(160deg, var(--accent-soft), var(--bg-elevated) 75%);
+  box-shadow: var(--inset-hairline), var(--shadow-glow);
+}
+.service-pick-selected .service-pick-icon {
+  background: var(--accent-soft);
+}
+.service-pick-qty {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--accent-gradient);
+  color: var(--accent-contrast);
+  font-size: 12px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(212, 162, 78, 0.4);
+  animation: nav-pill-in var(--dur-slow) var(--ease-premium);
+}
 
-/* ---------- Carrito de servicios ---------- */
+/* ---------- Carrito de servicios (venta rápida) ----------
+   .card-row se conserva en cada fila porque el handler de "quitar" del
+   carrito la localiza con btn.closest(".card-row") para animar la salida
+   — quitarla rompería esa animación (no la lógica de borrado en sí, que
+   es por identidad de objeto, pero sí el efecto visual). Todo lo demás
+   (data-qty-minus/plus/discount/remove e índices) es exactamente el mismo
+   marcado funcional de antes, solo con nuevas clases alrededor. */
 #qr-cart .card-row,
 #qr-cart .empty-state {
   animation: cart-row-in var(--dur-base) var(--ease-premium) both;
 }
 .cart-row-leaving {
   animation: cart-row-out var(--dur-fast) var(--ease-press) forwards;
+}
+.qr-cart-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.qr-cart-row-main {
+  min-width: 0;
+  flex: 1;
+}
+.qr-cart-row-name {
+  font-weight: 700;
+  font-size: 14.5px;
+}
+.qr-cart-row-price {
+  color: var(--text-muted);
+  font-size: 12.5px;
+  margin-top: 2px;
+}
+.qr-cart-row-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.qr-qty-stepper {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+}
+.qr-qty-btn {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--bg-card-2);
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--dur-fast) var(--ease-press), background var(--dur-fast) ease;
+}
+.qr-qty-btn:hover {
+  background: var(--bg-elevated);
+}
+.qr-qty-btn:active {
+  transform: scale(0.88);
+  background: var(--accent-soft);
+}
+.qr-qty-value {
+  min-width: 26px;
+  text-align: center;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.qr-discount-input {
+  width: 110px;
+  min-height: 36px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+.qr-cart-row-total {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.qr-cart-row-total strong {
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-strong);
+}
+.qr-remove-btn {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  transition: transform var(--dur-fast) var(--ease-press), background var(--dur-fast) ease,
+    color var(--dur-fast) ease, border-color var(--dur-fast) ease;
+}
+.qr-remove-btn:hover {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-color: rgba(240, 85, 76, 0.35);
+}
+.qr-remove-btn:active {
+  transform: scale(0.88);
+}
+
+/* ---------- Checkout: total + confirmar ---------- */
+.qr-total-card {
+  margin-bottom: 12px;
+}
+.qr-sticky-footer {
+  position: sticky;
+  bottom: 0;
+  padding-top: 4px;
+  padding-bottom: max(4px, env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, transparent 0%, var(--bg-card) 22%);
+}
+.qr-confirm-cta {
+  min-height: 54px;
+  font-size: 16px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.45) inset, 0 -2px 0 rgba(0, 0, 0, 0.2) inset,
+    0 16px 34px rgba(212, 162, 78, 0.3), 0 4px 10px rgba(0, 0, 0, 0.35);
+}
+
+/* ---------- Modal de venta rápida: layout de dos columnas en desktop ----------
+   Sin override de max-width aquí: hereda los 560px de .modal-box-lg (ya
+   presente en el elemento) igual que cualquier otro modal grande de la
+   app; solo se ensancha específicamente en escritorio, más abajo. */
+.qr-client-result {
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  padding-left: 8px;
+  padding-right: 8px;
+  transition: background var(--dur-fast) ease;
+}
+.qr-client-result:hover {
+  background: var(--bg-elevated);
+}
+@media (min-width: 1024px) {
+  /* Selector reforzado (.modal-box.qr-modal-box) a propósito: .modal-box-lg
+     define max-width más abajo en este mismo archivo, y con la misma
+     especificidad ganaría por orden de aparición. */
+  .modal-box.qr-modal-box {
+    max-width: 880px;
+  }
+  .qr-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+  }
+  .qr-col-left,
+  .qr-col-right {
+    min-width: 0;
+  }
+  .qr-sticky-footer {
+    background: none;
+  }
+}
+
+/* ---------- Pantalla Servicios (barbero) ---------- */
+.services-view {
+  animation: view-enter var(--dur-slow) var(--ease-premium) both;
+}
+.svc-record-row {
+  transition: background var(--dur-fast) var(--ease-premium);
+}
+.svc-record-row:hover {
+  background: rgba(255, 255, 255, 0.02);
 }
 
 /* ---------- Tabs ---------- */
