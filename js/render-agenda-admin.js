@@ -13,13 +13,15 @@ export async function renderAdminAgenda(container) {
 
   async function draw() {
     container.innerHTML = `
-      <h2 class="view-title">Agenda</h2>
-      <div class="agenda-tabs">
-        <button type="button" class="agenda-tab ${state.tab === "citas" ? "active" : ""}" data-tab="citas">Citas</button>
-        <button type="button" class="agenda-tab ${state.tab === "horarios" ? "active" : ""}" data-tab="horarios">Horarios</button>
-        <button type="button" class="agenda-tab ${state.tab === "bloqueos" ? "active" : ""}" data-tab="bloqueos">Bloqueos</button>
+      <div class="agenda-view">
+        <h2 class="view-title">Agenda</h2>
+        <div class="agenda-tabs">
+          <button type="button" class="agenda-tab ${state.tab === "citas" ? "active" : ""}" data-tab="citas">📅 Citas</button>
+          <button type="button" class="agenda-tab ${state.tab === "horarios" ? "active" : ""}" data-tab="horarios">🗓️ Horarios</button>
+          <button type="button" class="agenda-tab ${state.tab === "bloqueos" ? "active" : ""}" data-tab="bloqueos">🚫 Bloqueos</button>
+        </div>
+        <div id="agenda-body" class="mt-16"></div>
       </div>
-      <div id="agenda-body" class="mt-16"></div>
     `;
     container.querySelectorAll("[data-tab]").forEach((btn) =>
       btn.addEventListener("click", () => {
@@ -52,7 +54,7 @@ export async function renderAdminAgenda(container) {
     });
 
     body.innerHTML = `
-      <div class="card">
+      <div class="card agenda-filter-card">
         <div class="field" style="margin-bottom:12px">
           <label for="ag-c-barber">Barbero</label>
           <select id="ag-c-barber">
@@ -62,7 +64,7 @@ export async function renderAdminAgenda(container) {
         </div>
         <div class="day-strip" id="ag-day-strip">${dayStripHTML(days, state.date)}</div>
       </div>
-      <div id="ag-c-list" class="mt-16"><div class="text-center" style="padding:20px"><div class="spinner" style="margin:auto"></div></div></div>
+      <div id="ag-c-list" class="mt-16 agenda-appt-list"><div class="text-center" style="padding:20px"><div class="spinner" style="margin:auto"></div></div></div>
     `;
 
     body.querySelector("#ag-c-barber").addEventListener("change", (e) => {
@@ -108,14 +110,21 @@ export async function renderAdminAgenda(container) {
   // ---------- Horarios ----------
   async function drawHorarios(body) {
     body.innerHTML = `
-      <div class="card">
+      <div class="card agenda-filter-card">
         <label for="ag-h-barber">Barbero</label>
         <select id="ag-h-barber">
           ${state.barbers.map((b) => `<option value="${b.id}" ${b.id === state.hBarberId ? "selected" : ""}>${escapeHtml(b.name)}</option>`).join("")}
         </select>
       </div>
-      <div id="ag-h-list" class="card card-flush mt-16"><div class="text-center" style="padding:20px"><div class="spinner" style="margin:auto"></div></div></div>
-      <button class="btn btn-ghost btn-block mt-8" id="ag-h-add">+ Agregar horario</button>
+      <div id="ag-h-list" class="card card-flush mt-16 agenda-schedule-list"><div class="text-center" style="padding:20px"><div class="spinner" style="margin:auto"></div></div></div>
+      <button class="dash-quick-action mt-16" id="ag-h-add" type="button">
+        <span class="dash-quick-action-icon">➕</span>
+        <span class="dash-quick-action-text">
+          <span class="dash-quick-action-title">Agregar horario</span>
+          <span class="dash-quick-action-sub">Nuevo bloque de disponibilidad</span>
+        </span>
+        <span class="dash-quick-action-arrow">→</span>
+      </button>
     `;
     body.querySelector("#ag-h-barber").addEventListener("change", (e) => {
       state.hBarberId = e.target.value;
@@ -133,10 +142,10 @@ export async function renderAdminAgenda(container) {
       list.innerHTML = schedules
         .map(
           (s) => `
-        <div class="card-row">
+        <div class="card-row agenda-schedule-row">
           <div class="list-item-main">
             <div class="list-item-title">${WEEKDAY_NAMES[s.weekday]}${!s.active ? ' <span class="badge badge-neutral">Inactivo</span>' : ""}</div>
-            <div class="list-item-sub">${s.start_time.slice(0, 5)} – ${s.end_time.slice(0, 5)}</div>
+            <div class="list-item-sub">🕐 ${s.start_time.slice(0, 5)} – ${s.end_time.slice(0, 5)}</div>
           </div>
           <div class="flex gap-8">
             <button class="btn btn-ghost btn-sm" data-edit="${s.id}">Editar</button>
@@ -187,10 +196,12 @@ export async function renderAdminAgenda(container) {
           ${WEEKDAY_NAMES.map((n, i) => `<option value="${i}" ${isEdit ? (schedule.weekday === i ? "selected" : "") : i === 1 ? "selected" : ""}>${n}</option>`).join("")}
         </select>
       </div>
-      <div class="field"><label for="sf-start">Hora de inicio</label><input id="sf-start" type="time" value="${isEdit ? schedule.start_time.slice(0, 5) : "11:00"}"></div>
-      <div class="field"><label for="sf-end">Hora de fin</label><input id="sf-end" type="time" value="${isEdit ? schedule.end_time.slice(0, 5) : "20:00"}"></div>
+      <div class="agenda-time-row">
+        <div class="field"><label for="sf-start">Hora de inicio</label><input id="sf-start" type="time" value="${isEdit ? schedule.start_time.slice(0, 5) : "11:00"}"></div>
+        <div class="field"><label for="sf-end">Hora de fin</label><input id="sf-end" type="time" value="${isEdit ? schedule.end_time.slice(0, 5) : "20:00"}"></div>
+      </div>
       <div id="sf-error" class="text-danger mt-8 hidden"></div>
-      <button type="button" class="btn btn-primary btn-block mt-16" id="sf-save">Guardar</button>
+      <button type="button" class="btn btn-primary btn-block mt-16 qr-confirm-cta" id="sf-save">Guardar</button>
     `);
 
     overlay.querySelector("#sf-save").addEventListener("click", async () => {
@@ -225,8 +236,15 @@ export async function renderAdminAgenda(container) {
   // ---------- Bloqueos ----------
   async function drawBloqueos(body) {
     body.innerHTML = `
-      <button class="btn btn-primary btn-block" id="ag-b-add">+ Bloquear horario</button>
-      <div id="ag-b-list" class="mt-16"><div class="text-center" style="padding:20px"><div class="spinner" style="margin:auto"></div></div></div>
+      <button type="button" class="dash-quick-action" id="ag-b-add">
+        <span class="dash-quick-action-icon">🚫</span>
+        <span class="dash-quick-action-text">
+          <span class="dash-quick-action-title">Bloquear horario</span>
+          <span class="dash-quick-action-sub">Vacaciones, comida u otro motivo</span>
+        </span>
+        <span class="dash-quick-action-arrow">→</span>
+      </button>
+      <div id="ag-b-list" class="mt-16 agenda-block-list"><div class="text-center" style="padding:20px"><div class="spinner" style="margin:auto"></div></div></div>
     `;
     body.querySelector("#ag-b-add").addEventListener("click", () => openBlockForm(state.barbers, () => drawBloqueos(body)));
 
@@ -240,13 +258,13 @@ export async function renderAdminAgenda(container) {
       list.innerHTML = blocks
         .map(
           (b) => `
-        <div class="card">
+        <div class="card agenda-block-card">
           <div class="flex-between">
             <strong>${escapeHtml(b.barbers?.name || "Toda la barbería")}</strong>
             <button class="btn btn-ghost btn-sm" data-del="${b.id}">Eliminar</button>
           </div>
-          <div class="text-muted mt-8">${formatRangeLocal(b.starts_at, b.ends_at)}</div>
-          ${b.reason ? `<div class="text-muted mt-8">${escapeHtml(b.reason)}</div>` : ""}
+          <div class="text-muted mt-8">🕐 ${formatRangeLocal(b.starts_at, b.ends_at)}</div>
+          ${b.reason ? `<div class="text-muted mt-8">📝 ${escapeHtml(b.reason)}</div>` : ""}
         </div>
       `
         )
@@ -292,7 +310,7 @@ export async function renderAdminAgenda(container) {
       <div class="field"><label for="bf-end">Hasta</label><input id="bf-end" type="datetime-local"></div>
       <div class="field"><label for="bf-reason">Motivo (opcional)</label><input id="bf-reason" placeholder="Vacaciones, comida, etc."></div>
       <div id="bf-error" class="text-danger mt-8 hidden"></div>
-      <button type="button" class="btn btn-primary btn-block mt-16" id="bf-save">Guardar bloqueo</button>
+      <button type="button" class="btn btn-primary btn-block mt-16 qr-confirm-cta" id="bf-save">Guardar bloqueo</button>
     `);
 
     overlay.querySelector("#bf-save").addEventListener("click", async () => {

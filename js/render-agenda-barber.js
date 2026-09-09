@@ -21,11 +21,13 @@ export async function renderBarberAgenda(container, ctx) {
     });
 
     container.innerHTML = `
-      <h2 class="view-title">Agenda</h2>
-      <div class="card">
-        <div class="day-strip" id="ag-day-strip">${dayStripHTML(days, state.date)}</div>
+      <div class="agenda-view">
+        <h2 class="view-title">Agenda</h2>
+        <div class="card agenda-filter-card">
+          <div class="day-strip" id="ag-day-strip">${dayStripHTML(days, state.date)}</div>
+        </div>
+        <div id="ag-c-list" class="mt-16 agenda-appt-list"><div class="text-center" style="padding:20px"><div class="spinner" style="margin:auto"></div></div></div>
       </div>
-      <div id="ag-c-list" class="mt-16"><div class="text-center" style="padding:20px"><div class="spinner" style="margin:auto"></div></div></div>
     `;
 
     container.querySelectorAll("[data-date]").forEach((btn) =>
