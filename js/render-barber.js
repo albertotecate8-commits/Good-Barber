@@ -7,6 +7,7 @@ import { updatePassword } from "./auth.js";
 
 const NAV_ITEMS = [
   { id: "home", label: "Inicio", icon: "🏠" },
+  { id: "agenda", label: "Agenda", icon: "🗓️" },
   { id: "services", label: "Servicios", icon: "✂️" },
   { id: "clients", label: "Clientes", icon: "👥" },
   { id: "history", label: "Historial", icon: "📅" },
@@ -323,16 +324,29 @@ async function openQuickRegister(ctx, onDone) {
     });
   });
 
+  // Protección contra doble clic/doble envío. `saving` es un cerrojo
+  // síncrono adicional a `confirmBtn.disabled` (que ya por sí solo evita que
+  // el navegador dispare un segundo click en un botón deshabilitado, pero
+  // este flag cubre además cualquier otra forma de re-disparar el handler).
+  // `saleId` se genera UNA sola vez para toda esta operación y se reutiliza
+  // en cada reintento: así, si algo llega a duplicar la llamada de red, el
+  // RPC del servidor (idempotente por sale_id) devuelve las mismas filas en
+  // vez de crear un segundo cobro.
+  let saving = false;
+  let saleId = null;
+
   confirmBtn.addEventListener("click", async () => {
-    if (cart.length === 0) return;
+    if (cart.length === 0 || saving) return;
+    saving = true;
     confirmBtn.disabled = true;
     confirmBtn.textContent = "Guardando…";
     try {
+      if (!saleId) saleId = crypto.randomUUID();
       await data.createServiceRecordsBatch({
         barberId: ctx.barber.id,
         clientId: selectedClient?.id || null,
         items: cart.map((item) => ({ service: item.service, quantity: item.quantity, discountCents: item.discountCents })),
-        createdBy: ctx.profile.id,
+        saleId,
       });
       toast(cart.length > 1 ? "Servicios guardados correctamente." : "Servicio guardado correctamente.", "success");
       confirmBtn.textContent = "✓ Guardado";
@@ -343,6 +357,7 @@ async function openQuickRegister(ctx, onDone) {
       }, 480);
     } catch (error) {
       toast(friendlyError(error), "error");
+      saving = false;
       confirmBtn.disabled = false;
       confirmBtn.textContent = "Guardar servicio(s)";
     }
@@ -669,7 +684,16 @@ function openClientForm(ctx, client, onDone) {
       close();
       onDone();
     } catch (error) {
-      toast(friendlyError(error), "error");
+      if (error.code === "DUPLICATE_PHONE") {
+        toast(
+          error.existingClient
+            ? `Este número ya está registrado a nombre de "${error.existingClient.name}".`
+            : "Este número ya está registrado.",
+          "error"
+        );
+      } else {
+        toast(friendlyError(error), "error");
+      }
     } finally {
       showLoading(false);
     }

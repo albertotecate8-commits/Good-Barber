@@ -62,12 +62,50 @@ export async function searchClients(barberId, term) {
   return unwrap(await query);
 }
 
+// Busca si ya existe un cliente con este teléfono (cualquier formato: la
+// normalización la hace el propio Postgres, igual que en la reserva pública).
+// No filtra por "active": el índice único de phone_normalized tampoco lo
+// hace, así que un cliente desactivado con el mismo número igual bloquearía
+// un alta nueva — hay que poder detectarlo también.
+export async function findClientByPhone(phone) {
+  if (!phone) return null;
+  const { data: normalized, error: normError } = await sb().rpc("normalize_phone", { p_phone: phone });
+  if (normError) throw normError;
+  if (!normalized) return null;
+  const { data, error } = await sb().from("clients").select("*").eq("phone_normalized", normalized).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+// Convierte el error crudo de Postgres (unique_violation sobre
+// phone_normalized) en un error con código DUPLICATE_PHONE y, si se pudo
+// encontrar, el cliente existente adjunto — para que la pantalla pueda
+// ofrecer "usar cliente existente" en vez de un mensaje técnico.
+async function asDuplicatePhoneError(error, phone) {
+  if (error?.code !== "23505") return error;
+  let existingClient = null;
+  try {
+    existingClient = await findClientByPhone(phone);
+  } catch {
+    // Si ni siquiera se pudo buscar el existente, seguimos devolviendo el
+    // error amigable de todas formas — solo sin el cliente adjunto.
+  }
+  const friendly = new Error("Este número ya está registrado.");
+  friendly.code = "DUPLICATE_PHONE";
+  friendly.existingClient = existingClient;
+  return friendly;
+}
+
 export async function createClient({ barberId, name, phone, notes }) {
-  return unwrap(await sb().from("clients").insert({ barber_id: barberId, name, phone, notes }).select().single());
+  const { data, error } = await sb().from("clients").insert({ barber_id: barberId, name, phone, notes }).select().single();
+  if (error) throw await asDuplicatePhoneError(error, phone);
+  return data;
 }
 
 export async function updateClient(clientId, patch) {
-  return unwrap(await sb().from("clients").update(patch).eq("id", clientId).select().single());
+  const { data, error } = await sb().from("clients").update(patch).eq("id", clientId).select().single();
+  if (error) throw await asDuplicatePhoneError(error, patch.phone);
+  return data;
 }
 
 export async function deactivateClient(clientId) {
@@ -120,24 +158,32 @@ export async function updateServiceRecord(recordId, patch) {
 }
 
 // Registra varios servicios de una sola vez (una "venta" con varias líneas).
-// Todas las filas comparten un sale_id nuevo para poder identificarlas como
-// una misma operación; cada línea sigue siendo un service_record normal
-// (compatible con todo el código existente, que no sabe nada de sale_id).
-export async function createServiceRecordsBatch({ barberId, clientId, items, createdBy }) {
-  const saleId = crypto.randomUUID();
-  const rows = items.map((item) => ({
-    barber_id: barberId,
-    client_id: clientId ?? null,
+// Todas las filas comparten un sale_id para poder identificarlas como una
+// misma operación. Pasa por el RPC create_service_records_batch (SECURITY
+// INVOKER: exige exactamente el mismo RLS que un insert normal) en vez de un
+// insert directo, porque ese RPC es idempotente por sale_id — si esta misma
+// llamada se repite (doble clic, reintento de red) con el MISMO saleId,
+// devuelve las filas que ya se guardaron en vez de crearlas otra vez. Por
+// eso quien llama debe generar el saleId UNA sola vez por operación y
+// reusarlo si reintenta, no generar uno nuevo en cada intento.
+export async function createServiceRecordsBatch({ barberId, clientId, items, saleId }) {
+  const finalSaleId = saleId || crypto.randomUUID();
+  const payload = items.map((item) => ({
     service_id: item.service.id,
     service_name: item.service.name,
     price_cents: item.service.price_cents,
     quantity: item.quantity ?? 1,
     discount_cents: item.discountCents ?? 0,
     notes: item.notes ?? null,
-    created_by: createdBy,
-    sale_id: saleId,
   }));
-  return unwrap(await sb().from("service_records").insert(rows).select());
+  return unwrap(
+    await sb().rpc("create_service_records_batch", {
+      p_barber_id: barberId,
+      p_client_id: clientId ?? null,
+      p_sale_id: finalSaleId,
+      p_items: payload,
+    })
+  );
 }
 
 export async function cancelServiceRecord(recordId) {
@@ -180,6 +226,22 @@ export async function listAllRecordsForRange(startISO, endISO) {
       .gte("record_date", startISO)
       .lte("record_date", endISO)
       .order("record_date", { ascending: false })
+  );
+}
+
+// Historial de un cliente concreto. RLS decide qué ve quien la llama: el
+// admin ve todo lo del cliente; un barbero (si algún día se usa desde su
+// panel) solo vería sus propias filas — no se le da ningún permiso nuevo,
+// service_records_select sigue siendo exactamente is_admin() o
+// barber_id = current_barber_id().
+export async function listRecordsForClient(clientId) {
+  return unwrap(
+    await sb()
+      .from("service_records")
+      .select("*, barbers(name)")
+      .eq("client_id", clientId)
+      .order("record_date", { ascending: false })
+      .order("record_time", { ascending: false })
   );
 }
 

@@ -45,10 +45,18 @@
   // Si un service worker nuevo toma el control (hay una versión más nueva
   // desplegada), recargamos una sola vez para que el teléfono muestre el
   // código actualizado en vez de quedarse con el que ya tenía cargado.
+  //
+  // EXCEPTO si se está procesando un enlace de recuperación de contraseña
+  // (window.__IS_PASSWORD_RECOVERY__, calculado de forma síncrona en
+  // supabase-config.js): recargar en ese momento perdería el token de un
+  // solo uso, porque Supabase ya limpia el hash de la URL en cuanto lo lee,
+  // y el usuario terminaría en su panel normal sin poder cambiar la
+  // contraseña. La próxima carga normal de la página sí tomará la versión
+  // nueva sin problema.
   if ("serviceWorker" in navigator) {
     let reloadedForNewWorker = false;
     navigator.serviceWorker.addEventListener("controllerchange", () => {
-      if (reloadedForNewWorker) return;
+      if (reloadedForNewWorker || window.__IS_PASSWORD_RECOVERY__) return;
       reloadedForNewWorker = true;
       window.location.reload();
     });

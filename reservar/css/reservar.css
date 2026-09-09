@@ -1,0 +1,146 @@
+/* Estilos propios de la reserva pública. Se apoya en los tokens y
+   componentes ya definidos en ../css/styles.css (--accent, .card,
+   .service-picker/.service-pick, .btn, .field, etc.) — esto NO es un
+   rediseño nuevo, es la misma paleta y el mismo lenguaje visual aplicados a
+   una página distinta. */
+
+.booking-page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+}
+
+.booking-header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+.booking-header .logo-mark {
+  margin: 0 auto 14px;
+}
+.booking-header h1 {
+  font-size: 22px;
+  letter-spacing: 0.02em;
+}
+.booking-header .tagline {
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.booking-promo {
+  margin-top: 14px;
+}
+
+.booking-step-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-strong);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 10px;
+}
+
+.barber-picker {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+.barber-pick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  cursor: pointer;
+  text-align: center;
+  transition: border-color var(--dur-base) ease, background var(--dur-base) ease, transform var(--dur-base) ease;
+}
+.barber-pick:hover {
+  border-color: var(--border-strong);
+}
+.barber-pick.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.barber-pick-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--accent-gradient);
+  color: var(--accent-contrast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 20px;
+  overflow: hidden;
+}
+.barber-pick-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.barber-pick-name {
+  font-weight: 700;
+}
+.barber-pick-bio {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.slot-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.slot-btn {
+  padding: 12px 6px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text);
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color var(--dur-base) ease, background var(--dur-base) ease;
+}
+.slot-btn:hover {
+  border-color: var(--border-strong);
+}
+.slot-btn.selected {
+  background: var(--accent-gradient);
+  border-color: transparent;
+  color: var(--accent-contrast);
+}
+
+.booking-summary-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+.booking-summary-row:last-child {
+  border-bottom: none;
+}
+
+.confirmation-box {
+  text-align: center;
+  padding: 36px 20px;
+}
+.confirmation-code {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--accent-strong);
+  margin: 12px 0;
+}
+
+@media (min-width: 640px) {
+  .barber-picker {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .slot-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}

@@ -3,10 +3,10 @@ import { toast, friendlyError, showLoading, confirmDialog, openModal, escapeHtml
 import { formatCents, toCents } from "./money.js";
 import { dayTotalCents, groupRecordsByDate, weekTotalCents, settlementBreakdown, recordsTotalCents, recordLineTotalCents } from "./calc.js";
 import { startOfWeek, endOfWeek, toISODate, todayISO, weekLabel, formatDateText, parseISODate } from "./dates.js";
-import { readLegacyData, summarizeLegacyData, migrateLegacyData, checkAlreadyMigrated } from "./migration.js";
 
 const NAV_ITEMS = [
   { id: "dashboard", label: "Dashboard", icon: "📊" },
+  { id: "agenda", label: "Agenda", icon: "🗓️" },
   { id: "barbers", label: "Barberos", icon: "💈" },
   { id: "clients", label: "Clientes", icon: "👥" },
   { id: "services", label: "Servicios", icon: "✂️" },
@@ -268,27 +268,230 @@ function openBarberEditForm(barber, onDone) {
 }
 
 // ---------- Clientes (todos) ----------
+// El admin puede crear, editar, desactivar, buscar y ver el historial de
+// cualquier cliente (is_admin() ya le da ese acceso en RLS — no se toca
+// ninguna política). El barbero NO gana ningún permiso nuevo con esto: sigue
+// exactamente igual que antes, limitado a los suyos desde su propio panel.
 export async function renderAdminClients(container) {
-  container.innerHTML = `<h2 class="view-title">Clientes</h2><div class="text-center mt-16"><div class="spinner" style="margin:auto"></div></div>`;
-  try {
-    const [barbers, clients] = await Promise.all([data.listBarbers(), data.listClients()]);
-    const barberName = (id) => barbers.find((b) => b.id === id)?.name || "—";
-
+  async function draw(term = "") {
     container.innerHTML = `
-      <h2 class="view-title">Clientes</h2>
-      <div class="table-wrap card card-flush">
+      <div class="flex-between">
+        <h2 class="view-title">Clientes</h2>
+        <button class="btn btn-primary btn-sm" id="add-client-btn">+ Nuevo cliente</button>
+      </div>
+      <div class="card" style="margin-bottom:0">
+        <input id="admin-client-search" placeholder="Buscar cliente por nombre…" value="${escapeHtml(term)}">
+      </div>
+      <div id="admin-clients-list" class="card card-flush mt-16"><div class="text-center" style="padding:30px"><div class="spinner" style="margin:auto"></div></div></div>
+    `;
+
+    let searchTimer;
+    container.querySelector("#admin-client-search").addEventListener("input", (e) => {
+      clearTimeout(searchTimer);
+      const value = e.target.value.trim();
+      searchTimer = setTimeout(() => draw(value), 250);
+    });
+
+    container.querySelector("#add-client-btn").addEventListener("click", async () => {
+      showLoading(true, "Cargando…");
+      try {
+        const barbersList = await data.listBarbers();
+        showLoading(false);
+        openAdminClientForm(null, barbersList, () => draw(term));
+      } catch (error) {
+        showLoading(false);
+        toast(friendlyError(error), "error");
+      }
+    });
+
+    try {
+      const [barbers, clients] = await Promise.all([
+        data.listBarbers(),
+        term ? data.searchClients(null, term) : data.listClients(),
+      ]);
+      const barberName = (id) => barbers.find((b) => b.id === id)?.name || "Sin barbero asignado";
+
+      const listBox = container.querySelector("#admin-clients-list");
+      if (clients.length === 0) {
+        listBox.innerHTML = `<div class="empty-state"><div class="icon">👥</div>No hay clientes registrados.</div>`;
+        return;
+      }
+      listBox.innerHTML = clients
+        .map(
+          (c) => `
+        <div class="card-row">
+          <div class="list-item-main">
+            <div class="list-item-title">${escapeHtml(c.name)}</div>
+            <div class="list-item-sub">${c.phone ? escapeHtml(c.phone) : "Sin teléfono"} · ${escapeHtml(barberName(c.barber_id))}</div>
+          </div>
+          <div class="flex gap-8" style="align-items:center;flex-wrap:wrap">
+            <button class="btn btn-ghost btn-sm" data-history="${c.id}">Historial</button>
+            <button class="btn btn-ghost btn-sm" data-edit="${c.id}">Editar</button>
+          </div>
+        </div>
+      `
+        )
+        .join("");
+
+      listBox.querySelectorAll("[data-edit]").forEach((btn) => {
+        const client = clients.find((c) => c.id === btn.dataset.edit);
+        btn.addEventListener("click", () => openAdminClientForm(client, barbers, () => draw(term)));
+      });
+      listBox.querySelectorAll("[data-history]").forEach((btn) => {
+        const client = clients.find((c) => c.id === btn.dataset.history);
+        btn.addEventListener("click", () => openClientHistory(client));
+      });
+    } catch (error) {
+      container.querySelector("#admin-clients-list").innerHTML = `<div class="text-danger" style="padding:20px">${escapeHtml(friendlyError(error))}</div>`;
+    }
+  }
+  draw();
+}
+
+function openAdminClientForm(client, barbers, onDone) {
+  const isEdit = !!client;
+  const { overlay, close } = openModal(`
+    <button type="button" class="btn btn-ghost btn-icon modal-close" data-close-modal aria-label="Cerrar">✕</button>
+    <h3>${isEdit ? "Editar cliente" : "Nuevo cliente"}</h3>
+    <div class="field mt-16">
+      <label for="acf-name">Nombre</label>
+      <input id="acf-name" value="${isEdit ? escapeHtml(client.name) : ""}" required>
+    </div>
+    <div class="field">
+      <label for="acf-phone">Teléfono</label>
+      <input id="acf-phone" value="${isEdit ? escapeHtml(client.phone || "") : ""}">
+    </div>
+    <div class="field">
+      <label for="acf-barber">Barbero relacionado</label>
+      <select id="acf-barber">
+        <option value="">Sin barbero asignado</option>
+        ${barbers
+          .map((b) => `<option value="${b.id}" ${isEdit && client.barber_id === b.id ? "selected" : ""}>${escapeHtml(b.name)}</option>`)
+          .join("")}
+      </select>
+    </div>
+    <div class="field">
+      <label for="acf-notes">Notas</label>
+      <textarea id="acf-notes">${isEdit ? escapeHtml(client.notes || "") : ""}</textarea>
+    </div>
+    <div id="acf-error" class="text-danger mt-8 hidden"></div>
+    <button type="button" class="btn btn-primary btn-block mt-16" id="acf-save">Guardar</button>
+    ${isEdit && client.active !== false ? `<button type="button" class="btn btn-ghost btn-block mt-8" id="acf-deactivate">Desactivar cliente</button>` : ""}
+  `);
+
+  const errorBox = overlay.querySelector("#acf-error");
+
+  overlay.querySelector("#acf-save").addEventListener("click", async () => {
+    errorBox.classList.add("hidden");
+    errorBox.innerHTML = "";
+    const name = overlay.querySelector("#acf-name").value.trim();
+    if (!name) {
+      errorBox.textContent = "El nombre es obligatorio.";
+      errorBox.classList.remove("hidden");
+      return;
+    }
+    const phone = overlay.querySelector("#acf-phone").value.trim() || null;
+    const barberId = overlay.querySelector("#acf-barber").value || null;
+    const notes = overlay.querySelector("#acf-notes").value.trim() || null;
+
+    showLoading(true, "Guardando…");
+    try {
+      if (isEdit) {
+        await data.updateClient(client.id, { name, phone, barber_id: barberId, notes });
+      } else {
+        await data.createClient({ barberId, name, phone, notes });
+      }
+      showLoading(false);
+      toast("Cliente guardado.", "success");
+      close();
+      onDone();
+    } catch (error) {
+      showLoading(false);
+      if (error.code === "DUPLICATE_PHONE") {
+        if (!isEdit && error.existingClient) {
+          errorBox.innerHTML = `Este número ya está registrado a nombre de <strong>${escapeHtml(error.existingClient.name)}</strong>.<br>`;
+          const useBtn = document.createElement("button");
+          useBtn.type = "button";
+          useBtn.className = "btn btn-ghost btn-sm mt-8";
+          useBtn.textContent = "Usar cliente existente";
+          useBtn.addEventListener("click", () => {
+            close();
+            openAdminClientForm(error.existingClient, barbers, onDone);
+          });
+          errorBox.appendChild(useBtn);
+        } else {
+          errorBox.textContent = "Este número ya está registrado.";
+        }
+      } else {
+        errorBox.textContent = friendlyError(error);
+      }
+      errorBox.classList.remove("hidden");
+    }
+  });
+
+  if (isEdit && client.active !== false) {
+    overlay.querySelector("#acf-deactivate").addEventListener("click", async () => {
+      const ok = await confirmDialog({
+        title: "Desactivar cliente",
+        message: `¿Desactivar a ${client.name}? Dejará de aparecer en las listas.`,
+        confirmLabel: "Desactivar",
+        danger: true,
+      });
+      if (!ok) return;
+      showLoading(true, "Desactivando…");
+      try {
+        await data.deactivateClient(client.id);
+        toast("Cliente desactivado.", "success");
+        close();
+        onDone();
+      } catch (error) {
+        toast(friendlyError(error), "error");
+      } finally {
+        showLoading(false);
+      }
+    });
+  }
+}
+
+async function openClientHistory(client) {
+  const { overlay } = openModal(`
+    <button type="button" class="btn btn-ghost btn-icon modal-close" data-close-modal aria-label="Cerrar">✕</button>
+    <h3>Historial — ${escapeHtml(client.name)}</h3>
+    <div id="ch-body" class="mt-16"><div class="text-center" style="padding:20px"><div class="spinner" style="margin:auto"></div></div></div>
+  `);
+  const body = overlay.querySelector("#ch-body");
+  try {
+    const records = await data.listRecordsForClient(client.id);
+    if (records.length === 0) {
+      body.innerHTML = `<div class="empty-state"><div class="icon">📅</div>Este cliente todavía no tiene servicios registrados.</div>`;
+      return;
+    }
+    const total = recordsTotalCents(records.filter((r) => r.status === "completed"));
+    body.innerHTML = `
+      <div class="card-row"><strong>Total (completados)</strong><strong>${formatCents(total)}</strong></div>
+      <div class="table-wrap card card-flush mt-8">
         <table>
-          <thead><tr><th>Nombre</th><th>Teléfono</th><th>Barbero</th></tr></thead>
+          <thead><tr><th>Fecha</th><th>Barbero</th><th>Servicio</th><th>Precio</th><th>Estado</th></tr></thead>
           <tbody>
-            ${clients
-              .map((c) => `<tr><td>${escapeHtml(c.name)}</td><td>${escapeHtml(c.phone || "—")}</td><td>${escapeHtml(barberName(c.barber_id))}</td></tr>`)
-              .join("") || `<tr><td colspan="3" class="text-muted">No hay clientes registrados.</td></tr>`}
+            ${records
+              .map(
+                (r) => `
+              <tr>
+                <td>${r.record_date}</td>
+                <td>${escapeHtml(r.barbers?.name || "—")}</td>
+                <td>${escapeHtml(r.service_name)}${r.quantity > 1 ? ` ×${r.quantity}` : ""}</td>
+                <td>${formatCents(recordLineTotalCents(r))}</td>
+                <td><span class="badge ${r.status === "completed" ? "badge-success" : "badge-danger"}">${r.status === "completed" ? "Completado" : "Anulado"}</span></td>
+              </tr>
+            `
+              )
+              .join("")}
           </tbody>
         </table>
       </div>
     `;
   } catch (error) {
-    container.innerHTML = `<div class="card text-danger">${escapeHtml(friendlyError(error))}</div>`;
+    body.innerHTML = `<div class="text-danger">${escapeHtml(friendlyError(error))}</div>`;
   }
 }
 
@@ -679,12 +882,15 @@ export async function renderAdminHistory(container) {
 }
 
 // ---------- Configuración ----------
+// El widget de "migrar datos antiguos de este navegador" (localStorage de la
+// versión previa a Supabase) se quitó de este flujo normal: Good Barber ya
+// funciona completamente sobre Supabase. Las funciones de migración
+// (js/migration.js) NO se borraron — siguen ahí intactas por si algún día
+// hicieran falta — solo se dejó de importarlas y mostrarlas aquí.
 export async function renderAdminSettings(container) {
   container.innerHTML = `<h2 class="view-title">Configuración</h2><div class="text-center mt-16"><div class="spinner" style="margin:auto"></div></div>`;
   try {
-    const [settings, barbers] = await Promise.all([data.getSettings(), data.listBarbers()]);
-    const legacy = readLegacyData();
-    const legacySummary = summarizeLegacyData(legacy);
+    const settings = await data.getSettings();
 
     container.innerHTML = `
       <h2 class="view-title">Configuración</h2>
@@ -693,16 +899,6 @@ export async function renderAdminSettings(container) {
         <div class="field"><label for="cfg-pct">Porcentaje por defecto del barbero (%)</label><input id="cfg-pct" type="number" min="0" max="100" step="0.01" value="${settings.default_barber_percentage}"></div>
         <div class="field"><label for="cfg-tz">Zona horaria</label><input id="cfg-tz" value="${escapeHtml(settings.timezone)}"></div>
         <button class="btn btn-primary btn-block" id="cfg-save">Guardar configuración</button>
-      </div>
-
-      <div class="card">
-        <h3>Migrar datos antiguos de este navegador</h3>
-        ${
-          legacy
-            ? `<p class="text-muted mt-8">Se encontraron ${legacySummary.weeks} semana(s) y ${legacySummary.cuts} corte(s) guardados localmente en este navegador (versión anterior sin Supabase). Puedes importarlos una sola vez.</p>
-               <button class="btn btn-ghost btn-block mt-16" id="migrate-btn">Revisar y migrar datos locales</button>`
-            : `<p class="text-muted mt-8">No se encontraron datos antiguos en este navegador.</p>`
-        }
       </div>
     `;
 
@@ -721,103 +917,7 @@ export async function renderAdminSettings(container) {
         showLoading(false);
       }
     });
-
-    const migrateBtn = container.querySelector("#migrate-btn");
-    if (migrateBtn) {
-      migrateBtn.addEventListener("click", async () => {
-        showLoading(true, "Verificando…");
-        try {
-          const services = await data.listServices(false);
-          const priorCount = await checkAlreadyMigrated(barbers.map((b) => b.id));
-          openMigrationDialog(legacy, legacySummary, barbers, services, priorCount);
-        } catch (error) {
-          toast(friendlyError(error), "error");
-        } finally {
-          showLoading(false);
-        }
-      });
-    }
   } catch (error) {
     container.innerHTML = `<div class="card text-danger">${escapeHtml(friendlyError(error))}</div>`;
   }
-}
-
-function openMigrationDialog(legacy, summary, barbers, services, priorCount) {
-  const legacyNames = new Set();
-  Object.keys(legacy.semanas || {}).forEach((k) => legacyNames.add(k.split("|")[0]));
-  Object.values(legacy.cortes || {}).forEach((c) => legacyNames.add(c.barbero));
-
-  const { overlay, close } = openModal(`
-    <button class="btn btn-ghost btn-icon modal-close" data-close-modal aria-label="Cerrar">✕</button>
-    <h3>Migrar datos locales</h3>
-    <p class="text-muted mt-8">${summary.weeks} semana(s) y ${summary.cuts} corte(s) encontrados. Asocia cada nombre antiguo con el barbero correspondiente en Supabase antes de continuar.</p>
-    ${
-      priorCount > 0
-        ? `<div class="card" style="background:var(--danger-bg);border-color:var(--danger)">
-            <strong class="text-danger">⚠ Ya existen ${priorCount} servicio(s) marcados como migrados anteriormente.</strong>
-            <p class="mt-8">Si continúas, es posible que dupliques información ya importada. Revisa el historial antes de confirmar si no estás seguro.</p>
-          </div>`
-        : ""
-    }
-    ${[...legacyNames]
-      .map(
-        (name, idx) => `
-      <div class="field mt-16">
-        <label for="map-${idx}">"${escapeHtml(name)}" corresponde a:</label>
-        <select id="map-${idx}" data-legacy-name="${escapeHtml(name)}">
-          <option value="">Selecciona un barbero</option>
-          ${barbers.map((b) => `<option value="${b.id}">${escapeHtml(b.name)}</option>`).join("")}
-        </select>
-      </div>
-    `
-      )
-      .join("")}
-    <div id="migration-result" class="mt-16"></div>
-    <button type="button" class="btn btn-primary btn-block mt-16" id="migrate-confirm">Migrar ahora</button>
-  `);
-
-  overlay.querySelector("#migrate-confirm").addEventListener("click", async (e) => {
-    const mapping = {};
-    let complete = true;
-    overlay.querySelectorAll("[data-legacy-name]").forEach((select) => {
-      if (!select.value) complete = false;
-      mapping[select.dataset.legacyName] = select.value;
-    });
-    if (!complete) {
-      toast("Asocia todos los nombres antes de migrar.", "error");
-      return;
-    }
-    const ok = await confirmDialog({
-      title: "Confirmar migración",
-      message:
-        priorCount > 0
-          ? `Ya se detectaron ${priorCount} servicio(s) migrados antes. Esto creará registros NUEVOS adicionales — si ya importaste estos datos, se duplicarán. ¿Continuar de todas formas?`
-          : "Esto creará registros nuevos en Supabase a partir de los datos guardados en este navegador. No se borrará nada localmente.",
-      confirmLabel: "Migrar",
-      danger: priorCount > 0,
-    });
-    if (!ok) return;
-
-    // No usar e.currentTarget aquí: el navegador lo limpia (vuelve null) en cuanto
-    // termina el despacho síncrono del evento, y ya cruzamos un `await` arriba.
-    const btn = overlay.querySelector("#migrate-confirm");
-    btn.disabled = true;
-    btn.textContent = "Migrando…";
-    try {
-      const report = await migrateLegacyData(legacy, mapping, services);
-      overlay.querySelector("#migration-result").innerHTML = `
-        <div class="card">
-          <p><strong>${report.weeksImported}</strong> semanas procesadas · <strong>${report.recordsCreated}</strong> servicios creados · <strong>${report.cutsImported}</strong> cortes importados.</p>
-          ${report.skipped.length ? `<p class="text-danger mt-8">${report.skipped.length} elemento(s) con problemas — revisa la consola.</p>` : `<p class="text-success mt-8">Sin errores.</p>`}
-        </div>
-      `;
-      if (report.skipped.length) console.warn("Errores de migración:", report.skipped);
-      toast("Migración completada.", "success");
-      btn.remove();
-    } catch (error) {
-      toast(friendlyError(error), "error");
-      btn.disabled = false;
-      btn.textContent = "Migrar ahora";
-    }
-  });
 }
