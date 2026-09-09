@@ -1,6 +1,6 @@
 import { mountUiRoots, toast, showLoading, friendlyError } from "./ui.js";
 import { getSession, onAuthStateChange, loadCurrentProfile, loadCurrentBarber, signOut } from "./auth.js";
-import { renderLogin, renderAccountDisabled } from "./render-login.js";
+import { renderLogin, renderAccountDisabled, renderPasswordRecovery } from "./render-login.js";
 import { mountShell } from "./shell.js";
 import { barberNavItems, renderBarberHome, renderBarberServices, renderBarberClients, renderBarberHistory, renderBarberProfile } from "./render-barber.js";
 import {
@@ -17,6 +17,11 @@ import {
 
 const root = document.getElementById("app");
 let currentView = null;
+// true mientras se muestra la pantalla de "crear nueva contraseña" (llegó por
+// el enlace de recuperación). Evita que el enrutado normal (que puede estar
+// en vuelo al mismo tiempo, según cuándo dispare Supabase el evento) pise
+// esa pantalla con el panel normal del usuario.
+let recoveryMode = false;
 
 mountUiRoots();
 
@@ -37,6 +42,14 @@ function checkSupabaseConfigured() {
 
 async function boot() {
   if (!checkSupabaseConfigured()) return;
+  // window.__IS_PASSWORD_RECOVERY__ se calculó de forma síncrona en
+  // supabase-config.js, antes de que existiera la carrera con el evento
+  // PASSWORD_RECOVERY (ver el comentario ahí). Es la vía confiable; el
+  // listener de más abajo queda solo como respaldo.
+  if (window.__IS_PASSWORD_RECOVERY__) {
+    showPasswordRecovery();
+    return;
+  }
   showLoading(true, "Cargando…");
   try {
     const session = await getSession();
@@ -57,6 +70,10 @@ async function routeAuthenticatedUser(session) {
   showLoading(true, "Cargando tu cuenta…");
   try {
     const profile = await loadCurrentProfile(session.user.id);
+    // El evento PASSWORD_RECOVERY puede llegar mientras esta función todavía
+    // está esperando estas consultas. Si ya activó la pantalla de nueva
+    // contraseña, no la pisamos montando el panel normal encima.
+    if (recoveryMode) return showLoading(false);
 
     if (!profile.active) {
       showLoading(false);
@@ -67,11 +84,13 @@ async function routeAuthenticatedUser(session) {
 
     if (profile.role === "admin") {
       showLoading(false);
+      if (recoveryMode) return;
       mountAdminShell(profile);
       return;
     }
 
     const barber = await loadCurrentBarber(session.user.id);
+    if (recoveryMode) return showLoading(false);
     if (!barber) {
       showLoading(false);
       toast("Tu cuenta no tiene un perfil de barbero asociado. Contacta al administrador.", "error");
@@ -87,16 +106,36 @@ async function routeAuthenticatedUser(session) {
     }
 
     showLoading(false);
+    if (recoveryMode) return;
     mountBarberShell({ profile, barber });
   } catch (error) {
     showLoading(false);
+    if (recoveryMode) return;
     toast(friendlyError(error), "error");
     showLogin();
   }
 }
 
+// Se llama cuando Supabase dispara PASSWORD_RECOVERY (el usuario abrió el
+// enlace de "¿Olvidaste tu contraseña?"). Tiene prioridad sobre cualquier
+// otra cosa que esté mostrándose o a punto de montarse.
+function showPasswordRecovery() {
+  recoveryMode = true;
+  currentView = "password-recovery";
+  showLoading(false);
+  renderPasswordRecovery(root, {
+    onDone: async () => {
+      recoveryMode = false;
+      const session = await getSession();
+      if (session) await routeAuthenticatedUser(session);
+      else showLogin();
+    },
+  });
+}
+
 function showLogin() {
   currentView = null;
+  recoveryMode = false;
   renderLogin(root, {
     onSignedIn: async () => {
       const session = await getSession();
@@ -170,6 +209,10 @@ function mountAdminShell(profile) {
 
 if (window.supabaseClient) {
   onAuthStateChange((event) => {
+    if (event === "PASSWORD_RECOVERY") {
+      showPasswordRecovery();
+      return;
+    }
     if (event === "SIGNED_OUT" && currentView !== null) {
       showLogin();
     }

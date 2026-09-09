@@ -1,5 +1,5 @@
-import { signIn, requestPasswordReset, checkAdminExists, bootstrapFirstAdmin } from "./auth.js";
-import { toast, friendlyError, showLoading, diagnoseSupabaseError, formatDiagnostics, escapeHtml } from "./ui.js";
+import { signIn, requestPasswordReset, checkAdminExists, bootstrapFirstAdmin, updatePassword } from "./auth.js";
+import { toast, friendlyError, showLoading, escapeHtml } from "./ui.js";
 
 export function renderLogin(root, { onSignedIn }) {
   showLoginView();
@@ -59,19 +59,7 @@ export function renderLogin(root, { onSignedIn }) {
         await signIn(email, password);
         onSignedIn();
       } catch (error) {
-        // Diagnóstico temporal: además del mensaje amigable, mostramos un
-        // detalle técnico plegable (nunca contraseñas ni claves) para
-        // identificar exactamente qué está fallando en la conexión con
-        // Supabase. Quitar este bloque <details> una vez resuelto.
-        const details = diagnoseSupabaseError("signInWithPassword", error);
-        console.error("[Good Barber diagnóstico Supabase]", details);
-        errorBox.innerHTML = `
-          ${escapeHtml(friendlyError(error))}
-          <details class="mt-8" style="font-size:12px;opacity:0.85">
-            <summary style="cursor:pointer">Detalle técnico (temporal, para diagnóstico)</summary>
-            <pre style="white-space:pre-wrap;margin-top:6px">${escapeHtml(formatDiagnostics(details))}</pre>
-          </details>
-        `;
+        errorBox.textContent = friendlyError(error);
         errorBox.classList.remove("hidden");
       } finally {
         submitBtn.disabled = false;
@@ -213,4 +201,83 @@ export function renderAccountDisabled(root, { onBack }) {
     </div>
   `;
   root.querySelector("#back-btn").addEventListener("click", onBack);
+}
+
+// Pantalla que se muestra automáticamente cuando Supabase dispara el evento
+// PASSWORD_RECOVERY (el usuario llegó desde el enlace del correo de
+// "¿Olvidaste tu contraseña?"). No reemplaza el login normal: solo aparece
+// en ese caso concreto, y al terminar entrega el control de vuelta a
+// onDone() para que la app lo enrute a su panel según su rol.
+export function renderPasswordRecovery(root, { onDone }) {
+  root.innerHTML = `
+    <div class="login-screen">
+      <div class="login-box">
+        <div class="login-brand">
+          <div class="logo-mark">GB</div>
+          <h1>GOOD BARBER</h1>
+          <div class="tagline">Crear nueva contraseña</div>
+        </div>
+
+        <div class="card">
+          <p class="text-muted">Escribe tu nueva contraseña para continuar.</p>
+          <form id="recovery-form" novalidate>
+            <div class="field mt-16">
+              <label for="rec-password">Nueva contraseña</label>
+              <input id="rec-password" type="password" minlength="8" autocomplete="new-password" required>
+            </div>
+            <div class="field">
+              <label for="rec-password-confirm">Confirmar contraseña</label>
+              <input id="rec-password-confirm" type="password" minlength="8" autocomplete="new-password" required>
+            </div>
+            <div id="rec-error" class="text-danger mt-8 hidden"></div>
+            <div id="rec-success" class="text-success mt-8 hidden"></div>
+            <button type="submit" class="btn btn-primary btn-block mt-16" id="rec-submit">Guardar nueva contraseña</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const form = root.querySelector("#recovery-form");
+  const errorBox = root.querySelector("#rec-error");
+  const successBox = root.querySelector("#rec-success");
+  const submitBtn = root.querySelector("#rec-submit");
+  let done = false;
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (done) return;
+    errorBox.classList.add("hidden");
+    successBox.classList.add("hidden");
+
+    const password = root.querySelector("#rec-password").value;
+    const passwordConfirm = root.querySelector("#rec-password-confirm").value;
+
+    if (!password || password.length < 8) {
+      errorBox.textContent = "La contraseña debe tener al menos 8 caracteres.";
+      errorBox.classList.remove("hidden");
+      return;
+    }
+    if (password !== passwordConfirm) {
+      errorBox.textContent = "Las contraseñas no coinciden.";
+      errorBox.classList.remove("hidden");
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Guardando…";
+    try {
+      await updatePassword(password);
+      done = true;
+      successBox.textContent = "Contraseña actualizada. Entrando a tu panel…";
+      successBox.classList.remove("hidden");
+      submitBtn.textContent = "✓ Guardado";
+      setTimeout(() => onDone(), 900);
+    } catch (error) {
+      errorBox.textContent = friendlyError(error);
+      errorBox.classList.remove("hidden");
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Guardar nueva contraseña";
+    }
+  });
 }
