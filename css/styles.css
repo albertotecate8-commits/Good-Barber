@@ -26,7 +26,12 @@
   /* ---- Texto ---- */
   --text: #f6f7f9;
   --text-muted: #9aa1ad;
-  --text-faint: #626975;
+  /* Antes #626975: solo 3.2-3.6:1 sobre --bg/--bg-elevated/--bg-card, por
+     debajo del mínimo WCAG AA (4.5:1) para texto normal — y este color se
+     usa en texto con información real (labels del login, etiquetas de
+     nav, código de cita, reparto del dashboard), no solo decorativo.
+     Aclarado a #7c8390: ≥4.5:1 en las tres superficies. */
+  --text-faint: #7c8390;
 
   /* ---- Acento dorado champagne (identidad principal, uso moderado) ---- */
   --accent: #d4a24e;

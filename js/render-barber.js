@@ -521,7 +521,7 @@ export async function renderBarberServices(container, ctx) {
         );
       }
     } catch (error) {
-      container.querySelector("#services-list").innerHTML = `<div class="text-danger" style="padding:20px">${escapeHtml(friendlyError(error))}</div>`;
+      container.querySelector("#services-list").innerHTML = `<div class="empty-state text-danger">${escapeHtml(friendlyError(error))}</div>`;
     }
   }
 
@@ -681,7 +681,7 @@ export async function renderBarberClients(container, ctx) {
           btn.addEventListener("click", () => openClientForm(ctx, client, () => loadList(term)));
         });
       } catch (error) {
-        listBox.innerHTML = `<div class="text-danger" style="padding:20px">${escapeHtml(friendlyError(error))}</div>`;
+        listBox.innerHTML = `<div class="empty-state text-danger">${escapeHtml(friendlyError(error))}</div>`;
       }
     }
 

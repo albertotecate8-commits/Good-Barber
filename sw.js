@@ -5,7 +5,7 @@
 // código viejo indefinidamente aunque hubiera una versión nueva desplegada.
 // Nunca intercepta llamadas a Supabase (auth/datos) para no dar
 // una falsa sensación de "guardado" cuando en realidad no hay red.
-const CACHE_NAME = "goodbarber-shell-v3";
+const CACHE_NAME = "goodbarber-shell-v4";
 const SHELL_ASSETS = [
   "./",
   "index.html",
@@ -24,6 +24,10 @@ const SHELL_ASSETS = [
   "js/render-login.js",
   "js/render-admin.js",
   "js/render-barber.js",
+  "js/agenda-data.js",
+  "js/agenda-ui.js",
+  "js/render-agenda-admin.js",
+  "js/render-agenda-barber.js",
   "js/migration.js",
   "icons/apple-touch-icon.png",
   "icons/icon-512.png",

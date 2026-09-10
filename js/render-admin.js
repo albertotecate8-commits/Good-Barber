@@ -358,7 +358,7 @@ export async function renderAdminClients(container) {
         btn.addEventListener("click", () => openClientHistory(client));
       });
     } catch (error) {
-      container.querySelector("#admin-clients-list").innerHTML = `<div class="text-danger" style="padding:20px">${escapeHtml(friendlyError(error))}</div>`;
+      container.querySelector("#admin-clients-list").innerHTML = `<div class="empty-state text-danger">${escapeHtml(friendlyError(error))}</div>`;
     }
   }
   draw();
@@ -542,7 +542,7 @@ export async function renderAdminServices(container) {
         btn.addEventListener("click", () => openServiceForm(service, draw));
       });
     } catch (error) {
-      container.querySelector("#services-list").innerHTML = `<div class="text-danger" style="padding:20px">${escapeHtml(friendlyError(error))}</div>`;
+      container.querySelector("#services-list").innerHTML = `<div class="empty-state text-danger">${escapeHtml(friendlyError(error))}</div>`;
     }
   }
   draw();
@@ -645,7 +645,8 @@ export async function renderAdminSales(container) {
               </tr>
             `
                 )
-                .join("") || `<tr><td colspan="7" class="text-muted">Sin registros en este rango.</td></tr>`
+                .join("") ||
+                `<tr><td colspan="7"><div class="empty-state"><div class="icon">💰</div>Sin registros en este rango.</div></td></tr>`
             }
           </tbody>
         </table>
@@ -703,7 +704,7 @@ export async function renderAdminSales(container) {
         });
       });
     } catch (error) {
-      container.querySelector("#sales-table").innerHTML = `<div class="text-danger" style="padding:20px">${escapeHtml(friendlyError(error))}</div>`;
+      container.querySelector("#sales-table").innerHTML = `<div class="empty-state text-danger">${escapeHtml(friendlyError(error))}</div>`;
     }
   }
   draw();
