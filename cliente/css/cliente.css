@@ -281,7 +281,9 @@ body {
 .cl-service-time {
   margin: 4px 0 0;
   font-size: 12px;
-  color: var(--text-faint);
+  /* --text-faint cumple AA sobre --bg-card, pero esta tarjeta es un degradado
+     que arranca en --bg-card-2 (más claro) y ahí se queda en 4.21:1. */
+  color: var(--text-muted);
 }
 .cl-service-price {
   font-size: 16px;
@@ -400,8 +402,12 @@ body {
   line-height: 1.5;
 }
 .cl-address-link {
-  display: inline-block;
-  margin-top: 6px;
+  /* Enlace de una sola línea: sin esto el área tocable mide 15 px de alto,
+     por debajo del mínimo accesible en móvil. El alto mínimo agranda la
+     zona de toque sin cambiar cómo se ve el texto. */
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   font-size: 13px;
   font-weight: 700;
   color: var(--accent-strong);
@@ -451,7 +457,7 @@ body {
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 .cl-contact-value {
   font-size: 14.5px;
@@ -474,7 +480,7 @@ body {
 .cl-footer-note {
   margin: 4px 0 0;
   font-size: 12.5px;
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 
 /* ---------- CTA fijo inferior (aparece al bajar) ---------- */

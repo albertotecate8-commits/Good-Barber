@@ -43,6 +43,19 @@ function digitsOf(value) {
   return String(value || "").replace(/\D/g, "");
 }
 
+// Una URL que se inserta dentro de url('…') tiene que llevar codificados los
+// caracteres que cerrarían la comilla o el paréntesis del CSS, y hay que
+// hacerlo ANTES de escapar el HTML: si se escapa primero, el navegador
+// devuelve la comilla al parsear el atributo style, la declaración CSS queda
+// inválida y la foto del hero desaparece sin dar ningún error.
+function cssUrl(value) {
+  return encodeURI(String(value))
+    .replace(/'/g, "%27")
+    .replace(/"/g, "%22")
+    .replace(/\(/g, "%28")
+    .replace(/\)/g, "%29");
+}
+
 function instagramUrl(value) {
   const raw = String(value).trim();
   if (/^https?:\/\//i.test(raw)) return raw;
@@ -75,7 +88,7 @@ function heroHTML() {
   const name = escapeHtml(b?.business_name || "Good Barber");
   const open = b?.booking_enabled;
   const heroImage = hasText(b?.hero_image_url)
-    ? `<div class="cl-hero-photo" style="background-image:url('${escapeHtml(b.hero_image_url).replace(/'/g, "%27")}')" role="img" aria-label="${name}"></div>`
+    ? `<div class="cl-hero-photo" style="background-image:url('${escapeHtml(cssUrl(b.hero_image_url))}')" role="img" aria-label="${name}"></div>`
     : "";
 
   return `
