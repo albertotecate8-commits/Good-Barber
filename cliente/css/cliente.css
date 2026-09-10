@@ -1,24 +1,30 @@
-/* Experiencia pública del cliente (escaparate + entrada a /reservar/).
-   Se apoya en los tokens y componentes ya definidos en ../css/styles.css
-   (--accent, --bg-card, .btn/.btn-primary, .card, .spinner…): esto NO es un
-   sistema visual paralelo, es el mismo lenguaje de Good Barber aplicado a
-   una página pública, con componentes propios (hero, carta de servicios,
-   equipo, pasos, contacto) que no existen en el panel interno.
-   Prioridad de diseño: iPhone (375/390/430 px) primero. */
+/* Experiencia pública del cliente: interfaz tipo aplicación.
+   Se apoya en los tokens ya definidos en ../css/styles.css (--accent,
+   --bg-card, --shadow-*, --ease-*…) para que sea el mismo Good Barber, pero
+   con componentes propios de app (barra superior, portada a sangre, tiles de
+   servicio, tarjetas de barbero, barra inferior con acción central) que no
+   existen en el panel interno. Prioridad: iPhone (375/390/430 px). */
 
-/* ---------- Base de página ---------- */
-body {
-  background: radial-gradient(ellipse 820px 620px at 50% -12%, rgba(212, 162, 78, 0.13) 0%, transparent 62%),
-    radial-gradient(circle at 108% 6%, rgba(127, 164, 201, 0.06) 0%, transparent 44%),
-    radial-gradient(circle at 50% -20%, #1a1d25 0%, var(--bg) 60%);
-  min-height: 100vh;
+/* ===============================================================
+   Base
+   =============================================================== */
+:root {
+  --cl-gutter: 16px;
+  --cl-appbar-h: 56px;
+  --cl-tabbar-h: 68px;
+  --cl-radius-card: 22px;
+  --cl-radius-tile: 16px;
+  scroll-behavior: smooth;
 }
 
-.cl-page {
-  max-width: 560px;
-  margin: 0 auto;
-  padding: 0 18px 40px;
-  padding-bottom: calc(40px + env(safe-area-inset-bottom));
+body {
+  background:
+    radial-gradient(ellipse 760px 620px at 50% -14%, rgba(212, 162, 78, 0.16) 0%, transparent 60%),
+    radial-gradient(circle at 112% 4%, rgba(127, 164, 201, 0.07) 0%, transparent 42%),
+    radial-gradient(circle at -12% 62%, rgba(212, 162, 78, 0.05) 0%, transparent 46%),
+    var(--bg);
+  background-attachment: fixed;
+  min-height: 100vh;
 }
 
 .sr-only {
@@ -38,123 +44,239 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 12px;
-  padding-top: 140px;
+  padding-top: 40vh;
 }
 
-/* ---------- Marca ---------- */
-.cl-brand-mark {
-  background: var(--accent-gradient);
-  color: var(--accent-contrast);
+/* Contenedor de la app: en móvil ocupa el ancho completo con márgenes
+   mínimos; en pantallas grandes se centra como una columna de aplicación. */
+.cl-page {
+  max-width: 480px;
+  margin: 0 auto;
+  position: relative;
+}
+.cl-main {
+  padding: 0 var(--cl-gutter);
+  padding-bottom: calc(var(--cl-tabbar-h) + 44px + env(safe-area-inset-bottom));
+}
+.cl-section {
+  margin-top: 30px;
+  scroll-margin-top: calc(var(--cl-appbar-h) + 16px);
+}
+#top {
+  scroll-margin-top: 0;
+}
+
+/* ===============================================================
+   Marca
+   =============================================================== */
+.cl-mark {
   display: flex;
   align-items: center;
   justify-content: center;
+  background: var(--accent-gradient);
+  color: var(--accent-contrast);
   font-weight: 900;
   letter-spacing: -0.02em;
-  position: relative;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.45) inset, 0 -3px 0 rgba(0, 0, 0, 0.18) inset,
-    0 18px 40px rgba(212, 162, 78, 0.3), 0 4px 12px rgba(0, 0, 0, 0.4);
+  flex-shrink: 0;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.4) inset, 0 -2px 0 rgba(0, 0, 0, 0.18) inset,
+    0 6px 18px rgba(212, 162, 78, 0.3);
 }
-.cl-brand-mark-lg {
-  width: 66px;
-  height: 66px;
-  border-radius: 21px;
-  font-size: 26px;
-  margin: 0 auto 18px;
-}
-.cl-brand-mark-sm {
-  width: 40px;
-  height: 40px;
-  border-radius: 13px;
-  font-size: 16px;
-  margin: 0 auto 12px;
-}
-.cl-brand-logo {
+.cl-mark-xs { width: 32px; height: 32px; border-radius: 11px; font-size: 13px; }
+.cl-mark-sm { width: 42px; height: 42px; border-radius: 14px; font-size: 17px; }
+.cl-mark-img { background: none; box-shadow: none; object-fit: contain; }
+.cl-mark-img.cl-mark-xs { width: auto; max-width: 104px; height: 32px; }
+.cl-mark-img.cl-mark-sm { width: auto; max-width: 132px; height: 42px; }
+
+/* Iconos vectoriales de la app (heredan el color del contenedor) */
+.cl-svg {
+  width: 21px;
+  height: 21px;
   display: block;
-  margin: 0 auto 18px;
-  object-fit: contain;
-}
-.cl-brand-logo-lg {
-  max-width: 148px;
-  max-height: 72px;
-}
-.cl-brand-logo-sm {
-  max-width: 96px;
-  max-height: 44px;
-  margin-bottom: 12px;
 }
 
-/* ---------- Hero ---------- */
-.cl-hero {
-  position: relative;
-  margin: 0 -18px 12px;
-  padding: 0 18px;
-  padding-top: max(40px, calc(28px + env(safe-area-inset-top)));
-  padding-bottom: 34px;
-  text-align: center;
+/* ===============================================================
+   Barra superior
+   =============================================================== */
+.cl-appbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: var(--cl-appbar-h);
+  padding: 0 var(--cl-gutter);
+  padding-top: env(safe-area-inset-top);
+  height: calc(var(--cl-appbar-h) + env(safe-area-inset-top));
+  background: linear-gradient(180deg, rgba(7, 8, 11, 0.92) 60%, rgba(7, 8, 11, 0));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.cl-appbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.cl-appbar-name {
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
-.cl-hero-photo {
-  position: absolute;
-  inset: 0;
-  background-size: cover;
-  background-position: center;
-  opacity: 0.32;
-  /* La foto nunca compite con el texto: se oscurece hacia abajo para que el
-     título y el CTA mantengan contraste AA sobre cualquier imagen. */
-  -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.5) 52%, transparent 100%);
-  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.5) 52%, transparent 100%);
+.cl-appbar-cta {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: var(--accent-gradient);
+  color: var(--accent-contrast);
+  font-weight: 800;
+  font-size: 13.5px;
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) inset, 0 6px 16px rgba(212, 162, 78, 0.28);
+  opacity: 0;
+  transform: translateY(-6px) scale(0.94);
+  pointer-events: none;
+  transition: opacity var(--dur-base) ease, transform var(--dur-base) var(--ease-premium);
 }
-.cl-hero.has-photo::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(7, 8, 11, 0.62) 0%, rgba(7, 8, 11, 0.8) 60%, var(--bg) 100%);
+.cl-appbar-cta.visible {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
 }
-.cl-hero-inner {
+
+/* ===============================================================
+   Portada
+   =============================================================== */
+.cl-hero {
+  padding-top: 6px;
+}
+.cl-hero-card {
   position: relative;
-  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 452px;
+  padding: 24px 20px 22px;
+  border-radius: 28px;
+  overflow: hidden;
+  isolation: isolate;
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow-lg), 0 0 0 1px rgba(212, 162, 78, 0.09);
   animation: cl-rise var(--dur-slow) var(--ease-premium) both;
 }
 @keyframes cl-rise {
-  from { opacity: 0; transform: translateY(14px); }
+  from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: none; }
 }
-
-.cl-hero-title {
-  font-size: 30px;
-  line-height: 1.15;
-  font-weight: 900;
-  letter-spacing: -0.02em;
-  margin: 0;
+/* La foto de la barbería tiene que verse, pero nunca a costa del título ni
+   del CTA: se atenúa un punto y el velo de abajo llega casi a opaco, así
+   el texto mantiene contraste sobre CUALQUIER imagen, incluso una clara. */
+.cl-hero-media {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background-size: cover;
+  background-position: center;
+  filter: brightness(0.74) saturate(1.04);
 }
-.cl-hero-tagline {
-  margin: 8px 0 0;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
+.cl-hero-media-blank {
+  filter: none;
+}
+/* Sin foto en Supabase la portada no se queda vacía: se compone una
+   atmósfera propia con el emblema en marca de agua. */
+.cl-hero-media-blank {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(120% 80% at 50% 4%, rgba(212, 162, 78, 0.3) 0%, transparent 62%),
+    radial-gradient(90% 66% at 6% 100%, rgba(127, 164, 201, 0.12) 0%, transparent 60%),
+    linear-gradient(168deg, #23262f 0%, #14161d 46%, #0a0b0f 100%);
+}
+.cl-hero-ghost {
+  font-size: 190px;
+  font-weight: 900;
+  letter-spacing: -0.06em;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.022);
+  transform: translateY(-12%);
+  user-select: none;
+}
+.cl-hero-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(180deg, rgba(7, 8, 11, 0.3) 0%, rgba(7, 8, 11, 0.5) 26%, rgba(7, 8, 11, 0.88) 50%, rgba(7, 8, 11, 0.97) 70%, #07080b 100%);
+}
+.cl-hero-badge {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-contrast);
+  background: var(--accent-gradient);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.4) inset, 0 10px 24px rgba(212, 162, 78, 0.32);
+}
+.cl-hero-badge .cl-svg {
+  width: 22px;
+  height: 22px;
+}
+.cl-hero-body {
+  position: relative;
+}
+.cl-hero-eyebrow {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--accent-strong);
+  margin-bottom: 10px;
+}
+.cl-hero-title {
+  margin: 0;
+  font-size: 34px;
+  line-height: 1.08;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
 }
 .cl-hero-lead {
-  margin: 14px auto 0;
-  max-width: 34ch;
+  margin: 10px 0 0;
+  font-size: 14.5px;
+  line-height: 1.55;
   color: var(--text-muted);
-  font-size: 15px;
-  line-height: 1.6;
+  max-width: 32ch;
 }
-
 .cl-promo {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 18px;
+  gap: 9px;
+  margin-top: 16px;
   padding: 9px 15px;
   border-radius: 999px;
-  border: 1px solid rgba(212, 162, 78, 0.34);
-  background: var(--accent-soft);
+  border: 1px solid rgba(212, 162, 78, 0.36);
+  background: rgba(212, 162, 78, 0.13);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   color: var(--accent-strong);
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   text-align: left;
 }
 .cl-promo-dot {
@@ -170,247 +292,372 @@ body {
 .cl-cta {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+  gap: 12px;
   width: 100%;
-  margin-top: 22px;
-  min-height: 56px;
-  border-radius: var(--radius-lg);
-  font-size: 16px;
+  margin-top: 20px;
+  min-height: 60px;
+  padding: 0 10px 0 24px;
+  border: none;
+  border-radius: 18px;
+  background: var(--accent-gradient);
+  color: var(--accent-contrast);
+  font-family: inherit;
+  font-size: 16.5px;
   font-weight: 800;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
   text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.45) inset, 0 -3px 0 rgba(0, 0, 0, 0.16) inset,
+    0 16px 34px rgba(212, 162, 78, 0.3), 0 4px 10px rgba(0, 0, 0, 0.4);
+  transition: transform var(--dur-fast) var(--ease-press), box-shadow var(--dur-base) ease;
+}
+.cl-cta:active {
+  transform: scale(0.978);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) inset, 0 6px 16px rgba(212, 162, 78, 0.26);
+}
+.cl-cta-go {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  background: rgba(23, 19, 10, 0.16);
+  font-size: 18px;
+  flex-shrink: 0;
 }
 .cl-closed {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-top: 22px;
+  gap: 5px;
+  margin-top: 20px;
   padding: 16px 18px;
-  border-radius: var(--radius-lg);
+  border-radius: 18px;
   border: 1px solid var(--border);
-  background: var(--bg-card);
-  box-shadow: var(--inset-hairline), var(--shadow-sm);
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   font-size: 14px;
 }
 .cl-closed span {
   color: var(--text-muted);
 }
 
-.cl-trust {
+/* Chips bajo la portada */
+.cl-chiprow {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px 16px;
-  margin: 20px 0 0;
+  gap: 8px;
+  margin: 14px 0 0;
   padding: 0;
   list-style: none;
 }
-.cl-trust li {
+.cl-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12.5px;
-  color: var(--text-muted);
-}
-
-/* ---------- Secciones ---------- */
-.cl-section {
-  margin-top: 40px;
-}
-.cl-section-head {
-  margin-bottom: 16px;
-}
-.cl-eyebrow {
-  display: block;
+  gap: 7px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-elevated);
   font-size: 11.5px;
-  font-weight: 800;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--accent);
-  margin-bottom: 6px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
 }
-.cl-section-head h2 {
-  margin: 0;
-  font-size: 21px;
-  font-weight: 800;
-  letter-spacing: -0.01em;
+.cl-chip-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
 }
 
-/* ---------- Servicios ---------- */
-.cl-service-list {
+/* ===============================================================
+   Encabezado de sección
+   =============================================================== */
+.cl-sechead {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.cl-sechead h2 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.cl-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  border: 1px solid rgba(212, 162, 78, 0.22);
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===============================================================
+   Servicios
+   =============================================================== */
+.cl-service-list {
+  display: grid;
   gap: 10px;
 }
-.cl-service {
+.cl-svc {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) auto;
-  align-items: center;
+  grid-template-columns: 50px minmax(0, 1fr) auto;
+  align-items: start;
   gap: 14px;
-  padding: 15px 16px;
-  border-radius: var(--radius-lg);
+  padding: 15px 15px 14px;
+  border-radius: var(--cl-radius-card);
   border: 1px solid var(--border-soft);
-  background: linear-gradient(160deg, var(--bg-card-2), var(--bg-card) 70%);
-  box-shadow: var(--inset-hairline), var(--shadow-xs);
+  background: linear-gradient(158deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0) 46%), var(--bg-card);
+  box-shadow: var(--inset-hairline), var(--shadow-sm);
 }
-.cl-service-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
+.cl-svc-icon-svg {
+  color: var(--accent-strong);
+}
+.cl-svc-icon-svg .cl-svg {
+  width: 23px;
+  height: 23px;
+}
+.cl-svc-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 19px;
-  background: var(--accent-soft-2);
-  border: 1px solid rgba(212, 162, 78, 0.16);
+  width: 50px;
+  height: 50px;
+  border-radius: var(--cl-radius-tile);
+  font-size: 21px;
+  background: linear-gradient(160deg, rgba(212, 162, 78, 0.2), rgba(212, 162, 78, 0.06));
+  border: 1px solid rgba(212, 162, 78, 0.2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
-.cl-service-body {
+.cl-svc-main {
   min-width: 0;
 }
-.cl-service-name {
+.cl-svc-name {
   margin: 0;
-  font-size: 15px;
+  font-size: 15.5px;
   font-weight: 700;
+  letter-spacing: -0.01em;
 }
-.cl-service-desc {
+.cl-svc-desc {
   margin: 3px 0 0;
-  font-size: 13px;
+  font-size: 12.5px;
   line-height: 1.45;
   color: var(--text-muted);
 }
-.cl-service-time {
-  margin: 4px 0 0;
-  font-size: 12px;
-  /* --text-faint cumple AA sobre --bg-card, pero esta tarjeta es un degradado
-     que arranca en --bg-card-2 (más claro) y ahí se queda en 4.21:1. */
+.cl-svc-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-soft);
+  font-size: 11.5px;
   color: var(--text-muted);
+  white-space: nowrap;
 }
-.cl-service-price {
-  font-size: 16px;
-  font-weight: 800;
+/* El precio es lo que más pesa visualmente en la tarjeta, pero como
+   píldora compacta alineada arriba — no como un bloque del alto de la
+   tarjeta, que competía con el nombre del servicio. */
+.cl-svc-price {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 2px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  border: 1px solid rgba(212, 162, 78, 0.24);
   color: var(--accent-strong);
+  font-size: 15px;
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-/* ---------- Barberos ---------- */
+/* ===============================================================
+   Barberos: carrusel con foto protagonista
+   =============================================================== */
 .cl-barber-list {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-.cl-barber {
-  padding: 20px 14px 18px;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-soft);
-  background: linear-gradient(165deg, var(--bg-card-2), var(--bg-elevated));
-  box-shadow: var(--inset-hairline), var(--shadow-xs);
-  text-align: center;
-}
-.cl-barber-avatar {
-  width: 68px;
-  height: 68px;
-  margin: 0 auto 12px;
-  border-radius: 50%;
-  overflow: hidden;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--accent-gradient);
-  color: var(--accent-contrast);
-  font-weight: 800;
-  font-size: 22px;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) inset, 0 10px 22px rgba(212, 162, 78, 0.22);
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  /* Sangra hasta el borde de la pantalla para que se lea como un carrusel
+     de app, devolviendo el margen con el padding. */
+  margin: 0 calc(var(--cl-gutter) * -1);
+  padding: 4px var(--cl-gutter) 6px;
 }
-.cl-barber-avatar img {
+.cl-barber-list::-webkit-scrollbar {
+  display: none;
+}
+.cl-brb {
+  flex: 0 0 158px;
+  scroll-snap-align: start;
+  border-radius: var(--cl-radius-card);
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-card);
+  box-shadow: var(--inset-hairline), var(--shadow-sm);
+}
+.cl-brb-photo {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  max-width: 100%;
+  overflow: hidden;
+  background: var(--bg-elevated);
+}
+.cl-brb-photo img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
 }
-.cl-barber-name {
+.cl-brb-photo-blank {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(110% 80% at 50% 0%, rgba(212, 162, 78, 0.26), transparent 66%),
+    linear-gradient(168deg, #262a34 0%, #171922 60%, #101219 100%);
+}
+.cl-brb-monogram {
+  font-size: 46px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  color: var(--accent-strong);
+  text-shadow: 0 6px 24px rgba(212, 162, 78, 0.3);
+}
+.cl-brb-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 46%, rgba(7, 8, 11, 0.72) 100%);
+}
+.cl-brb-info {
+  padding: 11px 13px 14px;
+}
+.cl-brb-name {
   margin: 0;
-  font-size: 15px;
+  font-size: 14.5px;
   font-weight: 700;
+  letter-spacing: -0.01em;
 }
-.cl-barber-bio {
-  margin: 5px 0 0;
-  font-size: 12.5px;
-  line-height: 1.45;
+.cl-brb-bio {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
   color: var(--text-muted);
 }
 
-/* ---------- Cómo reservar ---------- */
+/* ===============================================================
+   Cómo reservar: filas compactas
+   =============================================================== */
 .cl-steps {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  display: grid;
+  gap: 8px;
 }
 .cl-step {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 14px;
-  padding: 15px 16px;
-  border-radius: var(--radius-lg);
+  padding: 13px 16px;
+  border-radius: var(--cl-radius-tile);
   border: 1px solid var(--border-soft);
-  background: var(--bg-card);
-  box-shadow: var(--inset-hairline), var(--shadow-xs);
+  background: var(--bg-elevated);
 }
 .cl-step-num {
+  font-size: 17px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: rgba(212, 162, 78, 0.24);
+  -webkit-text-stroke: 1.2px var(--accent);
   flex-shrink: 0;
-  width: 30px;
-  height: 30px;
-  border-radius: 10px;
+}
+.cl-step-text {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* ===============================================================
+   Ubicación y contacto
+   =============================================================== */
+.cl-ico {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 800;
-  font-size: 14px;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
   color: var(--accent-strong);
-  background: var(--accent-soft);
-  border: 1px solid rgba(212, 162, 78, 0.22);
+  background: linear-gradient(160deg, rgba(212, 162, 78, 0.16), rgba(212, 162, 78, 0.05));
+  border: 1px solid rgba(212, 162, 78, 0.18);
+  flex-shrink: 0;
 }
-.cl-step-title {
-  margin: 0;
-  font-size: 14.5px;
-  font-weight: 700;
+.cl-svc-time .cl-svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 2;
 }
-.cl-step-desc {
-  margin: 3px 0 0;
-  font-size: 13px;
-  line-height: 1.5;
+.cl-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   color: var(--text-muted);
 }
-
-/* ---------- Visítanos / contacto ---------- */
 .cl-address {
   display: flex;
-  gap: 12px;
+  gap: 13px;
   align-items: flex-start;
-  padding: 16px;
-  border-radius: var(--radius-lg);
+  padding: 15px;
+  border-radius: var(--cl-radius-card);
   border: 1px solid var(--border-soft);
-  background: var(--bg-card);
-  box-shadow: var(--inset-hairline), var(--shadow-xs);
+  background: linear-gradient(158deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0) 46%), var(--bg-card);
+  box-shadow: var(--inset-hairline), var(--shadow-sm);
   margin-bottom: 10px;
 }
+.cl-address-body {
+  min-width: 0;
+}
 .cl-address-text {
-  margin: 0;
+  margin: 5px 0 0;
   font-size: 14px;
   line-height: 1.5;
 }
 .cl-address-link {
-  /* Enlace de una sola línea: sin esto el área tocable mide 15 px de alto,
-     por debajo del mínimo accesible en móvil. El alto mínimo agranda la
-     zona de toque sin cambiar cómo se ve el texto. */
   display: inline-flex;
   align-items: center;
+  gap: 7px;
+  margin-top: 10px;
   min-height: 44px;
-  font-size: 13px;
-  font-weight: 700;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(212, 162, 78, 0.3);
+  background: var(--accent-soft);
   color: var(--accent-strong);
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
 }
 .cl-contact-list {
   display: grid;
@@ -419,12 +666,12 @@ body {
 .cl-contact {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
-  border-radius: var(--radius-lg);
+  gap: 13px;
+  padding: 12px 14px;
+  border-radius: var(--cl-radius-card);
   border: 1px solid var(--border-soft);
-  background: linear-gradient(160deg, var(--bg-card-2), var(--bg-card) 70%);
-  box-shadow: var(--inset-hairline), var(--shadow-xs);
+  background: linear-gradient(158deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0) 46%), var(--bg-card);
+  box-shadow: var(--inset-hairline), var(--shadow-sm);
   text-decoration: none;
   color: var(--text);
   transition: border-color var(--dur-base) ease, transform var(--dur-fast) var(--ease-press);
@@ -435,47 +682,47 @@ body {
 .cl-contact:active {
   transform: scale(0.985);
 }
-.cl-contact-icon {
-  flex-shrink: 0;
-  width: 40px;
-  height: 40px;
-  border-radius: 13px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 17px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-soft);
-}
 .cl-contact-text {
   display: flex;
   flex-direction: column;
+  gap: 2px;
   min-width: 0;
-}
-.cl-contact-label {
-  font-size: 11.5px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-muted);
+  flex: 1;
 }
 .cl-contact-value {
   font-size: 14.5px;
   font-weight: 600;
   overflow-wrap: anywhere;
 }
+.cl-contact-go {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: var(--bg-elevated);
+  color: var(--accent-strong);
+  font-size: 14px;
+  flex-shrink: 0;
+}
 
-/* ---------- Pie ---------- */
+/* ===============================================================
+   Pie
+   =============================================================== */
 .cl-footer {
-  margin-top: 44px;
-  padding-top: 26px;
+  margin-top: 34px;
+  padding-top: 24px;
   border-top: 1px solid var(--border-soft);
   text-align: center;
+}
+.cl-footer .cl-mark {
+  margin: 0 auto 10px;
 }
 .cl-footer-name {
   margin: 0;
   font-weight: 800;
-  letter-spacing: 0.02em;
+  letter-spacing: -0.01em;
 }
 .cl-footer-note {
   margin: 4px 0 0;
@@ -483,52 +730,129 @@ body {
   color: var(--text-muted);
 }
 
-/* ---------- CTA fijo inferior (aparece al bajar) ---------- */
-.cl-sticky {
+/* ===============================================================
+   Barra inferior con acción central
+   =============================================================== */
+.cl-tabbar {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 40;
-  padding: 12px 18px;
-  padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 2px;
+  height: calc(var(--cl-tabbar-h) + env(safe-area-inset-bottom));
+  padding: 0 8px env(safe-area-inset-bottom);
   background: var(--glass-bg-strong);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
   border-top: 1px solid var(--glass-border);
-  transform: translateY(115%);
-  opacity: 0;
-  pointer-events: none;
-  transition: transform var(--dur-base) var(--ease-premium), opacity var(--dur-base) ease;
 }
-.cl-sticky.visible {
-  transform: none;
-  opacity: 1;
-  pointer-events: auto;
-}
-.cl-cta-sticky {
-  max-width: 524px;
-  margin: 0 auto;
+.cl-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
   min-height: 52px;
+  border-radius: 14px;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color var(--dur-base) ease;
 }
-/* Espacio para que la barra fija nunca tape el final del contenido. */
-.cl-page {
-  scroll-padding-bottom: 90px;
+.cl-tab-icon {
+  display: flex;
+  line-height: 0;
 }
-.cl-footer {
-  padding-bottom: 84px;
+.cl-tab-icon .cl-svg {
+  width: 20px;
+  height: 20px;
+}
+.cl-tab-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.cl-tab.active {
+  color: var(--accent-strong);
+}
+.cl-fab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  flex: 0 0 auto;
+  width: 62px;
+  height: 62px;
+  margin: 0 4px;
+  transform: translateY(-16px);
+  border-radius: 21px;
+  background: var(--accent-gradient);
+  color: var(--accent-contrast);
+  text-decoration: none;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.45) inset, 0 -3px 0 rgba(0, 0, 0, 0.16) inset,
+    0 14px 30px rgba(212, 162, 78, 0.34), 0 4px 10px rgba(0, 0, 0, 0.45);
+  transition: transform var(--dur-fast) var(--ease-press);
+}
+.cl-fab:active {
+  transform: translateY(-16px) scale(0.94);
+}
+.cl-fab-icon {
+  display: flex;
+  line-height: 0;
+}
+.cl-fab-icon .cl-svg {
+  width: 21px;
+  height: 21px;
+  stroke-width: 2;
+}
+.cl-fab-label {
+  font-size: 9.5px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
 }
 
-/* ---------- Estados (error / carga) ---------- */
-.cl-state-page {
-  padding-top: 90px;
+/* ===============================================================
+   Estados
+   =============================================================== */
+.cl-page-state {
+  padding: 0 var(--cl-gutter);
+}
+.cl-state {
+  margin-top: 22vh;
+  padding: 30px 22px;
+  border-radius: var(--cl-radius-card);
+  border: 1px solid var(--border-soft);
+  background: var(--bg-card);
+  box-shadow: var(--inset-hairline), var(--shadow-md);
+  text-align: center;
 }
 .cl-state-icon {
-  font-size: 34px;
-  margin-bottom: 6px;
+  display: block;
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+.cl-state h2 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 800;
+}
+.cl-state p {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 14px;
 }
 .cl-skel {
-  border-radius: var(--radius-lg);
+  border-radius: var(--cl-radius-card);
   background: linear-gradient(100deg, var(--bg-elevated) 30%, var(--bg-card-2) 50%, var(--bg-elevated) 70%);
   background-size: 300% 100%;
   animation: cl-shimmer 1.3s linear infinite;
@@ -537,68 +861,96 @@ body {
   from { background-position: 150% 0; }
   to { background-position: -150% 0; }
 }
-.cl-skel-mark { width: 66px; height: 66px; border-radius: 21px; margin: 46px auto 18px; }
-.cl-skel-title { height: 30px; max-width: 240px; margin: 0 auto 12px; }
-.cl-skel-line { height: 16px; max-width: 300px; margin: 0 auto 22px; }
-.cl-skel-cta { height: 56px; margin-bottom: 34px; }
-.cl-skel-card { height: 88px; margin-bottom: 12px; }
+.cl-skel-hero { height: 452px; margin: 62px 0 14px; }
+.cl-skel-row { height: 34px; margin-bottom: 26px; border-radius: 999px; }
+.cl-skel-card { height: 80px; margin-bottom: 10px; }
 
-/* ---------- Foco visible (accesibilidad) ---------- */
+/* ===============================================================
+   Foco visible
+   =============================================================== */
 .cl-cta:focus-visible,
+.cl-fab:focus-visible,
+.cl-tab:focus-visible,
 .cl-contact:focus-visible,
-.cl-address-link:focus-visible {
+.cl-address-link:focus-visible,
+.cl-appbar-cta:focus-visible {
   outline: 2px solid var(--accent-strong);
   outline-offset: 3px;
 }
 
-/* ---------- Responsive ---------- */
+/* ===============================================================
+   Pantallas grandes: la app se ensancha sin dejar de ser una app
+   =============================================================== */
 @media (min-width: 600px) {
-  .cl-page {
-    max-width: 620px;
-    padding-left: 26px;
-    padding-right: 26px;
-  }
-  .cl-hero {
-    margin-left: -26px;
-    margin-right: -26px;
-    padding-left: 26px;
-    padding-right: 26px;
-  }
-  .cl-hero-title { font-size: 36px; }
-  /* auto-fit + ancho máximo: con pocos barberos las tarjetas quedan
-     centradas y con proporción natural, en vez de estirarse a lo ancho. */
-  .cl-barber-list {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 200px));
+  :root { --cl-gutter: 22px; }
+  .cl-page { max-width: 540px; }
+  .cl-hero-card { min-height: 500px; padding: 28px 26px 26px; }
+  .cl-hero-title { font-size: 40px; }
+}
+
+@media (min-width: 1024px) {
+  :root { --cl-gutter: 28px; --cl-tabbar-h: 64px; }
+  .cl-page { max-width: 940px; }
+  .cl-main { padding-bottom: calc(var(--cl-tabbar-h) + 60px); }
+
+  .cl-hero-card {
+    min-height: 424px;
     justify-content: center;
+    padding: 44px 48px;
   }
-  .cl-contact-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
+  .cl-hero-body { max-width: 480px; }
+  .cl-hero-title { font-size: 50px; }
+  .cl-hero-lead { font-size: 15.5px; }
+  .cl-cta { max-width: 340px; }
+  .cl-hero-badge { width: 56px; height: 56px; font-size: 23px; top: 28px; right: 28px; }
 
-@media (min-width: 960px) {
-  .cl-page {
-    max-width: 880px;
+  .cl-section { margin-top: 44px; }
+  .cl-sechead h2 { font-size: 23px; }
+  .cl-service-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cl-steps { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+  /* Con el ancho disponible el carrusel se convierte en rejilla. */
+  .cl-barber-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(0, 200px));
+    justify-content: start;
+    overflow: visible;
+    margin: 0;
+    padding: 0;
   }
-  .cl-hero {
-    padding-top: 64px;
-    padding-bottom: 48px;
-  }
-  .cl-hero-title { font-size: 44px; }
-  .cl-hero-lead { font-size: 16px; max-width: 46ch; }
-  .cl-cta { max-width: 340px; margin-left: auto; margin-right: auto; }
-  .cl-service-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .cl-barber-list { grid-template-columns: repeat(auto-fit, minmax(170px, 210px)); }
-  .cl-steps { flex-direction: row; }
-  .cl-steps > .cl-step { flex: 1; }
+  .cl-brb { flex: initial; }
   .cl-contact-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  /* En escritorio el CTA del hero siempre está a la vista al inicio y el
-     contenido es corto: la barra fija sobraría. */
-  .cl-sticky { display: none; }
-  .cl-footer { padding-bottom: 26px; }
+
+  /* La barra inferior pasa a cápsula flotante, como la del panel. */
+  .cl-tabbar {
+    left: 50%;
+    right: auto;
+    bottom: 22px;
+    transform: translateX(-50%);
+    width: auto;
+    height: auto;
+    gap: 6px;
+    padding: 8px 10px;
+    border: 1px solid var(--glass-border);
+    border-radius: 999px;
+    box-shadow: var(--shadow-lg);
+  }
+  .cl-tab { flex: 0 0 auto; min-width: 78px; }
+  .cl-fab { transform: none; width: auto; height: 52px; padding: 0 20px; flex-direction: row; gap: 8px; border-radius: 999px; }
+  .cl-fab:active { transform: scale(0.96); }
+  .cl-fab-label { font-size: 13px; }
+  .cl-footer { padding-bottom: 0; }
 }
 
-/* ---------- Movimiento reducido ---------- */
+/* ===============================================================
+   Movimiento reducido
+   =============================================================== */
 @media (prefers-reduced-motion: reduce) {
-  .cl-hero-inner { animation: none; }
+  :root { scroll-behavior: auto; }
+  .cl-hero-card { animation: none; }
   .cl-skel { animation: none; }
-  .cl-sticky { transition: none; }
+  .cl-appbar-cta,
+  .cl-cta,
+  .cl-fab,
+  .cl-contact { transition: none; }
 }
