@@ -276,3 +276,10 @@ body {
     font-size: 25px;
   }
 }
+
+/* Enlace de regreso a la página pública del cliente (paso 1). Solo
+   presentación: no altera el flujo de reserva. */
+.booking-page > a.btn-ghost {
+  display: inline-flex;
+  margin-bottom: 10px;
+}

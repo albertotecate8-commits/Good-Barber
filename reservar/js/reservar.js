@@ -134,6 +134,7 @@ function renderServicio() {
   root.innerHTML = `
     <div class="booking-page">
       ${header()}
+      <a class="btn btn-ghost btn-sm" href="../cliente/">← Inicio</a>
       ${stepProgressHTML("servicio")}
       <div class="booking-step-label">Paso 1 de 5 · Elige un servicio</div>
       <div class="service-picker">
