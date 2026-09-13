@@ -3,6 +3,7 @@ import { toast, friendlyError, showLoading, confirmDialog, openModal, escapeHtml
 import { formatCents, toCents } from "./money.js";
 import { dayTotalCents, groupRecordsByDate, weekTotalCents, settlementBreakdown, recordsTotalCents, recordLineTotalCents } from "./calc.js";
 import { startOfWeek, endOfWeek, toISODate, todayISO, weekLabel, formatDateText, parseISODate } from "./dates.js";
+import { imageFieldHTML, wireImageField } from "./image-field.js";
 
 const NAV_ITEMS = [
   { id: "dashboard", label: "Dashboard", icon: "📊" },
@@ -148,7 +149,7 @@ export async function renderAdminBarbers(container) {
             </div>
             <p class="text-muted mt-8">Último servicio: ${last ? `${last.service_name} — ${last.record_date}` : "Sin registros esta semana"}</p>
             <div class="flex gap-8 mt-16">
-              <button class="btn btn-ghost btn-sm" data-edit="${b.id}">Editar reparto</button>
+              <button class="btn btn-ghost btn-sm" data-edit="${b.id}">Editar</button>
               <button class="btn btn-ghost btn-sm" data-toggle="${b.id}" data-active="${b.active}" data-profile="${b.profile_id}">${b.active ? "Desactivar" : "Activar"}</button>
             </div>
           </div>
@@ -253,32 +254,76 @@ function openBarberCreateForm(onDone) {
 function openBarberEditForm(barber, onDone) {
   const { overlay, close } = openModal(`
     <button class="btn btn-ghost btn-icon modal-close" data-close-modal aria-label="Cerrar">✕</button>
-    <h3>Editar reparto — ${escapeHtml(barber.name)}</h3>
+    <h3>Editar — ${escapeHtml(barber.name)}</h3>
+
     <div class="field mt-16">
       <label for="be-name">Nombre</label>
-      <input id="be-name" value="${escapeHtml(barber.name)}">
+      <input id="be-name" value="${escapeHtml(barber.name)}" maxlength="60">
+      <p class="field-help">Es el nombre que ve el cliente al elegir barbero.</p>
     </div>
+    <div class="field">
+      <label for="be-bio">Descripción</label>
+      <input id="be-bio" value="${escapeHtml(barber.bio || "")}" maxlength="80" placeholder="Fade y clásico">
+      <p class="field-help">Una línea corta bajo el nombre. Si la dejas vacía, no se muestra.</p>
+    </div>
+    ${imageFieldHTML("be-img", "Fotografía", barber.photo_url, "Si no hay foto, la página pública usa sus iniciales.")}
+    <div class="field">
+      <label for="be-order">Orden de aparición</label>
+      <input id="be-order" type="number" min="0" max="999" value="${barber.sort_order ?? 0}">
+      <p class="field-help">Menor número, antes en la lista. A igualdad, por nombre.</p>
+    </div>
+    <div class="field">
+      <label class="switch-row" for="be-public">
+        <input type="checkbox" id="be-public" ${barber.public_visible !== false ? "checked" : ""}>
+        <span>Visible en la página pública</span>
+      </label>
+      <p class="field-help">Si lo apagas, deja de ofrecerse para reservar. Sus citas y su historial no cambian.</p>
+    </div>
+
     <div class="field">
       <label for="be-pct">Porcentaje del barbero (%)</label>
       <input id="be-pct" type="number" min="0" max="100" step="0.01" value="${barber.default_percentage}">
       <div class="field-hint">El resto corresponde a Good Barber.</div>
     </div>
-    <button type="button" class="btn btn-primary btn-block" id="be-save">Guardar</button>
+
+    <div id="be-err" class="text-danger mb-8" hidden></div>
+    <div class="flex gap-8">
+      <button type="button" class="btn btn-primary" id="be-save">Guardar</button>
+      <button type="button" class="btn btn-ghost" data-close-modal>Cancelar</button>
+    </div>
   `);
-  overlay.querySelector("#be-save").addEventListener("click", async () => {
-    showLoading(true, "Guardando…");
+
+  const imagen = wireImageField(overlay, "be-img", { carpeta: "barberos", urlActual: barber.photo_url || null });
+
+  overlay.querySelector("#be-save").addEventListener("click", async (e) => {
+    const boton = e.currentTarget;
+    const err = overlay.querySelector("#be-err");
+    err.hidden = true;
+    const nombre = overlay.querySelector("#be-name").value.trim();
+    const pct = Number(overlay.querySelector("#be-pct").value || 60);
+    if (!nombre) return mostrar(err, "El nombre no puede quedar vacío.");
+    if (!(pct >= 0 && pct <= 100)) return mostrar(err, "El porcentaje debe estar entre 0 y 100.");
+
+    boton.disabled = true;
+    boton.textContent = imagen.hayCambio() ? "Subiendo…" : "Guardando…";
     try {
+      const photo_url = await imagen.guardar();
+      boton.textContent = "Guardando…";
       await data.updateBarber(barber.id, {
-        name: overlay.querySelector("#be-name").value.trim(),
-        default_percentage: Number(overlay.querySelector("#be-pct").value || 60),
+        name: nombre,
+        bio: overlay.querySelector("#be-bio").value.trim() || null,
+        photo_url,
+        sort_order: Number(overlay.querySelector("#be-order").value || 0),
+        public_visible: overlay.querySelector("#be-public").checked,
+        default_percentage: pct,
       });
-      toast("Barbero actualizado.", "success");
+      toast("Barbero actualizado. Ya se ve en la página pública.", "success");
       close();
       onDone();
     } catch (error) {
-      toast(friendlyError(error), "error");
-    } finally {
-      showLoading(false);
+      mostrar(err, friendlyError(error));
+      boton.disabled = false;
+      boton.textContent = "Guardar";
     }
   });
 }
@@ -548,45 +593,110 @@ export async function renderAdminServices(container) {
   draw();
 }
 
+// Iconos que el cliente sabe traducir a SVG (cliente/js/icons.js). Se ofrece
+// una lista cerrada en vez de un campo libre: así el administrador no puede
+// elegir un emoji que la página pública no sepa dibujar.
+const ICONOS_SERVICIO = [
+  { valor: "", etiqueta: "Tijeras (por defecto)" },
+  { valor: "✂️", etiqueta: "✂️  Tijeras" },
+  { valor: "🪒", etiqueta: "🪒  Rasuradora / barba" },
+  { valor: "💈", etiqueta: "💈  Poste de barbería" },
+  { valor: "🧴", etiqueta: "🧴  Peine / tratamiento" },
+];
+
 function openServiceForm(service, onDone) {
   const isEdit = !!service;
   const { overlay, close } = openModal(`
     <button class="btn btn-ghost btn-icon modal-close" data-close-modal aria-label="Cerrar">✕</button>
     <h3>${isEdit ? "Editar servicio" : "Nuevo servicio"}</h3>
-    <div class="field mt-16"><label for="sf-name">Nombre</label><input id="sf-name" value="${isEdit ? escapeHtml(service.name) : ""}"></div>
-    <div class="field"><label for="sf-price">Precio</label><input id="sf-price" type="number" min="0" step="0.01" value="${isEdit ? (service.price_cents / 100).toFixed(2) : ""}"></div>
-    <div class="field"><label for="sf-duration">Duración (minutos, opcional)</label><input id="sf-duration" type="number" min="0" value="${isEdit && service.duration_minutes ? service.duration_minutes : ""}"></div>
+    <div class="field mt-16"><label for="sf-name">Nombre</label>
+      <input id="sf-name" value="${isEdit ? escapeHtml(service.name) : ""}" maxlength="60"></div>
+    <div class="field"><label for="sf-desc">Descripción</label>
+      <input id="sf-desc" value="${isEdit ? escapeHtml(service.description || "") : ""}" maxlength="120"
+             placeholder="Tijera y máquina, incluye lavado">
+      <p class="field-help">Aparece bajo el nombre en la página pública. Si la dejas vacía, no se muestra nada.</p></div>
+    <div class="field"><label for="sf-price">Precio</label>
+      <input id="sf-price" type="number" min="0" step="0.01" value="${isEdit ? (service.price_cents / 100).toFixed(2) : ""}"></div>
+    <div class="field"><label for="sf-duration">Duración (minutos)</label>
+      <input id="sf-duration" type="number" min="5" max="480" value="${isEdit && service.duration_minutes ? service.duration_minutes : 30}"></div>
+    <div class="field"><label for="sf-icon">Icono</label>
+      <select id="sf-icon">
+        ${ICONOS_SERVICIO.map((o) => `<option value="${escapeHtml(o.valor)}" ${isEdit && (service.icon || "") === o.valor ? "selected" : ""}>${escapeHtml(o.etiqueta)}</option>`).join("")}
+      </select></div>
+    <div class="field"><label for="sf-order">Orden de aparición</label>
+      <input id="sf-order" type="number" min="0" max="999" value="${isEdit ? service.sort_order ?? 0 : 0}">
+      <p class="field-help">Menor número, más arriba.</p></div>
+    ${imageFieldHTML("sf-img", "Fotografía del servicio", isEdit ? service.image_url : null, "Opcional. Si no hay foto, se usa el icono.")}
+    <div class="field">
+      <label class="switch-row" for="sf-public">
+        <input type="checkbox" id="sf-public" ${!isEdit || service.public_visible !== false ? "checked" : ""}>
+        <span>Visible en la página pública</span>
+      </label>
+      <p class="field-help">Si lo apagas, deja de ofrecerse para reservar pero el historial no cambia.</p>
+    </div>
     ${isEdit ? `<div class="field"><label for="sf-active">Estado</label><select id="sf-active"><option value="true" ${service.active ? "selected" : ""}>Activo</option><option value="false" ${!service.active ? "selected" : ""}>Inactivo</option></select></div>` : ""}
-    <button type="button" class="btn btn-primary btn-block mt-16" id="sf-save">Guardar</button>
+    <div id="sf-err" class="text-danger mb-8" hidden></div>
+    <div class="flex gap-8 mt-16">
+      <button type="button" class="btn btn-primary" id="sf-save">Guardar</button>
+      <button type="button" class="btn btn-ghost" data-close-modal>Cancelar</button>
+    </div>
   `);
 
-  overlay.querySelector("#sf-save").addEventListener("click", async () => {
+  const imagen = wireImageField(overlay, "sf-img", {
+    carpeta: "servicios",
+    urlActual: isEdit ? service.image_url || null : null,
+  });
+
+  overlay.querySelector("#sf-save").addEventListener("click", async (e) => {
+    const boton = e.currentTarget;
+    const err = overlay.querySelector("#sf-err");
+    err.hidden = true;
     const name = overlay.querySelector("#sf-name").value.trim();
     const priceCents = toCents(overlay.querySelector("#sf-price").value);
-    const durationRaw = overlay.querySelector("#sf-duration").value;
-    if (!name || priceCents <= 0) {
-      toast("Escribe un nombre y un precio válido.", "error");
-      return;
-    }
-    showLoading(true, "Guardando…");
+    const duracion = Number(overlay.querySelector("#sf-duration").value);
+    if (!name) return mostrar(err, "Escribe el nombre del servicio.");
+    if (!(priceCents > 0)) return mostrar(err, "Escribe un precio mayor que cero.");
+    if (!(duracion >= 5 && duracion <= 480)) return mostrar(err, "La duración debe estar entre 5 y 480 minutos.");
+
+    boton.disabled = true;
+    boton.textContent = imagen.hayCambio() ? "Subiendo…" : "Guardando…";
     try {
+      const image_url = await imagen.guardar();
+      boton.textContent = "Guardando…";
+      const comun = {
+        name,
+        description: overlay.querySelector("#sf-desc").value.trim() || null,
+        price_cents: priceCents,
+        duration_minutes: duracion,
+        icon: overlay.querySelector("#sf-icon").value || null,
+        sort_order: Number(overlay.querySelector("#sf-order").value || 0),
+        public_visible: overlay.querySelector("#sf-public").checked,
+        image_url,
+      };
       if (isEdit) {
         await data.updateService(service.id, {
-          name,
-          price_cents: priceCents,
-          duration_minutes: durationRaw ? Number(durationRaw) : null,
+          ...comun,
           active: overlay.querySelector("#sf-active").value === "true",
         });
       } else {
-        await data.createService({ name, priceCents, durationMinutes: durationRaw ? Number(durationRaw) : null });
+        await data.createService({
+          name,
+          priceCents,
+          durationMinutes: duracion,
+          sortOrder: comun.sort_order,
+          description: comun.description,
+          icon: comun.icon,
+          publicVisible: comun.public_visible,
+          imageUrl: image_url,
+        });
       }
-      toast("Servicio guardado.", "success");
+      toast("Servicio guardado. Ya se ve en la página pública.", "success");
       close();
       onDone();
     } catch (error) {
-      toast(friendlyError(error), "error");
-    } finally {
-      showLoading(false);
+      mostrar(err, friendlyError(error));
+      boton.disabled = false;
+      boton.textContent = "Guardar";
     }
   });
 }
@@ -905,36 +1015,264 @@ export async function renderAdminHistory(container) {
 // (js/migration.js) NO se borraron — siguen ahí intactas por si algún día
 // hicieran falta — solo se dejó de importarlas y mostrarlas aquí.
 export async function renderAdminSettings(container) {
-  container.innerHTML = `<h2 class="view-title">Configuración</h2><div class="text-center mt-16"><div class="spinner" style="margin:auto"></div></div>`;
-  try {
-    const settings = await data.getSettings();
+  const PESTANAS = [
+    { id: "negocio", label: "Negocio" },
+    { id: "promo", label: "Promoción" },
+    { id: "imagenes", label: "Imágenes" },
+    { id: "reservas", label: "Reservas" },
+    { id: "operacion", label: "Operación" },
+  ];
+  let activa = "negocio";
+
+  async function draw() {
+    container.innerHTML = `<h2 class="view-title">Configuración</h2><div class="text-center mt-16"><div class="spinner" style="margin:auto"></div></div>`;
+    let settings;
+    try {
+      settings = await data.getSettings();
+    } catch (error) {
+      container.innerHTML = `<div class="card text-danger">${escapeHtml(friendlyError(error))}</div>`;
+      return;
+    }
 
     container.innerHTML = `
       <h2 class="view-title">Configuración</h2>
-      <div class="card">
-        <div class="field"><label for="cfg-name">Nombre del negocio</label><input id="cfg-name" value="${escapeHtml(settings.business_name)}"></div>
-        <div class="field"><label for="cfg-pct">Porcentaje por defecto del barbero (%)</label><input id="cfg-pct" type="number" min="0" max="100" step="0.01" value="${settings.default_barber_percentage}"></div>
-        <div class="field"><label for="cfg-tz">Zona horaria</label><input id="cfg-tz" value="${escapeHtml(settings.timezone)}"></div>
-        <button class="btn btn-primary btn-block" id="cfg-save">Guardar configuración</button>
+      <p class="view-sub">Lo que edites aquí es lo que ve el cliente en la página pública.</p>
+      <div class="cms-tabs" role="tablist">
+        ${PESTANAS.map((t) => `
+          <button type="button" role="tab" class="cms-tab ${t.id === activa ? "active" : ""}"
+                  data-cms-tab="${t.id}" aria-selected="${t.id === activa}">${t.label}</button>`).join("")}
       </div>
+      <div id="cms-panel"></div>
     `;
 
-    container.querySelector("#cfg-save").addEventListener("click", async () => {
-      showLoading(true, "Guardando…");
-      try {
-        await data.updateSettings({
-          business_name: container.querySelector("#cfg-name").value.trim(),
-          default_barber_percentage: Number(container.querySelector("#cfg-pct").value || 60),
-          timezone: container.querySelector("#cfg-tz").value.trim(),
-        });
-        toast("Configuración guardada.", "success");
-      } catch (error) {
-        toast(friendlyError(error), "error");
-      } finally {
-        showLoading(false);
-      }
-    });
-  } catch (error) {
-    container.innerHTML = `<div class="card text-danger">${escapeHtml(friendlyError(error))}</div>`;
+    container.querySelectorAll("[data-cms-tab]").forEach((btn) =>
+      btn.addEventListener("click", () => { activa = btn.dataset.cmsTab; draw(); })
+    );
+
+    const panel = container.querySelector("#cms-panel");
+    if (activa === "negocio") panelNegocio(panel, settings, draw);
+    else if (activa === "promo") panelPromo(panel, settings, draw);
+    else if (activa === "imagenes") panelImagenes(panel, settings, draw);
+    else if (activa === "reservas") panelReservas(panel, settings, draw);
+    else panelOperacion(panel, settings, draw);
   }
+
+  draw();
+}
+
+// Guardado común a todos los paneles: deshabilita el botón mientras viaja,
+// avisa del resultado y vuelve a pintar con los datos ya guardados.
+async function guardarSettings(boton, patch, onDone) {
+  const textoOriginal = boton.textContent;
+  boton.disabled = true;
+  boton.textContent = "Guardando…";
+  try {
+    await data.updateSettings(patch);
+    toast("Cambios guardados. Ya se ven en la página pública.", "success");
+    if (onDone) onDone();
+  } catch (error) {
+    toast(friendlyError(error), "error");
+    boton.disabled = false;
+    boton.textContent = textoOriginal;
+  }
+}
+
+const val = (root, id) => root.querySelector(id).value.trim();
+
+function panelNegocio(panel, settings, onDone) {
+  panel.innerHTML = `
+    <div class="card">
+      <div class="field"><label for="cfg-name">Nombre del negocio</label>
+        <input id="cfg-name" value="${escapeHtml(settings.business_name || "")}" maxlength="80"></div>
+      <div class="field"><label for="cfg-tagline">Eslogan</label>
+        <input id="cfg-tagline" value="${escapeHtml(settings.tagline || "")}" maxlength="80">
+        <p class="field-help">Es el titular grande de la portada.</p></div>
+      <div class="field"><label for="cfg-address">Dirección</label>
+        <input id="cfg-address" value="${escapeHtml(settings.address || "")}" maxlength="160"></div>
+      <div class="field"><label for="cfg-phone">Teléfono</label>
+        <input id="cfg-phone" type="tel" value="${escapeHtml(settings.phone || "")}" maxlength="30"></div>
+      <div class="field"><label for="cfg-whatsapp">WhatsApp</label>
+        <input id="cfg-whatsapp" type="tel" value="${escapeHtml(settings.whatsapp || "")}" maxlength="30">
+        <p class="field-help">Solo dígitos, con código de país. Ejemplo: 5215512345678</p></div>
+      <div class="field"><label for="cfg-instagram">Instagram</label>
+        <input id="cfg-instagram" value="${escapeHtml(settings.instagram || "")}" maxlength="60">
+        <p class="field-help">Con o sin arroba.</p></div>
+      <div id="cfg-err" class="text-danger mb-8" hidden></div>
+      <div class="flex gap-8">
+        <button class="btn btn-primary" id="cfg-save">Guardar</button>
+        <button class="btn btn-ghost" id="cfg-cancel">Cancelar</button>
+      </div>
+    </div>`;
+
+  panel.querySelector("#cfg-cancel").addEventListener("click", onDone);
+  panel.querySelector("#cfg-save").addEventListener("click", (e) => {
+    const err = panel.querySelector("#cfg-err");
+    err.hidden = true;
+    const nombre = val(panel, "#cfg-name");
+    if (!nombre) {
+      err.textContent = "El nombre del negocio no puede quedar vacío.";
+      err.hidden = false;
+      panel.querySelector("#cfg-name").focus();
+      return;
+    }
+    guardarSettings(e.currentTarget, {
+      business_name: nombre,
+      tagline: val(panel, "#cfg-tagline") || null,
+      address: val(panel, "#cfg-address") || null,
+      phone: val(panel, "#cfg-phone") || null,
+      whatsapp: val(panel, "#cfg-whatsapp").replace(/[^0-9]/g, "") || null,
+      instagram: val(panel, "#cfg-instagram") || null,
+    }, onDone);
+  });
+}
+
+function panelPromo(panel, settings, onDone) {
+  panel.innerHTML = `
+    <div class="card">
+      <div class="field">
+        <label class="switch-row" for="cfg-promo-on">
+          <input type="checkbox" id="cfg-promo-on" ${settings.promo_active ? "checked" : ""}>
+          <span>Mostrar la promoción en la página pública</span>
+        </label>
+      </div>
+      <div class="field"><label for="cfg-promo-text">Texto de la promoción</label>
+        <input id="cfg-promo-text" value="${escapeHtml(settings.promo_text || "")}" maxlength="120"
+               placeholder="Martes 2x1 en corte clásico">
+        <p class="field-help">Si está vacío, la tarjeta no aparece aunque esté activada.</p></div>
+      <div id="cfg-err" class="text-danger mb-8" hidden></div>
+      <div class="flex gap-8">
+        <button class="btn btn-primary" id="cfg-save">Guardar</button>
+        <button class="btn btn-ghost" id="cfg-cancel">Cancelar</button>
+      </div>
+    </div>`;
+
+  panel.querySelector("#cfg-cancel").addEventListener("click", onDone);
+  panel.querySelector("#cfg-save").addEventListener("click", (e) => {
+    const err = panel.querySelector("#cfg-err");
+    err.hidden = true;
+    const activa = panel.querySelector("#cfg-promo-on").checked;
+    const texto = val(panel, "#cfg-promo-text");
+    if (activa && !texto) {
+      err.textContent = "Escribe el texto de la promoción o desactívala.";
+      err.hidden = false;
+      panel.querySelector("#cfg-promo-text").focus();
+      return;
+    }
+    guardarSettings(e.currentTarget, { promo_active: activa, promo_text: texto || null }, onDone);
+  });
+}
+
+function panelImagenes(panel, settings, onDone) {
+  panel.innerHTML = `
+    <div class="card">
+      ${imageFieldHTML("cfg-logo", "Logotipo", settings.logo_url, "Se usa en la barra superior y en el pie. JPG, PNG o WebP, máximo 5 MB.")}
+      ${imageFieldHTML("cfg-hero", "Imagen de portada", settings.hero_image_url, "Fondo de la portada pública.")}
+      <div id="cfg-err" class="text-danger mb-8" hidden></div>
+      <div class="flex gap-8">
+        <button class="btn btn-primary" id="cfg-save">Guardar</button>
+        <button class="btn btn-ghost" id="cfg-cancel">Cancelar</button>
+      </div>
+    </div>`;
+
+  const logo = wireImageField(panel, "cfg-logo", { carpeta: "logo", urlActual: settings.logo_url });
+  const hero = wireImageField(panel, "cfg-hero", { carpeta: "hero", urlActual: settings.hero_image_url });
+
+  panel.querySelector("#cfg-cancel").addEventListener("click", onDone);
+  panel.querySelector("#cfg-save").addEventListener("click", async (e) => {
+    const boton = e.currentTarget;
+    const err = panel.querySelector("#cfg-err");
+    err.hidden = true;
+    boton.disabled = true;
+    boton.textContent = "Subiendo…";
+    try {
+      const [logo_url, hero_image_url] = await Promise.all([logo.guardar(), hero.guardar()]);
+      boton.textContent = "Guardando…";
+      await data.updateSettings({ logo_url, hero_image_url });
+      toast("Imágenes actualizadas. Ya se ven en la página pública.", "success");
+      onDone();
+    } catch (error) {
+      err.textContent = friendlyError(error);
+      err.hidden = false;
+      boton.disabled = false;
+      boton.textContent = "Guardar";
+    }
+  });
+}
+
+function panelReservas(panel, settings, onDone) {
+  panel.innerHTML = `
+    <div class="card">
+      <div class="field">
+        <label class="switch-row" for="cfg-booking">
+          <input type="checkbox" id="cfg-booking" ${settings.booking_enabled ? "checked" : ""}>
+          <span>Aceptar reservas en línea</span>
+        </label>
+        <p class="field-help">Si lo apagas, la página pública deja de ofrecer horarios.</p>
+      </div>
+      <div class="field"><label for="cfg-slot">Intervalo entre horarios (minutos)</label>
+        <input id="cfg-slot" type="number" min="5" max="240" step="5" value="${settings.slot_minutes}">
+        <p class="field-help">Cada cuánto empieza una cita. La duración la marca el servicio.</p></div>
+      <div class="field"><label for="cfg-days">Días que se pueden reservar por adelantado</label>
+        <input id="cfg-days" type="number" min="1" max="365" value="${settings.max_days_ahead}"></div>
+      <div class="field"><label for="cfg-notice">Antelación mínima (horas)</label>
+        <input id="cfg-notice" type="number" min="0" max="168" value="${settings.min_hours_notice}"></div>
+      <div id="cfg-err" class="text-danger mb-8" hidden></div>
+      <div class="flex gap-8">
+        <button class="btn btn-primary" id="cfg-save">Guardar</button>
+        <button class="btn btn-ghost" id="cfg-cancel">Cancelar</button>
+      </div>
+    </div>`;
+
+  panel.querySelector("#cfg-cancel").addEventListener("click", onDone);
+  panel.querySelector("#cfg-save").addEventListener("click", (e) => {
+    const err = panel.querySelector("#cfg-err");
+    err.hidden = true;
+    const slot = Number(panel.querySelector("#cfg-slot").value);
+    const dias = Number(panel.querySelector("#cfg-days").value);
+    const horas = Number(panel.querySelector("#cfg-notice").value);
+    // Los mismos límites que impone la base, comprobados antes de viajar.
+    if (!(slot >= 5 && slot <= 240)) return mostrar(err, "El intervalo debe estar entre 5 y 240 minutos.");
+    if (!(dias >= 1 && dias <= 365)) return mostrar(err, "Los días por adelantado deben estar entre 1 y 365.");
+    if (!(horas >= 0 && horas <= 168)) return mostrar(err, "La antelación mínima debe estar entre 0 y 168 horas.");
+    guardarSettings(e.currentTarget, {
+      booking_enabled: panel.querySelector("#cfg-booking").checked,
+      slot_minutes: slot,
+      max_days_ahead: dias,
+      min_hours_notice: horas,
+    }, onDone);
+  });
+}
+
+function mostrar(caja, mensaje) {
+  caja.textContent = mensaje;
+  caja.hidden = false;
+}
+
+// Ajustes internos, que no ve el cliente. Se quedan aquí para no perderlos.
+function panelOperacion(panel, settings, onDone) {
+  panel.innerHTML = `
+    <div class="card">
+      <div class="field"><label for="cfg-pct">Porcentaje por defecto del barbero (%)</label>
+        <input id="cfg-pct" type="number" min="0" max="100" step="0.01" value="${settings.default_barber_percentage}"></div>
+      <div class="field"><label for="cfg-tz">Zona horaria</label>
+        <input id="cfg-tz" value="${escapeHtml(settings.timezone || "")}">
+        <p class="field-help">Afecta a los horarios que se ofrecen al reservar. Ejemplo: America/Mexico_City</p></div>
+      <div id="cfg-err" class="text-danger mb-8" hidden></div>
+      <div class="flex gap-8">
+        <button class="btn btn-primary" id="cfg-save">Guardar</button>
+        <button class="btn btn-ghost" id="cfg-cancel">Cancelar</button>
+      </div>
+    </div>`;
+
+  panel.querySelector("#cfg-cancel").addEventListener("click", onDone);
+  panel.querySelector("#cfg-save").addEventListener("click", (e) => {
+    const err = panel.querySelector("#cfg-err");
+    err.hidden = true;
+    const tz = val(panel, "#cfg-tz");
+    if (!tz) return mostrar(err, "La zona horaria no puede quedar vacía.");
+    guardarSettings(e.currentTarget, {
+      default_barber_percentage: Number(panel.querySelector("#cfg-pct").value || 60),
+      timezone: tz,
+    }, onDone);
+  });
 }

@@ -12,6 +12,13 @@ import {
 
 const LOGO = "img/good-barber-logo.png";
 const LOGO_SM = "img/good-barber-logo-sm.png";
+
+// El administrador puede subir su propio logotipo desde el panel
+// (settings.logo_url). Si lo hay, manda; si no, se usa el archivo del
+// repositorio. Mismo criterio para la portada con hero_image_url.
+function logoDe(state, respaldo) {
+  return hasText(state?.business?.logo_url) ? state.business.logo_url.trim() : respaldo;
+}
 // Recorte de la palabra principal del MISMO logotipo oficial: el bloque
 // completo (marco y tres líneas) se vuelve ilegible en la barra superior.
 const WORDMARK = "img/good-barber-wordmark.png";
@@ -27,6 +34,16 @@ const BARAJA = [
   { src: "img/galeria/g2-high-fade.jpg", titulo: "High Fade",   clase: "" },
   { src: "img/galeria/g3-corte.jpg",     titulo: "Fresh Cut",   clase: "" },
 ];
+
+// La tarjeta frontal es la que el administrador puede sustituir desde el
+// panel (settings.hero_image_url). Si no ha subido ninguna, se queda la
+// fotografía del repositorio. No cambia el número de tarjetas, ni el orden,
+// ni las clases, ni el movimiento: solo de dónde sale ese archivo.
+function barajaDe(state) {
+  const portada = hasText(state?.business?.hero_image_url) ? state.business.hero_image_url.trim() : null;
+  if (!portada) return BARAJA;
+  return BARAJA.map((f, i) => (i === BARAJA.length - 1 ? { ...f, src: portada } : f));
+}
 
 // El logotipo oficial ya lleva impreso "MEJORA TU ESTILO". Si el tagline
 // guardado en Supabase dice lo mismo, repetirlo debajo sobra; cualquier otro
@@ -47,7 +64,7 @@ export function AppBar(state) {
   return `
     <header class="gb-appbar">
       <a class="gb-appbar-brand" href="#top" aria-label="${escapeHtml(businessName(state))} — inicio">
-        <img src="${WORDMARK}" alt="${escapeHtml(businessName(state))}" width="520" height="84">
+        <img src="${escapeHtml(logoDe(state, WORDMARK))}" alt="${escapeHtml(businessName(state))}" width="520" height="84">
       </a>
       ${
         state.business?.booking_enabled
@@ -90,10 +107,10 @@ export function Hero(state) {
   return `
     <section class="gb-hero" id="top">
       <div class="gb-deck" role="img" aria-label="Fotografías de ${escapeHtml(businessName(state))}">
-        ${BARAJA.map((f, i) => `
+        ${barajaDe(state).map((f, i) => `
           <div class="gb-slot ${capas[i]}" data-slot="${i}">
             <article class="gb-card ${f.clase}">
-              <img src="${f.src}" alt="" width="720" height="960" decoding="async"${f.estable ? ' data-estable="true"' : ""}${i === 2 ? ' fetchpriority="high"' : ""}>
+              <img src="${escapeHtml(f.src)}" alt="" width="720" height="960" decoding="async"${f.estable ? ' data-estable="true"' : ""}${i === 2 ? ' fetchpriority="high"' : ""}>
               <div class="gb-card-meta">
                 <strong>${escapeHtml(f.titulo)}</strong>
                 <span>0${i + 1} / 0${BARAJA.length}</span>
@@ -266,7 +283,7 @@ export function Footer(state) {
   const name = escapeHtml(businessName(state));
   return `
     <footer class="gb-footer" data-reveal>
-      <img class="gb-footer-logo" src="${LOGO_SM}" alt="${name}" width="300" height="198" loading="lazy">
+      <img class="gb-footer-logo" src="${escapeHtml(logoDe(state, LOGO_SM))}" alt="${name}" width="300" height="198" loading="lazy">
       <p class="gb-footer-note">© ${new Date().getFullYear()} ${name}</p>
     </footer>
   `;

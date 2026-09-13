@@ -119,14 +119,24 @@ export async function listServices(onlyActive = true) {
   return unwrap(await query);
 }
 
-export async function createService({ name, priceCents, durationMinutes, sortOrder }) {
-  return unwrap(
-    await sb()
-      .from("services")
-      .insert({ name, price_cents: priceCents, duration_minutes: durationMinutes ?? null, sort_order: sortOrder ?? 0 })
-      .select()
-      .single()
-  );
+// Los campos de contenido público (descripción, icono, visibilidad, imagen)
+// son opcionales: si no se pasan, el servicio se crea igual que antes y la
+// base aplica sus valores por defecto.
+export async function createService({
+  name, priceCents, durationMinutes, sortOrder,
+  description, icon, publicVisible, imageUrl,
+}) {
+  const fila = {
+    name,
+    price_cents: priceCents,
+    duration_minutes: durationMinutes ?? null,
+    sort_order: sortOrder ?? 0,
+  };
+  if (description !== undefined) fila.description = description;
+  if (icon !== undefined) fila.icon = icon;
+  if (publicVisible !== undefined) fila.public_visible = publicVisible;
+  if (imageUrl !== undefined) fila.image_url = imageUrl;
+  return unwrap(await sb().from("services").insert(fila).select().single());
 }
 
 export async function updateService(serviceId, patch) {
