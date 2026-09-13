@@ -1,285 +1,760 @@
-/* Estilos propios de la reserva pública. Se apoya en los tokens y
-   componentes ya definidos en ../css/styles.css (--accent, .card,
-   .service-picker/.service-pick, .btn, .field, .empty-state,
-   .text-danger, etc. — ya premium desde las Etapas 3.1-3.7) — esto NO es
-   un rediseño nuevo ni un sistema paralelo, es el mismo lenguaje visual
-   aplicado a esta página pública, con algunos componentes propios
-   (progreso de pasos, selector de barbero, grid de horarios, confirmación)
-   que no existen en el panel interno. Cero cambios de flujo/lógica de
-   reserva: todo lo de aquí es presentación. */
+/* ===============================================================
+   PASO 6 — Reserva pública.
+   Misma aplicación que /cliente/: los tokens de color llegan de
+   ../cliente/css/tokens.css, así que aquí no se redefine ni un color.
+   Esta hoja solo describe el flujo de 5 pasos + confirmación.
+   Diseñado primero para 360–430 px, con el teclado abierto en mente.
+   =============================================================== */
+
+:root {
+  --rv-gutter: 16px;
+  --rv-bar: 56px;
+  --rv-r-lg: 22px;
+  --rv-r-md: 16px;
+  --rv-r-sm: 12px;
+  --rv-plate: linear-gradient(158deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0) 46%), var(--bg-card);
+  --rv-line: rgba(255, 255, 255, 0.07);
+  /* Alto que el teclado virtual le roba a la ventana. Lo mantiene al día
+     reservar.js con visualViewport; sin ese soporte se queda en 0. */
+  --rv-kb: 0px;
+}
 
 body {
-  background: radial-gradient(ellipse 900px 560px at 50% -10%, rgba(212, 162, 78, 0.09) 0%, transparent 60%),
-    radial-gradient(circle at 110% 10%, rgba(127, 164, 201, 0.05) 0%, transparent 42%),
-    radial-gradient(circle at 50% -20%, #1b1e26 0%, var(--bg) 58%);
-  min-height: 100vh;
+  background:
+    radial-gradient(ellipse 720px 620px at 50% -12%, rgba(212, 162, 78, 0.15) 0%, transparent 58%),
+    radial-gradient(circle at -10% 58%, rgba(212, 162, 78, 0.05) 0%, transparent 46%),
+    var(--bg);
+  background-attachment: fixed;
+  min-height: 100dvh;
 }
 
-.booking-page {
-  max-width: 640px;
-  margin: 0 auto;
-  padding: 28px 20px 56px;
-  padding-top: max(28px, env(safe-area-inset-top));
-  padding-bottom: max(56px, env(safe-area-inset-bottom));
-  animation: fade-up var(--dur-slow) var(--ease-premium) both;
+/* ../css/styles.css reserva en #app el hueco de la barra flotante del panel
+   (nav-height + 46px). Aquí no hay barra flotante: sin esto quedan ~110px
+   muertos bajo el muelle, y el muelle deja de tocar el filo de la pantalla. */
+#app {
+  min-height: 0;
+  padding-bottom: 0;
 }
 
-/* ---------- Encabezado / marca ---------- */
-.booking-header {
-  text-align: center;
-  margin-bottom: 24px;
-}
-.booking-header .logo-mark {
-  position: relative;
-  margin: 0 auto 16px;
-  width: 64px;
-  height: 64px;
-  border-radius: 20px;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.45) inset, 0 -3px 0 rgba(0, 0, 0, 0.16) inset,
-    0 16px 36px rgba(212, 162, 78, 0.3), 0 4px 10px rgba(0, 0, 0, 0.32);
-}
-.booking-header .logo-mark::after {
-  content: "";
-  position: absolute;
-  inset: -10px;
-  border-radius: 28px;
-  background: radial-gradient(circle, rgba(212, 162, 78, 0.2), transparent 70%);
-  z-index: -1;
-  filter: blur(3px);
-}
-.booking-header h1 {
-  font-size: 22px;
-  letter-spacing: 0.02em;
-}
-.booking-header .tagline {
-  color: var(--text-muted);
-  margin-top: 4px;
-  font-size: 14px;
-}
-.booking-promo {
-  margin-top: 14px;
-}
-
-/* ---------- Progreso de pasos ---------- */
-.booking-progress {
-  margin-bottom: 6px;
-}
-.booking-progress-track {
+.rv-boot {
   display: flex;
-  gap: 6px;
+  justify-content: center;
+  padding-top: 40vh;
 }
-.booking-progress-seg {
-  flex: 1;
-  height: 5px;
-  border-radius: 999px;
-  background: var(--bg-elevated);
-  overflow: hidden;
+
+.rv-app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  max-width: 480px;
+  margin: 0 auto;
   position: relative;
-}
-.booking-progress-seg.done::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: var(--accent-gradient);
-  animation: seg-fill var(--dur-slow) var(--ease-premium) both;
-}
-@keyframes seg-fill {
-  from { transform: scaleX(0); transform-origin: left; }
-  to { transform: scaleX(1); transform-origin: left; }
+  overflow-x: clip;
 }
 
-.booking-step-label {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--accent-strong);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin: 14px 0 12px;
-}
-
-/* ---------- Selector de servicio (reutiliza .service-picker/.service-pick
-   del sistema global, con icono real del servicio cuando existe) ---------- */
-.service-pick-icon {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
+/* ---------------------------------------------------------------
+   Barra superior + progreso
+   --------------------------------------------------------------- */
+.rv-bar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  background: var(--bg-elevated);
-  margin-bottom: 8px;
+  gap: 10px;
+  height: calc(var(--rv-bar) + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) var(--rv-gutter) 0;
+  background: linear-gradient(to bottom, rgba(5, 7, 11, 0.94) 62%, rgba(5, 7, 11, 0));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
-.service-pick-selected .service-pick-icon {
-  background: var(--accent-soft);
+.rv-back {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--glass-bg);
+  color: var(--text);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background var(--dur-fast) ease, border-color var(--dur-fast) ease;
+}
+.rv-back:hover { background: var(--bg-card-2); border-color: var(--border-strong); }
+.rv-back .gb-svg { width: 19px; height: 19px; transform: rotate(180deg); }
+.rv-brand {
+  /* El logotipo también es un enlace al inicio: necesita los 44px de alto. */
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+  margin-inline: auto;
+  line-height: 0;
+}
+.rv-brand img { width: 124px; height: auto; display: block; }
+.rv-count {
+  flex-shrink: 0;
+  min-width: 44px;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
-/* ---------- Selector de barbero ---------- */
-.barber-picker {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+.rv-rail {
+  position: sticky;
+  top: calc(var(--rv-bar) + env(safe-area-inset-top));
+  z-index: 29;
+  height: 3px;
+  margin: 0 var(--rv-gutter);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  overflow: hidden;
 }
-.barber-pick {
+.rv-rail-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent-gradient);
+  box-shadow: 0 0 14px rgba(214, 167, 58, 0.5);
+  /* scaleX desde el borde izquierdo: se compone, no recalcula el diseño */
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--dur-base, 0.28s) ease;
+}
+
+/* ---------------------------------------------------------------
+   Cuerpo del paso
+   --------------------------------------------------------------- */
+.rv-main {
+  flex: 1;
+  padding: 22px var(--rv-gutter) 18px;
+}
+.rv-kicker {
+  margin: 0 0 7px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.rv-title {
+  margin: 0;
+  font-size: clamp(25px, 7vw, 30px);
+  line-height: 1.14;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+.rv-sub {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+.rv-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* --- Opción seleccionable (servicio / barbero) --- */
+.rv-opt {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  width: 100%;
+  min-height: 76px;
+  padding: 13px 14px;
+  text-align: left;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--rv-r-lg);
+  background: var(--rv-plate);
+  color: var(--text);
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color var(--dur-fast) ease, background var(--dur-fast) ease;
+}
+.rv-opt:hover { border-color: var(--border-strong); }
+.rv-opt.is-on {
+  border-color: var(--accent);
+  background: linear-gradient(158deg, rgba(214, 167, 58, 0.16), rgba(214, 167, 58, 0.03) 58%), var(--bg-card);
+}
+/* Placa neutra por defecto, igual que en /cliente/. El dorado de la placa
+   pasa a significar algo: esta es la opción elegida. */
+.rv-opt-mark {
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  flex-shrink: 0;
+  border-radius: var(--rv-r-sm);
+  border: 1px solid var(--rv-line);
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015));
+  color: var(--text-muted);
+  overflow: hidden;
+  transition: color var(--dur-base) ease, border-color var(--dur-base) ease, background var(--dur-base) ease;
+}
+.rv-opt.is-on .rv-opt-mark {
+  border-color: rgba(214, 167, 58, 0.3);
+  background: linear-gradient(150deg, rgba(214, 167, 58, 0.2), rgba(214, 167, 58, 0.04));
+  color: var(--accent);
+}
+.rv-opt-mark .gb-svg { width: 24px; height: 24px; }
+.rv-opt-mark img { width: 100%; height: 100%; object-fit: cover; }
+/* Sin fotografía real no se inventa una persona: van las iniciales sobre
+   la misma placa neutra del resto de la aplicación. */
+.rv-opt-ini {
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  color: inherit;
+}
+.rv-opt.is-on .rv-opt-ini { color: var(--accent-strong); }
+.rv-opt-body { flex: 1; min-width: 0; }
+.rv-opt-name {
+  display: block;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+.rv-opt-desc {
+  display: block;
+  margin-top: 3px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+.rv-opt-side {
+  flex-shrink: 0;
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.rv-opt-price {
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.rv-opt-time {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.rv-opt-check {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-strong);
+  color: var(--accent-contrast);
+  opacity: 0;
+  transform: scale(0.7);
+  transition: opacity var(--dur-fast) ease, transform var(--dur-fast) var(--ease-press, ease);
+}
+.rv-opt-check .gb-svg { width: 14px; height: 14px; stroke-width: 3; }
+.rv-opt.is-on .rv-opt-check {
+  opacity: 1;
+  transform: scale(1);
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+/* ---------------------------------------------------------------
+   Paso 3 — Fecha
+   --------------------------------------------------------------- */
+.rv-month {
+  margin: 22px 0 10px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.rv-days {
+  display: flex;
+  gap: 9px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding: 3px var(--rv-gutter) 12px;
+  margin: 0 calc(var(--rv-gutter) * -1);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.rv-days::-webkit-scrollbar { display: none; }
+.rv-day {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 20px 12px;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border);
-  background: linear-gradient(160deg, var(--bg-card-2), var(--bg-elevated));
-  cursor: pointer;
-  text-align: center;
-  box-shadow: var(--inset-hairline), var(--shadow-xs);
-  transition: border-color var(--dur-base) ease, background var(--dur-base) var(--ease-premium),
-    transform var(--dur-fast) var(--ease-press), box-shadow var(--dur-base) ease;
-}
-.barber-pick:hover {
-  border-color: var(--border-strong);
-  transform: translateY(-2px);
-  box-shadow: var(--inset-hairline), var(--shadow-sm);
-}
-.barber-pick:active {
-  transform: scale(0.97);
-}
-.barber-pick.selected {
-  border-color: var(--accent);
-  background: linear-gradient(160deg, var(--accent-soft), var(--bg-elevated) 75%);
-  box-shadow: var(--inset-hairline), var(--shadow-glow);
-}
-.barber-pick-avatar {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  background: var(--accent-gradient);
-  color: var(--accent-contrast);
-  display: flex;
-  align-items: center;
   justify-content: center;
+  gap: 3px;
+  flex: 0 0 auto;
+  width: 58px;
+  min-height: 78px;
+  scroll-snap-align: center;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--rv-r-md);
+  background: var(--rv-plate);
+  color: var(--text);
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color var(--dur-fast) ease, background var(--dur-fast) ease;
+}
+.rv-day-dow {
+  font-size: 11px;
   font-weight: 800;
-  font-size: 21px;
-  overflow: hidden;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) inset, 0 8px 18px rgba(212, 162, 78, 0.25);
-}
-.barber-pick-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.barber-pick-name {
-  font-weight: 700;
-}
-.barber-pick-bio {
-  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--text-muted);
 }
-
-/* ---------- Grid de horarios ---------- */
-.slot-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-}
-.slot-btn {
-  padding: 14px 6px;
-  min-height: 48px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border);
-  background: linear-gradient(160deg, var(--bg-card-2), var(--bg-elevated));
-  color: var(--text);
-  font-weight: 700;
-  font-size: 14px;
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
-  box-shadow: var(--inset-hairline), var(--shadow-xs);
-  transition: border-color var(--dur-base) ease, background var(--dur-base) var(--ease-premium),
-    transform var(--dur-fast) var(--ease-press), box-shadow var(--dur-base) ease;
-}
-.slot-btn:hover {
-  border-color: var(--border-strong);
-  transform: translateY(-1px);
-}
-.slot-btn:active {
-  transform: scale(0.95);
-}
-.slot-btn.selected {
-  background: var(--accent-gradient);
-  border-color: transparent;
-  color: var(--accent-contrast);
-  box-shadow: var(--shadow-glow);
-}
-
-/* ---------- Resumen (paso de datos) ---------- */
-.booking-summary-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--border-soft);
-}
-.booking-summary-row:last-child {
-  border-bottom: none;
-}
-.booking-summary-row strong {
+.rv-day-num {
+  font-size: 21px;
+  font-weight: 900;
+  line-height: 1;
   font-variant-numeric: tabular-nums;
 }
-
-/* ---------- Confirmación ---------- */
-.confirmation-box {
-  text-align: center;
-  padding: 40px 20px;
-  animation: card-enter var(--dur-slow) var(--ease-premium) both;
-}
-.confirmation-icon {
-  width: 68px;
-  height: 68px;
-  margin: 0 auto 6px;
-  border-radius: 50%;
-  background: var(--success-bg);
-  color: var(--success);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 32px;
-  box-shadow: 0 0 0 1px rgba(53, 199, 128, 0.25), 0 10px 26px rgba(53, 199, 128, 0.2);
-}
-.confirmation-code {
-  font-size: 28px;
+.rv-day-tag {
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.rv-day.is-on {
+  border-color: var(--accent);
+  background: linear-gradient(160deg, rgba(214, 167, 58, 0.2), rgba(214, 167, 58, 0.04) 62%), var(--bg-card);
+}
+.rv-day.is-on .rv-day-dow { color: var(--accent-strong); }
+
+.rv-exact {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--rv-r-md);
+  background: var(--glass-bg);
+}
+.rv-exact label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+.rv-exact input {
+  flex: 1;
+  min-width: 150px;
+  min-height: 46px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--rv-r-sm);
+  background: var(--bg-card-2);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 15px;
+  /* el calendario nativo del navegador también en oscuro */
+  color-scheme: dark;
+}
+
+/* ---------------------------------------------------------------
+   Paso 4 — Horarios
+   --------------------------------------------------------------- */
+.rv-group { margin-top: 22px; }
+.rv-group-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 11px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.rv-group-head .gb-svg { width: 14px; height: 14px; color: var(--accent); }
+.rv-group-head::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--rv-line);
+}
+.rv-times {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: 9px;
+}
+.rv-time {
+  min-height: 50px;
+  padding: 0 6px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--rv-r-sm);
+  background: var(--rv-plate);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: border-color var(--dur-fast) ease, background var(--dur-fast) ease, color var(--dur-fast) ease;
+}
+.rv-time:hover { border-color: var(--border-strong); }
+.rv-time.is-on {
+  border-color: transparent;
+  background: var(--accent-gradient);
+  color: var(--accent-contrast);
+  box-shadow: 0 8px 22px rgba(214, 167, 58, 0.26);
+}
+
+.rv-skel {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: 9px;
+  margin-top: 22px;
+}
+.rv-skel span {
+  height: 50px;
+  border-radius: var(--rv-r-sm);
+  background: linear-gradient(100deg, var(--bg-card) 30%, var(--bg-card-2) 50%, var(--bg-card) 70%);
+  background-size: 220% 100%;
+  animation: rv-shimmer 1.3s linear infinite;
+}
+@keyframes rv-shimmer {
+  from { background-position: 140% 0; }
+  to   { background-position: -40% 0; }
+}
+
+/* ---------------------------------------------------------------
+   Paso 5 — Resumen + datos
+   --------------------------------------------------------------- */
+.rv-card {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--rv-r-lg);
+  background: var(--rv-plate);
+}
+.rv-sum-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--rv-line);
+  font-size: 14px;
+}
+.rv-sum-row:first-child { padding-top: 0; }
+.rv-sum-row:last-child { border-bottom: 0; padding-bottom: 0; }
+.rv-sum-k {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.rv-sum-k .gb-svg { width: 15px; height: 15px; color: var(--accent); }
+.rv-sum-v {
+  font-weight: 800;
+  text-align: right;
+  min-width: 0;
+}
+.rv-sum-row.is-total .rv-sum-v { color: var(--accent); font-size: 17px; font-weight: 900; }
+
+.rv-field { margin-top: 15px; }
+.rv-field:first-child { margin-top: 0; }
+.rv-field label {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.rv-field input,
+.rv-field textarea {
+  display: block;
+  width: 100%;
+  min-height: 52px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--rv-r-md);
+  background: var(--bg-card-2);
+  color: var(--text);
+  font-family: inherit;
+  /* 16px evita que iOS haga zoom al enfocar el campo */
+  font-size: 16px;
+  transition: border-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
+}
+.rv-field textarea { min-height: 84px; resize: vertical; line-height: 1.45; }
+.rv-field input::placeholder,
+.rv-field textarea::placeholder { color: var(--text-faint); }
+.rv-field input:focus,
+.rv-field textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(214, 167, 58, 0.16);
+}
+.rv-field.is-bad input { border-color: #e0645a; }
+.rv-field-err {
+  display: block;
+  margin-top: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #f0928a;
+}
+
+.rv-note {
+  display: flex;
+  gap: 11px;
+  margin-top: 16px;
+  padding: 13px 14px;
+  border: 1px solid rgba(214, 167, 58, 0.2);
+  border-radius: var(--rv-r-md);
+  background: var(--accent-soft-2);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+.rv-note .gb-svg { width: 17px; height: 17px; color: var(--accent); margin-top: 1px; }
+.rv-note strong { color: var(--text); font-weight: 800; }
+
+.rv-alert {
+  display: flex;
+  gap: 11px;
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid rgba(224, 100, 90, 0.38);
+  border-radius: var(--rv-r-md);
+  background: rgba(224, 100, 90, 0.09);
+  font-size: 14px;
+  line-height: 1.5;
+  color: #f4b5ae;
+}
+.rv-alert .gb-svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; }
+
+/* ---------------------------------------------------------------
+   Estados vacíos / error de pantalla completa
+   --------------------------------------------------------------- */
+.rv-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  margin-top: 26px;
+  padding: 34px 22px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--rv-r-lg);
+  background: var(--rv-plate);
+}
+.rv-state-ico {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 19px;
+  border: 1px solid rgba(214, 167, 58, 0.22);
+  background: linear-gradient(150deg, rgba(214, 167, 58, 0.18), rgba(214, 167, 58, 0.03));
+  color: var(--accent);
+}
+.rv-state-ico .gb-svg { width: 26px; height: 26px; }
+.rv-state h2 { margin: 0; font-size: 19px; font-weight: 900; letter-spacing: -0.01em; }
+.rv-state p { margin: 0; font-size: 14px; line-height: 1.55; color: var(--text-muted); max-width: 34ch; }
+
+/* ---------------------------------------------------------------
+   Muelle inferior: resumen vivo + acción principal
+   --------------------------------------------------------------- */
+.rv-dock {
+  position: sticky;
+  /* --rv-kb sube el muelle exactamente lo que ocupa el teclado virtual */
+  bottom: var(--rv-kb);
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px var(--rv-gutter) calc(12px + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--bg) 58%, rgba(5, 7, 11, 0.86) 82%, rgba(5, 7, 11, 0));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.rv-dock-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.rv-dock-k {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.rv-dock-v {
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--text);
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rv-dock > .gb-cta { flex-shrink: 0; }
+/* Sin resumen a la izquierda el botón ocupa todo el ancho del muelle. */
+.rv-dock.is-solo > .gb-cta { flex: 1; justify-content: space-between; }
+/* Inactivo: deja de ser oro. Si pareciera pulsable, el cliente lo pulsaría. */
+.gb-cta[disabled] {
+  background: var(--bg-card-2);
+  color: var(--text-faint);
+  box-shadow: inset 0 0 0 1px var(--border);
+  cursor: not-allowed;
+}
+.gb-cta[disabled]::after { display: none; }
+.gb-cta[disabled] .gb-cta-ico {
+  background: transparent;
+  color: var(--text-faint);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.gb-cta[aria-busy="true"] { pointer-events: none; }
+
+/* ---------------------------------------------------------------
+   Confirmación
+   --------------------------------------------------------------- */
+.rv-done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding-top: 12px;
+}
+.rv-seal {
+  display: grid;
+  place-items: center;
+  width: 86px;
+  height: 86px;
+  border-radius: 30px;
+  background: var(--accent-gradient);
+  color: var(--accent-contrast);
+  box-shadow: 0 18px 44px rgba(214, 167, 58, 0.3);
+}
+.rv-seal .gb-svg { width: 42px; height: 42px; stroke-width: 3; }
+.rv-done-title {
+  margin: 20px 0 0;
+  font-size: clamp(25px, 7vw, 30px);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+.rv-done-sub {
+  margin: 9px 0 0;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--text-muted);
+  max-width: 32ch;
+}
+.rv-code {
+  margin-top: 20px;
+  padding: 15px 26px;
+  border: 1px dashed rgba(214, 167, 58, 0.45);
+  border-radius: var(--rv-r-md);
+  background: var(--accent-soft-2);
+}
+.rv-code-k {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.rv-code-v {
+  display: block;
+  margin-top: 5px;
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
   color: var(--accent-strong);
-  text-shadow: 0 0 26px rgba(212, 162, 78, 0.25);
-  margin: 12px 0;
   font-variant-numeric: tabular-nums;
 }
-
-@media (min-width: 640px) {
-  .barber-picker {
-    grid-template-columns: repeat(3, 1fr);
-  }
-  .slot-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
+.rv-done .rv-card { width: 100%; text-align: left; }
+.rv-done-acts {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  margin-top: 20px;
 }
-
-@media (min-width: 900px) {
-  .booking-page {
-    max-width: 680px;
-    padding-top: 52px;
-  }
-  .booking-header .logo-mark {
-    width: 72px;
-    height: 72px;
-  }
-  .booking-header h1 {
-    font-size: 25px;
-  }
-}
-
-/* Enlace de regreso a la página pública del cliente (paso 1). Solo
-   presentación: no altera el flujo de reserva. */
-.booking-page > a.btn-ghost {
+.rv-ghost {
   display: inline-flex;
-  margin-bottom: 10px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 50px;
+  border: 1px solid var(--border);
+  border-radius: var(--rv-r-md);
+  background: var(--glass-bg);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14.5px;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color var(--dur-fast) ease, background var(--dur-fast) ease;
+}
+.rv-ghost:hover { border-color: var(--border-strong); background: var(--bg-card-2); }
+
+/* ===============================================================
+   Foco visible
+   =============================================================== */
+.rv-back:focus-visible,
+.rv-brand:focus-visible,
+.rv-opt:focus-visible,
+.rv-day:focus-visible,
+.rv-time:focus-visible,
+.rv-ghost:focus-visible,
+.rv-dock .gb-cta:focus-visible,
+.rv-state .gb-cta:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 3px;
+}
+
+/* ===============================================================
+   Pantallas grandes: sigue siendo una aplicación, solo más holgada
+   =============================================================== */
+@media (min-width: 600px) {
+  :root { --rv-gutter: 24px; }
+  .rv-app { max-width: 560px; }
+  .rv-main { padding-top: 28px; }
+}
+@media (min-width: 1024px) {
+  .rv-app {
+    max-width: 620px;
+    min-height: 100dvh;
+  }
+  .rv-main { padding-top: 34px; }
+  .rv-times { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+}
+
+/* ===============================================================
+   Movimiento reducido
+   =============================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .rv-skel span { animation: none; }
+  .rv-rail-fill { transition: none; }
+  .rv-opt,
+  .rv-day,
+  .rv-time,
+  .rv-back,
+  .rv-ghost,
+  .rv-opt-check { transition: none; }
 }
