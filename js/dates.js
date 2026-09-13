@@ -11,6 +11,30 @@ export function startOfWeek(base = new Date()) {
   return d;
 }
 
+// La semana que la AGENDA debe mostrar. De lunes a sábado se comporta igual
+// que startOfWeek; el domingo —día en que el negocio no abre— abre la semana
+// SIGUIENTE en vez de cerrar la que ya terminó, que es lo que un barbero
+// necesita ver ese día.
+//
+// startOfWeek() se deja intacta A PROPÓSITO: de ella cuelgan el resumen
+// semanal del barbero, las cifras del panel de administrador y el agrupado de
+// liquidaciones (weekKeyForRecord / week_start_date). Cambiarla movería esas
+// cifras en domingo — justo lo contrario de lo que se quiere.
+export function startOfAgendaWeek(base = new Date()) {
+  const d = new Date(base.getFullYear(), base.getMonth(), base.getDate());
+  const day = d.getDay();
+  const diff = day === 0 ? 1 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return d;
+}
+
+// Desplaza una fecha ISO un número de días, en horario local (sin UTC).
+export function shiftISODate(iso, days) {
+  const d = parseISODate(iso);
+  d.setDate(d.getDate() + days);
+  return toISODate(d);
+}
+
 export function endOfWeek(base = new Date()) {
   const d = startOfWeek(base);
   d.setDate(d.getDate() + 5);

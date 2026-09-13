@@ -5,11 +5,15 @@
 import * as agenda from "./agenda-data.js";
 import * as data from "./data.js";
 import { toast, friendlyError, showLoading, confirmDialog, openModal, escapeHtml } from "./ui.js";
-import { toISODate, todayISO, parseISODate, startOfWeek } from "./dates.js";
-import { WEEKDAY_NAMES, renderAppointmentCard, wireAppointmentActions, dayStripHTML, formatRangeLocal } from "./agenda-ui.js";
+import { toISODate, todayISO, parseISODate } from "./dates.js";
+import { WEEKDAY_NAMES, renderAppointmentCard, wireAppointmentActions, dayStripHTML, formatRangeLocal,
+  weekNavHTML, wireWeekNav, diasDeSemana, diaInicialDeSemana, semanaDeHoyISO,
+} from "./agenda-ui.js";
 
 export async function renderAdminAgenda(container) {
-  const state = { tab: "citas", date: todayISO(), barberId: "", hBarberId: "", barbers: [] };
+  // weekStart manda sobre la semana mostrada; date, sobre el día consultado.
+  const state = { tab: "citas", weekStart: semanaDeHoyISO(), date: null, barberId: "", hBarberId: "", barbers: [] };
+  state.date = diaInicialDeSemana(state.weekStart, todayISO());
 
   async function draw() {
     container.innerHTML = `
@@ -46,12 +50,7 @@ export async function renderAdminAgenda(container) {
 
   // ---------- Citas ----------
   async function drawCitas(body) {
-    const weekStart = startOfWeek(parseISODate(state.date));
-    const days = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(weekStart);
-      d.setDate(d.getDate() + i);
-      return toISODate(d);
-    });
+    const days = diasDeSemana(state.weekStart);
 
     body.innerHTML = `
       <div class="card agenda-filter-card">
@@ -62,6 +61,7 @@ export async function renderAdminAgenda(container) {
             ${state.barbers.map((b) => `<option value="${b.id}" ${b.id === state.barberId ? "selected" : ""}>${escapeHtml(b.name)}</option>`).join("")}
           </select>
         </div>
+        ${weekNavHTML(state.weekStart)}
         <div class="day-strip" id="ag-day-strip">${dayStripHTML(days, state.date)}</div>
       </div>
       <div id="ag-c-list" class="mt-16 agenda-appt-list"><div class="text-center" style="padding:20px"><div class="spinner" style="margin:auto"></div></div></div>
@@ -78,6 +78,7 @@ export async function renderAdminAgenda(container) {
         drawCitas(body);
       })
     );
+    wireWeekNav(body, state, () => drawCitas(body));
 
     const list = body.querySelector("#ag-c-list");
     try {

@@ -6,24 +6,27 @@
 
 import * as agenda from "./agenda-data.js";
 import { friendlyError, escapeHtml } from "./ui.js";
-import { toISODate, todayISO, parseISODate, startOfWeek } from "./dates.js";
-import { renderAppointmentCard, wireAppointmentActions, dayStripHTML } from "./agenda-ui.js";
+import { toISODate, todayISO } from "./dates.js";
+import {
+  renderAppointmentCard, wireAppointmentActions, dayStripHTML,
+  weekNavHTML, wireWeekNav, diasDeSemana, diaInicialDeSemana, semanaDeHoyISO,
+} from "./agenda-ui.js";
 
 export async function renderBarberAgenda(container, ctx) {
-  const state = { date: todayISO() };
+  // weekStart manda sobre la semana mostrada; date, sobre el día consultado.
+  // Antes la semana se derivaba del día, y como todos los chips caían dentro
+  // de esa misma semana no había forma de salir de ella.
+  const state = { weekStart: semanaDeHoyISO(), date: null };
+  state.date = diaInicialDeSemana(state.weekStart, todayISO());
 
   async function draw() {
-    const weekStart = startOfWeek(parseISODate(state.date));
-    const days = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(weekStart);
-      d.setDate(d.getDate() + i);
-      return toISODate(d);
-    });
+    const days = diasDeSemana(state.weekStart);
 
     container.innerHTML = `
       <div class="agenda-view">
         <h2 class="view-title">Agenda</h2>
         <div class="card agenda-filter-card">
+          ${weekNavHTML(state.weekStart)}
           <div class="day-strip" id="ag-day-strip">${dayStripHTML(days, state.date)}</div>
         </div>
         <div id="ag-c-list" class="mt-16 agenda-appt-list"><div class="text-center" style="padding:20px"><div class="spinner" style="margin:auto"></div></div></div>
@@ -36,6 +39,7 @@ export async function renderBarberAgenda(container, ctx) {
         draw();
       })
     );
+    wireWeekNav(container, state, draw);
 
     const list = container.querySelector("#ag-c-list");
     const strip = container.querySelector("#ag-day-strip");

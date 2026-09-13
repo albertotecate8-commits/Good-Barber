@@ -7,6 +7,7 @@
 import * as agenda from "./agenda-data.js";
 import { toast, friendlyError, showLoading, confirmDialog, escapeHtml } from "./ui.js";
 import { formatCents } from "./money.js";
+import { toISODate, todayISO, parseISODate, startOfAgendaWeek, shiftISODate } from "./dates.js";
 
 export const WEEKDAY_NAMES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
@@ -165,4 +166,93 @@ export function dayStripHTML(days, activeDateISO) {
   `
     )
     .join("");
+}
+
+/* ===============================================================
+   Navegación de semanas — compartida por las dos agendas.
+   Solo cambia QUÉ semana se pinta: no toca la consulta de citas, ni el
+   filtro por barber_id, ni la zona horaria.
+   =============================================================== */
+
+// Tope de recorrido: un año hacia cada lado. Evita que la navegación se
+// vuelva infinita y que alguien acabe en el año 3000 a base de pulsar.
+const LIMITE_SEMANAS = 52;
+
+// Los 7 días (lunes a domingo) de la semana que empieza en weekStartISO.
+export function diasDeSemana(weekStartISO) {
+  const start = parseISODate(weekStartISO);
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(start);
+    d.setDate(d.getDate() + i);
+    return toISODate(d);
+  });
+}
+
+// Día que debe quedar seleccionado al mostrar una semana: hoy si cae dentro
+// de ella, y si no el lunes. Así al abrir en domingo se entra directo al
+// lunes siguiente, que es el primer día con trabajo.
+export function diaInicialDeSemana(weekStartISO, preferidoISO = todayISO()) {
+  const dias = diasDeSemana(weekStartISO);
+  return dias.includes(preferidoISO) ? preferidoISO : dias[0];
+}
+
+export function semanaDeHoyISO() {
+  return toISODate(startOfAgendaWeek(new Date()));
+}
+
+function semanasDesdeHoy(weekStartISO) {
+  const a = parseISODate(semanaDeHoyISO());
+  const b = parseISODate(weekStartISO);
+  return Math.round((b - a) / (7 * 24 * 60 * 60 * 1000));
+}
+
+// "7 – 13 de septiembre de 2026" · "28 de septiembre – 4 de octubre de 2026"
+function rangoTexto(weekStartISO) {
+  const dias = diasDeSemana(weekStartISO);
+  const ini = parseISODate(dias[0]);
+  const fin = parseISODate(dias[6]);
+  const mismoMes = ini.getMonth() === fin.getMonth() && ini.getFullYear() === fin.getFullYear();
+  const mesFin = fin.toLocaleDateString("es-MX", { month: "long", year: "numeric" });
+  return mismoMes
+    ? `${ini.getDate()} – ${fin.getDate()} de ${mesFin}`
+    : `${ini.getDate()} de ${ini.toLocaleDateString("es-MX", { month: "long" })} – ${fin.getDate()} de ${mesFin}`;
+}
+
+export function weekNavHTML(weekStartISO) {
+  const off = semanasDesdeHoy(weekStartISO);
+  const finPrev = off <= -LIMITE_SEMANAS;
+  const finNext = off >= LIMITE_SEMANAS;
+  const esActual = off === 0;
+  return `
+    <div class="week-nav">
+      <button type="button" class="week-nav-btn" data-week="prev"
+              aria-label="Ver la semana anterior" ${finPrev ? "disabled" : ""}>
+        <span aria-hidden="true">←</span>
+      </button>
+      <button type="button" class="week-nav-btn week-nav-now" data-week="now"
+              aria-label="Volver a la semana actual" ${esActual ? "disabled" : ""}>
+        Semana actual
+      </button>
+      <button type="button" class="week-nav-btn" data-week="next"
+              aria-label="Ver la semana siguiente" ${finNext ? "disabled" : ""}>
+        <span aria-hidden="true">→</span>
+      </button>
+    </div>
+    <p class="week-nav-range" role="status">${rangoTexto(weekStartISO)}${esActual ? " · esta semana" : ""}</p>
+  `;
+}
+
+// Conecta los tres botones. `state` necesita weekStart y date; onChange
+// vuelve a pintar la vista con el estado ya actualizado.
+export function wireWeekNav(root, state, onChange) {
+  root.querySelectorAll("[data-week]").forEach((btn) =>
+    btn.addEventListener("click", () => {
+      if (btn.disabled) return;
+      const accion = btn.dataset.week;
+      if (accion === "now") state.weekStart = semanaDeHoyISO();
+      else state.weekStart = shiftISODate(state.weekStart, accion === "prev" ? -7 : 7);
+      state.date = diaInicialDeSemana(state.weekStart);
+      onChange();
+    })
+  );
 }
