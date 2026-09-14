@@ -1014,6 +1014,53 @@ export async function renderAdminHistory(container) {
 // funciona completamente sobre Supabase. Las funciones de migración
 // (js/migration.js) NO se borraron — siguen ahí intactas por si algún día
 // hicieran falta — solo se dejó de importarlas y mostrarlas aquí.
+// Tira de pestañas desplazable. Hace tres cosas y ninguna más: trae la
+// pestaña activa a la vista, marca de qué lado queda contenido para que las
+// máscaras del CSS aparezcan solo donde tocan, y se mantiene al día si la
+// ventana cambia de tamaño. No altera qué pestañas hay ni qué hacen.
+function wireTabStrip(tira) {
+  if (!tira) return () => {};
+
+  const marcarBordes = () => {
+    const desborda = tira.scrollWidth > tira.clientWidth + 1;
+    // 2px de tolerancia: los navegadores redondean scrollLeft en pantallas
+    // con densidad fraccionaria y si no, el difuminado parpadea en los topes.
+    tira.classList.toggle("has-inicio", desborda && tira.scrollLeft > 2);
+    tira.classList.toggle("has-fin", desborda && tira.scrollLeft + tira.clientWidth < tira.scrollWidth - 2);
+  };
+
+  // scrollLeft directo, no scrollIntoView: este último también desplaza la
+  // página en vertical y daría un salto al abrir Configuración.
+  const traerActiva = (suave) => {
+    const activa = tira.querySelector(".cms-tab.active");
+    if (!activa) return;
+    const t = tira.getBoundingClientRect();
+    const a = activa.getBoundingClientRect();
+    const aire = 14;
+    let destino = null;
+    if (a.left < t.left + aire) destino = tira.scrollLeft + (a.left - t.left) - aire;
+    else if (a.right > t.right - aire) destino = tira.scrollLeft + (a.right - t.right) + aire;
+    if (destino === null) return;
+    const max = tira.scrollWidth - tira.clientWidth;
+    tira.scrollTo({ left: Math.max(0, Math.min(destino, max)), behavior: suave ? "smooth" : "auto" });
+  };
+
+  tira.addEventListener("scroll", marcarBordes, { passive: true });
+  const alRedimensionar = () => { marcarBordes(); traerActiva(false); };
+  window.addEventListener("resize", alRedimensionar);
+
+  // Primer pintado: sin animación, ya colocada.
+  traerActiva(false);
+  marcarBordes();
+  // Y otra pasada cuando el navegador ya midió de verdad (fuentes, etc.).
+  requestAnimationFrame(() => { traerActiva(false); marcarBordes(); });
+
+  return () => {
+    tira.removeEventListener("scroll", marcarBordes);
+    window.removeEventListener("resize", alRedimensionar);
+  };
+}
+
 export async function renderAdminSettings(container) {
   const PESTANAS = [
     { id: "negocio", label: "Negocio" },
@@ -1023,6 +1070,7 @@ export async function renderAdminSettings(container) {
     { id: "operacion", label: "Operación" },
   ];
   let activa = "negocio";
+  let soltarTira = null;
 
   async function draw() {
     container.innerHTML = `<h2 class="view-title">Configuración</h2><div class="text-center mt-16"><div class="spinner" style="margin:auto"></div></div>`;
@@ -1048,6 +1096,8 @@ export async function renderAdminSettings(container) {
     container.querySelectorAll("[data-cms-tab]").forEach((btn) =>
       btn.addEventListener("click", () => { activa = btn.dataset.cmsTab; draw(); })
     );
+    if (soltarTira) soltarTira();
+    soltarTira = wireTabStrip(container.querySelector(".cms-tabs"));
 
     const panel = container.querySelector("#cms-panel");
     if (activa === "negocio") panelNegocio(panel, settings, draw);
