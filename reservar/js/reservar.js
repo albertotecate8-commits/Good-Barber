@@ -104,7 +104,8 @@ async function boot() {
     const [{ data: business, error: e1 }, { data: services, error: e2 }, { data: barbers, error: e3 }] = await Promise.all([
       sb().from("public_business").select("*").single(),
       sb().from("public_services").select("*").order("sort_order"),
-      sb().from("public_barbers").select("*").order("name"),
+      // Mismo orden que /cliente/: manda sort_order del panel, desempata el nombre.
+      sb().from("public_barbers").select("*").order("sort_order").order("name"),
     ]);
     if (e1) throw e1;
     if (e2) throw e2;

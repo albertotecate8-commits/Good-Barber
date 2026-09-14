@@ -618,10 +618,20 @@ body.gb-locked {
   white-space: nowrap;
 }
 
-/* Cuando public_services llegue a exponer fotografía, la pieza la muestra
-   arriba sin tocar nada más. Hoy este bloque no llega a dibujarse. */
+/* La fotografía que el administrador sube al servicio se muestra aquí
+   arriba, sin tocar nada más de la tarjeta. */
 .gb-svc-shot { grid-column: 1 / -1; display: block; margin: -15px -16px 4px; }
 .gb-svc-shot .gb-media { aspect-ratio: 16 / 9; }
+
+/* La foto del servicio es material de cartel (vertical, 2:3) y debe verse
+   ENTERA: dentro del marco de siempre se encaja sin recortar ni deformar, y
+   el sobrante lateral se resuelve en negro para que se funda con la tarjeta.
+   Solo afecta a la foto del servicio: barberos, galería y portada conservan
+   su encuadre de siempre. */
+.gb-svc-shot .gb-media,
+.gb-sheet-shot .gb-media { background: #000; }
+.gb-svc-shot .gb-media img,
+.gb-sheet-shot .gb-media img { object-fit: contain; }
 
 /* ===============================================================
    Galería

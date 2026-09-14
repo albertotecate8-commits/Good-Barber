@@ -13,10 +13,11 @@ export function hasText(value) {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-// Los servicios todavía no tienen columna de fotografía en public_services.
-// La interfaz ya está preparada: en cuanto exista (image_url, photo_url o
-// cover_url expuesta en la vista), la tarjeta la muestra sola, sin tocar el
-// diseño. Mientras tanto devuelve null y la tarjeta usa su respaldo visual.
+// La fotografía del servicio la administra el panel (services.image_url, ya
+// expuesta por public_services). Se siguen aceptando photo_url y cover_url
+// por si la vista cambiara de nombre de columna. Si no hay ninguna —porque
+// el administrador aún no ha subido foto o la quitó— devuelve null y la
+// tarjeta usa su respaldo visual de siempre.
 export function serviceImage(service) {
   for (const key of ["image_url", "photo_url", "cover_url"]) {
     if (hasText(service?.[key])) return service[key].trim();
@@ -49,7 +50,10 @@ export async function loadPublicData() {
   const [business, services, barbers] = await Promise.all([
     sb().from("public_business").select("*").single(),
     sb().from("public_services").select("*").order("sort_order"),
-    sb().from("public_barbers").select("*").order("name"),
+    // El orden del equipo lo decide el panel (barbers.sort_order). El nombre
+    // queda como desempate, que es exactamente el orden de antes mientras
+    // todos compartan el mismo sort_order.
+    sb().from("public_barbers").select("*").order("sort_order").order("name"),
   ]);
   if (business.error) throw business.error;
   if (services.error) throw services.error;
