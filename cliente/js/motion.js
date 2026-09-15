@@ -13,17 +13,38 @@ const UMBRAL_SWIPE = 45;
 
 // Las tres posiciones de profundidad, en el mismo orden que el CSS.
 // slot 0 = frontal, 1 = media, 2 = fondo.
+//
+// Son EXACTAMENTE las del prototipo aprobado y no se tocan. La baraja puede
+// tener ahora cualquier número de tarjetas, pero en pantalla solo hay estas
+// tres posiciones: las que sobran esperan detrás de la del fondo, invisibles,
+// y van entrando al girar. En cualquier instante la portada se ve igual.
 const POSICIONES = [
   { x: 0,    y: 0,   z: 0,    rz: 0,  ry: 0,  s: 1,    o: 1,    blur: 0, zi: 3 },
   { x: null, y: 16,  z: -55,  rz: 7,  ry: 6,  s: 0.92, o: 0.5,  blur: 0, zi: 2 },
   { x: null, y: -24, z: -120, rz: -8, ry: -7, s: 0.86, o: 0.28, blur: 1, zi: 1 },
 ];
 
+// La posición de espera: la misma del fondo, pero sin opacidad. Así una
+// tarjeta que entra no aparece de golpe, sino que se revela al llegar al
+// fondo, y no se añade ninguna profundidad nueva al diseño.
+const ESPERA = { ...POSICIONES[POSICIONES.length - 1], o: 0, zi: 0 };
+
+function posicionBase(ranura) {
+  return ranura < POSICIONES.length ? POSICIONES[ranura] : ESPERA;
+}
+
 // Los desplazamientos laterales son los mismos clamp() del CSS, resueltos en
 // JavaScript para que GSAP pueda interpolarlos y sigan adaptándose al ancho.
+// Más allá de la tercera ranura se repite el del fondo: la tarjeta está
+// invisible ahí, así que no introduce ninguna posición nueva.
 function desplazamientos() {
   const vw = document.documentElement.clientWidth;
   return [0, Math.min(Math.max(52, vw * 0.15), 74), Math.max(Math.min(-54, -vw * 0.155), -76)];
+}
+
+function desplazamientoDe(ranura) {
+  const d = desplazamientos();
+  return ranura < d.length ? d[ranura] : d[d.length - 1];
 }
 
 export function initDeck(deck) {
@@ -38,7 +59,9 @@ export function initDeck(deck) {
   const cards = slots.map((s) => s.querySelector(".gb-card"));
   const imgs = slots.map((s) => s.querySelector("img"));
 
-  let frontal = 2;              // la tercera tarjeta nace al frente
+  // La ÚLTIMA tarjeta nace al frente, igual que siempre. Con tres tarjetas
+  // esto vale 2, exactamente como antes; con una o dos no se sale de rango.
+  let frontal = slots.length - 1;
   let temporizador = null;
   let kenBurns = null;
   let derivas = [];
@@ -50,8 +73,8 @@ export function initDeck(deck) {
   /* ---------- Colocación ---------- */
   function posicionDe(i) {
     const ranura = (i - frontal + slots.length) % slots.length;
-    const base = POSICIONES[ranura];
-    return { ...base, x: base.x === null ? desplazamientos()[ranura] : base.x, ranura };
+    const base = posicionBase(ranura);
+    return { ...base, x: base.x === null ? desplazamientoDe(ranura) : base.x, ranura };
   }
 
   function colocar(dur) {
@@ -199,11 +222,23 @@ export function initDeck(deck) {
 
     if (!suave()) { iniciarDerivas(); return; }
 
-    const orden = [frontal, (frontal + 1) % 3, (frontal + 2) % 3];
-    gsap.timeline({ defaults: { ease: "power3.out" }, onComplete: iniciarDerivas })
-      .from(slots[orden[0]], { y: 70, z: -150, rotationY: -9, scale: 0.84, autoAlpha: 0, duration: 1.1 })
-      .from(slots[orden[1]], { x: 120, y: 20, z: -200, rotationZ: 12, autoAlpha: 0, duration: 1 }, "-=0.8")
-      .from(slots[orden[2]], { x: -120, y: -30, z: -250, rotationZ: -12, autoAlpha: 0, duration: 1 }, "-=0.85")
+    // La entrada anima las tarjetas que de verdad se ven: la frontal, la
+    // media y la del fondo. Si la baraja tiene más, las demás ya están
+    // colocadas en espera e invisibles, así que no entran; y si tiene menos,
+    // solo se anima lo que existe. El movimiento de cada una es el mismo.
+    const ENTRADAS = [
+      { y: 70, z: -150, rotationY: -9, scale: 0.84, autoAlpha: 0, duration: 1.1 },
+      { x: 120, y: 20, z: -200, rotationZ: 12, autoAlpha: 0, duration: 1 },
+      { x: -120, y: -30, z: -250, rotationZ: -12, autoAlpha: 0, duration: 1 },
+    ];
+    const SOLAPES = [undefined, "-=0.8", "-=0.85"];
+    const visibles = Math.min(ENTRADAS.length, slots.length);
+    const linea = gsap.timeline({ defaults: { ease: "power3.out" }, onComplete: iniciarDerivas });
+    for (let ranura = 0; ranura < visibles; ranura += 1) {
+      const slot = slots[(frontal + ranura) % slots.length];
+      linea.from(slot, ENTRADAS[ranura], SOLAPES[ranura]);
+    }
+    linea
       // La copia entra con OPACIDAD, nunca con autoAlpha: `autoAlpha` aplica
       // visibility:hidden y durante la entrada el CTA dejaría de ser
       // enfocable y de existir para un lector de pantalla.

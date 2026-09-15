@@ -233,6 +233,16 @@ body.gb-locked {
   filter: blur(1px);
   z-index: 1;
 }
+/* Cuarta tarjeta y siguientes: esperan en la posición del fondo, invisibles,
+   y se revelan al girar la baraja. No añaden ninguna profundidad nueva al
+   diseño: son la misma posición del fondo sin opacidad. */
+.gb-slot.is-wait {
+  transform: translate3d(clamp(-76px, -15.5vw, -54px), -24px, -120px) rotateZ(-8deg) rotateY(-7deg) scale(0.86);
+  opacity: 0;
+  filter: blur(1px);
+  z-index: 0;
+}
+
 /* Con GSAP al mando, las clases dejan de dictar la transformación */
 .gb-deck.is-live .gb-slot { transform: none; }
 

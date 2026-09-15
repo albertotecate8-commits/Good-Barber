@@ -1067,6 +1067,7 @@ export async function renderAdminSettings(container) {
     { id: "negocio", label: "Negocio" },
     { id: "promo", label: "Promoción" },
     { id: "imagenes", label: "Imágenes" },
+    { id: "portada", label: "Carrusel de inicio" },
     { id: "cortes", label: "Cortes destacados" },
     { id: "reservas", label: "Reservas" },
     { id: "operacion", label: "Operación" },
@@ -1105,6 +1106,7 @@ export async function renderAdminSettings(container) {
     if (activa === "negocio") panelNegocio(panel, settings, draw);
     else if (activa === "promo") panelPromo(panel, settings, draw);
     else if (activa === "imagenes") panelImagenes(panel, settings, draw);
+    else if (activa === "portada") panelPortada(panel);
     else if (activa === "cortes") panelCortes(panel);
     else if (activa === "reservas") panelReservas(panel, settings, draw);
     else panelOperacion(panel, settings, draw);
@@ -1246,6 +1248,173 @@ function panelImagenes(panel, settings, onDone) {
     } catch (error) {
       err.textContent = friendlyError(error);
       err.hidden = false;
+      boton.disabled = false;
+      boton.textContent = "Guardar";
+    }
+  });
+}
+
+/* ===============================================================
+   Carrusel de la portada de INICIO — la baraja 3D
+   ===============================================================
+
+   Las fotografías que giran arriba, en la portada. Hasta ahora estaban
+   incrustadas en el código; ahora se administran desde aquí.
+
+   Es una colección DISTINTA de los cortes destacados: otra tabla
+   (hero_slides), otro formato (3:4 en vez de 2:3) y otra carpeta del bucket
+   (inicio/ en vez de cortes/). Los dos bloques no se mezclan. */
+async function panelPortada(panel) {
+  async function draw() {
+    panel.innerHTML = `
+      <div class="flex-between mb-8">
+        <p class="view-sub" style="margin:0">Las fotografías que giran en la portada. Formato vertical 3:4.</p>
+        <button class="btn btn-primary btn-sm" id="hs-add">+ Agregar imagen</button>
+      </div>
+      <div id="hs-list" class="card card-flush"><div class="text-center" style="padding:30px"><div class="spinner" style="margin:auto"></div></div></div>`;
+
+    panel.querySelector("#hs-add").addEventListener("click", () => openPortadaForm(null, draw));
+
+    let slides;
+    try {
+      slides = await data.listHeroSlides(false);
+    } catch (error) {
+      panel.querySelector("#hs-list").innerHTML =
+        `<div class="empty-state text-danger">${escapeHtml(friendlyError(error))}</div>`;
+      return;
+    }
+
+    if (!slides.length) {
+      panel.querySelector("#hs-list").innerHTML =
+        `<div class="empty-state">Sin imágenes propias: la portada usa las fotografías que vienen con la aplicación. Pulsa «+ Agregar imagen» para poner las tuyas.</div>`;
+      return;
+    }
+
+    const activas = slides.filter((d) => d.active).length;
+    panel.querySelector("#hs-list").innerHTML = slides.map((d) => `
+      <div class="card-row fc-row">
+        <div class="fc-thumb fc-thumb-34">
+          ${d.image_url
+            ? `<img src="${escapeHtml(d.image_url)}" alt="">`
+            : `<span class="img-preview-empty">Sin imagen</span>`}
+        </div>
+        <div class="list-item-main">
+          <div class="list-item-title">
+            ${escapeHtml(d.name)}
+            ${!d.active ? '<span class="badge badge-neutral">Oculta</span>' : ""}
+            ${d.no_zoom ? '<span class="badge badge-neutral">Sin acercamiento</span>' : ""}
+          </div>
+          <div class="list-item-sub">Orden ${d.sort_order}</div>
+        </div>
+        <div class="flex gap-8">
+          <button class="btn btn-ghost btn-sm" data-hs-edit="${d.id}">Editar</button>
+          <button class="btn btn-ghost btn-sm text-danger" data-hs-del="${d.id}">Eliminar</button>
+        </div>
+      </div>`).join("") +
+      `<div class="card-row"><div class="list-item-sub">El contador de la portada mostrará 01 / ${String(activas).padStart(2, "0")}.</div></div>`;
+
+    panel.querySelectorAll("[data-hs-edit]").forEach((btn) => {
+      const slide = slides.find((d) => d.id === btn.dataset.hsEdit);
+      btn.addEventListener("click", () => openPortadaForm(slide, draw));
+    });
+
+    panel.querySelectorAll("[data-hs-del]").forEach((btn) => {
+      const slide = slides.find((d) => d.id === btn.dataset.hsDel);
+      btn.addEventListener("click", async () => {
+        const ok = await confirmDialog({
+          title: "Eliminar imagen de la portada",
+          message: `Se quitará «${slide.name}» del carrusel de la portada. No afecta a los cortes destacados, ni a servicios, ni a reservas.`,
+          confirmLabel: "Eliminar",
+          danger: true,
+        });
+        if (!ok) return;
+        try {
+          await data.deleteHeroSlide(slide.id);
+          if (slide.image_url) await borrarImagen(slide.image_url);
+          toast("Imagen eliminada de la portada.", "success");
+          draw();
+        } catch (error) {
+          toast(friendlyError(error), "error");
+        }
+      });
+    });
+  }
+
+  draw();
+}
+
+function openPortadaForm(slide, onDone) {
+  const isEdit = !!slide;
+  const { overlay, close } = openModal(`
+    <button class="btn btn-ghost btn-icon modal-close" data-close-modal aria-label="Cerrar">✕</button>
+    <h3>${isEdit ? "Editar imagen de la portada" : "Nueva imagen de la portada"}</h3>
+    <div class="field mt-16"><label for="hs-name">Texto de la tarjeta</label>
+      <input id="hs-name" value="${isEdit ? escapeHtml(slide.name) : ""}" maxlength="40"
+             placeholder="Fresh Cut">
+      <p class="field-help">Se lee en el pie de la tarjeta cuando está al frente.</p></div>
+    <div class="field"><label for="hs-order">Orden de aparición</label>
+      <input id="hs-order" type="number" min="0" max="999" value="${isEdit ? slide.sort_order ?? 0 : 0}">
+      <p class="field-help">Menor número, antes en el giro.</p></div>
+    ${imageFieldHTML("hs-img", "Fotografía", isEdit ? slide.image_url : null,
+      "Vertical, formato 3:4 (por ejemplo 720×960). Es el mismo formato que usa la portada ahora.")}
+    <div class="field">
+      <label class="switch-row" for="hs-nozoom">
+        <input type="checkbox" id="hs-nozoom" ${isEdit && slide.no_zoom ? "checked" : ""}>
+        <span>Arte plano: no acercar la imagen</span>
+      </label>
+      <p class="field-help">Actívalo para logotipos o imágenes con texto. Evita que el acercamiento lento recorte los bordes. La tarjeta sigue girando igual.</p>
+    </div>
+    <div class="field">
+      <label class="switch-row" for="hs-active">
+        <input type="checkbox" id="hs-active" ${!isEdit || slide.active !== false ? "checked" : ""}>
+        <span>Visible en la portada</span>
+      </label>
+      <p class="field-help">Si la apagas, deja de girar en la portada pero el registro se conserva. El contador se ajusta solo.</p>
+    </div>
+    <div id="hs-err" class="text-danger mb-8" hidden></div>
+    <div class="flex gap-8 mt-16">
+      <button type="button" class="btn btn-primary" id="hs-save">Guardar</button>
+      <button type="button" class="btn btn-ghost" data-close-modal>Cancelar</button>
+    </div>
+  `);
+
+  const imagen = wireImageField(overlay, "hs-img", {
+    carpeta: "inicio",
+    urlActual: isEdit ? slide.image_url || null : null,
+  });
+
+  overlay.querySelector("#hs-save").addEventListener("click", async (e) => {
+    const boton = e.currentTarget;
+    const err = overlay.querySelector("#hs-err");
+    err.hidden = true;
+    const name = overlay.querySelector("#hs-name").value.trim();
+    if (!name) return mostrar(err, "Escribe el texto de la tarjeta.");
+
+    boton.disabled = true;
+    boton.textContent = imagen.hayCambio() ? "Subiendo…" : "Guardando…";
+    try {
+      const image_url = await imagen.guardar();
+      boton.textContent = "Guardando…";
+      const fila = {
+        name,
+        sort_order: Number(overlay.querySelector("#hs-order").value || 0),
+        active: overlay.querySelector("#hs-active").checked,
+        no_zoom: overlay.querySelector("#hs-nozoom").checked,
+        image_url,
+      };
+      if (isEdit) await data.updateHeroSlide(slide.id, fila);
+      else await data.createHeroSlide({
+        name: fila.name,
+        sortOrder: fila.sort_order,
+        active: fila.active,
+        noZoom: fila.no_zoom,
+        imageUrl: image_url,
+      });
+      toast("Portada actualizada. Ya se ve en INICIO.", "success");
+      close();
+      onDone();
+    } catch (error) {
+      mostrar(err, friendlyError(error));
       boton.disabled = false;
       boton.textContent = "Guardar";
     }

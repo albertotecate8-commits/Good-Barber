@@ -143,6 +143,35 @@ export async function updateService(serviceId, patch) {
   return unwrap(await sb().from("services").update(patch).eq("id", serviceId).select().single());
 }
 
+// ---------- hero_slides (carrusel de la portada de INICIO) ----------
+// Las fotografías de la baraja 3D de la portada. Colección propia, distinta
+// de featured_cuts: otra tabla, otro formato (3:4) y otra carpeta del bucket.
+
+export async function listHeroSlides(onlyActive = false) {
+  let query = sb().from("hero_slides").select("*").order("sort_order").order("name");
+  if (onlyActive) query = query.eq("active", true);
+  return unwrap(await query);
+}
+
+export async function createHeroSlide({ name, imageUrl, sortOrder, active, noZoom }) {
+  const fila = { name };
+  if (imageUrl !== undefined) fila.image_url = imageUrl;
+  if (sortOrder !== undefined) fila.sort_order = sortOrder;
+  if (active !== undefined) fila.active = active;
+  if (noZoom !== undefined) fila.no_zoom = noZoom;
+  return unwrap(await sb().from("hero_slides").insert(fila).select().single());
+}
+
+export async function updateHeroSlide(slideId, patch) {
+  return unwrap(await sb().from("hero_slides").update(patch).eq("id", slideId).select().single());
+}
+
+export async function deleteHeroSlide(slideId) {
+  const { error } = await sb().from("hero_slides").delete().eq("id", slideId);
+  if (error) throw error;
+  return true;
+}
+
 // ---------- featured_cuts (cortes destacados de INICIO) ----------
 // Contenido editorial de la página pública. No son servicios: no tienen
 // precio ni duración y no se reservan. La escritura solo la permite RLS al

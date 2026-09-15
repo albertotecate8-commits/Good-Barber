@@ -1761,6 +1761,27 @@ tbody tr:active {
   text-align: center;
   padding: 0 6px;
 }
+/* Miniatura de las listas de contenido público (cortes destacados y carrusel
+   de la portada). Conserva la proporción de cada colección para que el
+   administrador reconozca de un vistazo qué formato está editando:
+   2:3 los cortes, 3:4 la portada. */
+.fc-row { gap: 14px; }
+.fc-thumb {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  aspect-ratio: 2 / 3;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: #000;
+}
+.fc-thumb-34 { aspect-ratio: 3 / 4; width: 52px; }
+.fc-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.fc-thumb-34 img { object-fit: cover; }
+.fc-thumb .img-preview-empty { font-size: 9.5px; line-height: 1.2; }
+
 .img-field-actions {
   display: flex;
   flex-direction: column;

@@ -35,14 +35,51 @@ const BARAJA = [
   { src: "img/galeria/g3-corte.jpg",     titulo: "Fresh Cut",   clase: "" },
 ];
 
-// La tarjeta frontal es la que el administrador puede sustituir desde el
-// panel (settings.hero_image_url). Si no ha subido ninguna, se queda la
-// fotografía del repositorio. No cambia el número de tarjetas, ni el orden,
-// ni las clases, ni el movimiento: solo de dónde sale ese archivo.
+// De dónde salen las tarjetas de la baraja, por orden de prioridad:
+//
+//   1. La colección que el administrador gestiona desde el panel
+//      (hero_slides -> public_hero_slides). Si tiene filas, MANDA ella:
+//      cuántas tarjetas, en qué orden, con qué texto y qué fotografía.
+//   2. Si está vacía —o si la base de datos todavía no tiene la vista— se
+//      usan las fotografías del repositorio, exactamente como antes, con
+//      settings.hero_image_url sustituyendo la tarjeta frontal si el
+//      administrador subió una portada desde Configuración -> Imágenes.
+//
+// En ningún caso cambia el diseño: las tres posiciones de profundidad, las
+// clases, el formato 3:4 y el movimiento son los mismos.
 function barajaDe(state) {
+  const coleccion = Array.isArray(state?.slides) ? state.slides : [];
+  const publicadas = coleccion
+    .filter((d) => hasText(d?.name) || hasText(d?.image_url))
+    .map((d) => ({
+      src: hasText(d.image_url) ? d.image_url.trim() : "",
+      titulo: hasText(d.name) ? d.name.trim() : "",
+      clase: d.no_zoom ? "gb-card-logo" : "",
+      estable: Boolean(d.no_zoom),
+    }))
+    .filter((f) => f.src);
+  if (publicadas.length) return publicadas;
+
   const portada = hasText(state?.business?.hero_image_url) ? state.business.hero_image_url.trim() : null;
   if (!portada) return BARAJA;
   return BARAJA.map((f, i) => (i === BARAJA.length - 1 ? { ...f, src: portada } : f));
+}
+
+// Clase de profundidad de cada tarjeta. Las TRES ÚLTIMAS conservan
+// exactamente el reparto de siempre (fondo, media, frontal); las anteriores,
+// si la colección tiene más de tres, esperan fuera de vista y van entrando al
+// girar la baraja. Con una o dos tarjetas se reparten desde el frente.
+// Es solo el respaldo estático: en cuanto GSAP toma el mando, manda él.
+function capaDe(i, total) {
+  const CAPAS = ["is-back", "is-mid", "is-front"];
+  const desde = total - CAPAS.length;
+  return i < desde ? "is-wait" : CAPAS[i - desde];
+}
+
+// 01 / 03, 02 / 03 … y con diez o más tarjetas, 10 / 12 sin ceros de sobra.
+function contador(i, total) {
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${pad(i + 1)} / ${pad(total)}`;
 }
 
 // El logotipo oficial ya lleva impreso "MEJORA TU ESTILO". Si el tagline
@@ -102,18 +139,19 @@ export function Hero(state) {
 
   // El orden de pintado ES el orden de profundidad: la frontal va al final y
   // queda encima sin necesidad de gestionar z-index desde JavaScript.
-  const capas = ["is-back", "is-mid", "is-front"];
+  const baraja = barajaDe(state);
+  const total = baraja.length;
 
   return `
     <section class="gb-hero" id="top">
       <div class="gb-deck" role="img" aria-label="Fotografías de ${escapeHtml(businessName(state))}">
-        ${barajaDe(state).map((f, i) => `
-          <div class="gb-slot ${capas[i]}" data-slot="${i}">
+        ${baraja.map((f, i) => `
+          <div class="gb-slot ${capaDe(i, total)}" data-slot="${i}">
             <article class="gb-card ${f.clase}">
-              <img src="${escapeHtml(f.src)}" alt="" width="720" height="960" decoding="async"${f.estable ? ' data-estable="true"' : ""}${i === 2 ? ' fetchpriority="high"' : ""}>
+              <img src="${escapeHtml(f.src)}" alt="" width="720" height="960" decoding="async"${f.estable ? ' data-estable="true"' : ""}${i === total - 1 ? ' fetchpriority="high"' : ""}>
               <div class="gb-card-meta">
                 <strong>${escapeHtml(f.titulo)}</strong>
-                <span>0${i + 1} / 0${BARAJA.length}</span>
+                <span>${contador(i, total)}</span>
               </div>
             </article>
           </div>`).join("")}

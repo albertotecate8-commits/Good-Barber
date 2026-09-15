@@ -14,7 +14,7 @@ import {
 } from "./screens.js";
 
 const root = document.getElementById("app");
-const state = { business: null, services: [], barbers: [], cuts: [] };
+const state = { business: null, services: [], barbers: [], cuts: [], slides: [] };
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
 /* ===============================================================
@@ -308,6 +308,7 @@ async function boot() {
     state.services = data.services;
     state.barbers = data.barbers;
     state.cuts = data.cuts || [];
+    state.slides = data.slides || [];
     render();
   } catch (error) {
     renderError(error?.message);

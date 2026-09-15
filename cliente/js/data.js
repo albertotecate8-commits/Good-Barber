@@ -206,12 +206,52 @@ export async function cargarCortesDestacados() {
   return Array.isArray(res.data) ? res.data : [];
 }
 
+/* ---------------------------------------------------------------
+   Carrusel de la portada — la baraja 3D de INICIO
+
+   Colección propia, INDEPENDIENTE de los cortes destacados: otra tabla, otra
+   vista, otra carpeta del bucket y otro formato (3:4 frente a 2:3).
+
+   Misma tolerancia acotada que el resto: si la vista todavía no existe en la
+   base de datos se devuelve una lista vacía y la portada usa las fotografías
+   del repositorio, que es exactamente lo que hacía antes. Cualquier otro
+   error se propaga y se ve.
+   --------------------------------------------------------------- */
+export const VISTA_PORTADA = "public_hero_slides";
+
+export function vistaPortadaInexistente(error) {
+  if (!error) return false;
+  const texto = [error.message, error.details, error.hint]
+    .filter((t) => typeof t === "string")
+    .join(" ");
+  if (!texto) return false;
+  const postgres = new RegExp(`relation\\s+"?(?:public\\.)?${VISTA_PORTADA}"?\\s+does\\s+not\\s+exist`, "i");
+  const postgrest = new RegExp(`could\\s+not\\s+find\\s+the\\s+table\\s+['"]?(?:public\\.)?${VISTA_PORTADA}['"]?`, "i");
+  return postgres.test(texto) || postgrest.test(texto);
+}
+
+export async function cargarPortada() {
+  const res = await consultaTolerante(
+    () => sb().from(VISTA_PORTADA).select("*").order("sort_order").order("name"),
+    () => sb().from(VISTA_PORTADA).select("*").order("name"),
+  );
+  if (res?.error) {
+    if (vistaPortadaInexistente(res.error)) {
+      console.warn(`[portada] la vista ${VISTA_PORTADA} no existe todavía; se usan las fotografías del repositorio.`);
+      return [];
+    }
+    throw res.error;
+  }
+  return Array.isArray(res.data) ? res.data : [];
+}
+
 export async function loadPublicData() {
-  const [business, services, barbers, cuts] = await Promise.all([
+  const [business, services, barbers, cuts, slides] = await Promise.all([
     sb().from("public_business").select("*").single(),
     cargarServiciosPublicos(),
     cargarBarberosPublicos(),
     cargarCortesDestacados(),
+    cargarPortada(),
   ]);
   if (business.error) throw business.error;
   if (services.error) throw services.error;
@@ -221,5 +261,6 @@ export async function loadPublicData() {
     services: services.data || [],
     barbers: barbers.data || [],
     cuts,
+    slides,
   };
 }
