@@ -1687,6 +1687,28 @@ tbody tr:active {
   mask-image: linear-gradient(to right, transparent 0, #000 26px, #000 calc(100% - 26px), transparent 100%);
 }
 
+/* En pantallas estrechas la tira se reparte en varias líneas en vez de
+   desplazarse a lo ancho.
+
+   Con siete secciones el contenido mide ~850px: en un teléfono de 390px solo
+   se veían las tres primeras y las otras cuatro quedaban fuera del borde,
+   detrás de un difuminado de 26px que nadie tiene por qué interpretar como
+   "hay más aquí". El administrador no encontraba lo que buscaba.
+
+   Las pastillas conservan exactamente su estilo, su tamaño y su área de
+   toque: lo único que cambia es que ninguna se esconde. */
+@media (max-width: 700px) {
+  .cms-tabs {
+    flex-wrap: wrap;
+    /* Los dos ejes a la vez: con overflow-y en hidden, un overflow-x visible
+       se convierte en auto por regla de CSS y la tira seguiría recortando. */
+    overflow: visible;
+    /* Sin recorte lateral no hace falta pista de desplazamiento. */
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .cms-tabs { scroll-behavior: auto; }
 }
