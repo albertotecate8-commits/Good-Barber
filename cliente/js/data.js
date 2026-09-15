@@ -162,35 +162,48 @@ export function cargarBarberosPublicos() {
    Cortes destacados de INICIO — sección OPCIONAL
 
    Es contenido editorial: si no hay nada que mostrar, la sección
-   simplemente no se dibuja. Por eso esta consulta nunca puede tumbar la
-   página, ni siquiera cuando la vista public_featured_cuts todavía no
-   existe en la base de datos (una instalación anterior a esta función).
+   simplemente no se dibuja.
 
-   Igual que con las columnas toleradas, se acepta UN error concreto: que
-   la vista no exista. Cualquier otro error —permisos, red— también deja la
-   sección vacía en lugar de tumbar INICIO, porque una colección de fotos
-   decorativas no justifica romper la portada, el catálogo ni el botón de
-   reservar. Eso sí: se anota en la consola para que un fallo real siga
-   siendo visible a quien revise.
+   Se tolera UN solo caso, igual de acotado que el de las columnas: que la
+   vista public_featured_cuts todavía no exista en la base de datos, porque
+   una instalación anterior a esta función no la tiene y eso no debe tumbar
+   INICIO. Cualquier OTRO error —permisos, RLS, red, autenticación— se
+   propaga tal cual, como el resto de la página, para que un fallo real siga
+   viéndose y no quede enmascarado.
    --------------------------------------------------------------- */
 export const VISTA_CORTES = "public_featured_cuts";
 
+// ¿El error dice exactamente que la vista no existe? Se aceptan las dos
+// formas posibles: la de PostgreSQL (SQLSTATE 42P01) y la de PostgREST
+// cuando no encuentra la tabla en su caché de esquema (PGRST205).
+export function vistaInexistente(error) {
+  if (!error) return null;
+  const texto = [error.message, error.details, error.hint]
+    .filter((t) => typeof t === "string")
+    .join(" ");
+  if (!texto) return null;
+  const postgres = new RegExp(`relation\\s+"?(?:public\\.)?${VISTA_CORTES}"?\\s+does\\s+not\\s+exist`, "i");
+  const postgrest = new RegExp(`could\\s+not\\s+find\\s+the\\s+table\\s+['"]?(?:public\\.)?${VISTA_CORTES}['"]?`, "i");
+  return postgres.test(texto) || postgrest.test(texto);
+}
+
 export async function cargarCortesDestacados() {
-  try {
-    const { data, error } = await sb()
-      .from(VISTA_CORTES)
-      .select("*")
-      .order("sort_order")
-      .order("name");
-    if (error) {
-      console.warn(`[cortes destacados] sección omitida: ${error.message || error}`);
+  // Misma tolerancia acotada que el resto de la página para una columna que
+  // falte: se reintenta una vez sin ella. Nada más se tolera aquí.
+  const res = await consultaTolerante(
+    () => sb().from(VISTA_CORTES).select("*").order("sort_order").order("name"),
+    () => sb().from(VISTA_CORTES).select("*").order("name"),
+  );
+  if (res?.error) {
+    // La base todavía no tiene la vista: sección omitida, página intacta.
+    if (vistaInexistente(res.error)) {
+      console.warn(`[cortes destacados] la vista ${VISTA_CORTES} no existe todavía; sección omitida.`);
       return [];
     }
-    return Array.isArray(data) ? data : [];
-  } catch (error) {
-    console.warn(`[cortes destacados] sección omitida: ${error?.message || error}`);
-    return [];
+    // Cualquier otra cosa —permisos, RLS, red— es un fallo real y se ve.
+    throw res.error;
   }
+  return Array.isArray(res.data) ? res.data : [];
 }
 
 export async function loadPublicData() {
