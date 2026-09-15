@@ -41,7 +41,8 @@
   // Abrirla con file:// sigue funcionando (sin modo sin conexión instalado).
   if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
     window.addEventListener("load", function () {
-      navigator.serviceWorker.register("sw.js").catch(function () {});
+      // Mismo criterio que el panel: el sw.js nunca desde la caché.
+      navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).catch(function () {});
     });
   }
 </script>

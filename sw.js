@@ -5,7 +5,7 @@
 // código viejo indefinidamente aunque hubiera una versión nueva desplegada.
 // Nunca intercepta llamadas a Supabase (auth/datos) para no dar
 // una falsa sensación de "guardado" cuando en realidad no hay red.
-const CACHE_NAME = "goodbarber-shell-v5";
+const CACHE_NAME = "goodbarber-shell-v6";
 const SHELL_ASSETS = [
   "./",
   "index.html",
@@ -68,8 +68,15 @@ self.addEventListener("fetch", (event) => {
   // Network-first: si hay red, siempre se usa la respuesta más reciente del
   // servidor (y se refresca la caché para el modo sin conexión). Solo se cae
   // a la caché cuando la red falla de verdad (sin conexión).
+  // `cache: "reload"` salta la caché HTTP del navegador, que es la que se
+  // interpone entre este service worker y el servidor. Sin esto, "ir a la
+  // red" podía devolver igualmente un archivo viejo guardado por el
+  // navegador, y el usuario seguía viendo la versión anterior aunque ya
+  // hubiera otra desplegada.
+  const alServidor = new Request(event.request, { cache: "reload" });
+
   event.respondWith(
-    fetch(event.request)
+    fetch(alServidor)
       .then((response) => {
         if (response.ok) {
           const clone = response.clone();

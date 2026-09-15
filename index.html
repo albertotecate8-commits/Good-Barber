@@ -62,7 +62,11 @@
     });
     window.addEventListener("load", () => {
       navigator.serviceWorker
-        .register("sw.js")
+        // updateViaCache "none": el propio sw.js NUNCA se sirve desde la caché
+        // del navegador. Sin esto puede quedarse hasta 24 h con la versión
+        // anterior, y un service worker atascado no se entera de que hay una
+        // versión nueva por muchas veces que se recargue.
+        .register("sw.js", { updateViaCache: "none" })
         .then((registration) => registration.update().catch(() => {}))
         .catch(() => {});
     });
