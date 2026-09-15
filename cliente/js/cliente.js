@@ -9,12 +9,12 @@ import { icon } from "./icons.js";
 import { PromoCard } from "./components.js";
 import { initDeck, initNav, initServices, sheetIn, sheetOut } from "./motion.js";
 import {
-  AppBar, Hero, Services, Gallery, Barbers, Steps, Contact, Footer, TabBar,
-  ServiceSheet, Lightbox,
+  AppBar, Hero, Services, FeaturedCuts, Gallery, Barbers, Steps, Contact,
+  Footer, TabBar, ServiceSheet, Lightbox,
 } from "./screens.js";
 
 const root = document.getElementById("app");
-const state = { business: null, services: [], barbers: [] };
+const state = { business: null, services: [], barbers: [], cuts: [] };
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
 /* ===============================================================
@@ -39,6 +39,7 @@ function render() {
         ${Hero(state)}
         ${PromoCard(state.business)}
         ${Services(state)}
+        ${FeaturedCuts(state)}
         ${Gallery(state)}
         ${Barbers(state)}
         ${Steps(state)}
@@ -56,6 +57,7 @@ function render() {
   wireServices();
   wireServiceSheet();
   wireGallery();
+  wireCuts();
   wireReveal();
 }
 
@@ -245,6 +247,22 @@ function wireGallery() {
   );
 }
 
+// Cortes destacados: al tocar una lámina se abre a tamaño completo en el
+// mismo visor que ya usa la galería. El visor encaja la imagen entera
+// (object-fit: contain), así que la lámina se ve tal cual fue creada.
+function wireCuts() {
+  const cuts = state.cuts || [];
+  if (!cuts.length) return;
+  document.querySelectorAll("[data-cut]").forEach((btn) =>
+    btn.addEventListener("click", () => {
+      const i = Number(btn.dataset.cut);
+      const corte = cuts[i];
+      if (!corte?.image_url) return;
+      openOverlay(Lightbox(corte.image_url, i, cuts.length, corte.name));
+    })
+  );
+}
+
 /* ===============================================================
    Estados
    =============================================================== */
@@ -289,6 +307,7 @@ async function boot() {
     state.business = data.business;
     state.services = data.services;
     state.barbers = data.barbers;
+    state.cuts = data.cuts || [];
     render();
   } catch (error) {
     renderError(error?.message);

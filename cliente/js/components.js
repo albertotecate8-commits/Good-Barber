@@ -6,7 +6,7 @@
 import { escapeHtml } from "../../js/ui.js";
 import { formatCents } from "../../js/money.js";
 import { icon, iconForService } from "./icons.js";
-import { hasText, serviceImage, barberImage } from "./data.js";
+import { hasText, serviceImage, barberImage, cutImage } from "./data.js";
 
 export const BOOKING_URL = "../reservar/";
 
@@ -118,6 +118,34 @@ export function BarberCard(barber, index = 0) {
    GalleryCard — para las fotos de trabajos. Hoy no hay ninguna en
    Supabase, así que la sección entera no se dibuja (nunca un hueco).
    --------------------------------------------------------------- */
+/* ---------------------------------------------------------------
+   CutCard — una lámina de corte destacado.
+
+   La lámina ya trae dentro su propia rotulación (GOOD BARBER, el nombre
+   del corte, FRENTE / PERFIL / DETRÁS), así que el marco NO la recorta: el
+   hueco tiene la proporción 2:3 de la imagen original y la imagen se
+   encaja completa. El nombre se repite bajo la tarjeta como texto real,
+   para quien navegue con lector de pantalla o no pueda ver la imagen.
+   --------------------------------------------------------------- */
+export function CutCard(cut, index = 0) {
+  const url = cutImage(cut);
+  return `
+    <button type="button" class="gb-cut" data-cut="${index}" style="--i:${index}"
+            aria-label="Ampliar ${escapeHtml(cut.name)}">
+      ${mediaFrame({
+        url,
+        alt: cut.name,
+        cls: "gb-cut-media",
+        fallback: `<span class="gb-cut-mono" aria-hidden="true">${escapeHtml(initials(cut.name))}</span>`,
+      })}
+      <span class="gb-cut-body">
+        <span class="gb-cut-name">${escapeHtml(cut.name)}</span>
+        ${hasText(cut.description) ? `<span class="gb-cut-desc">${escapeHtml(cut.description)}</span>` : ""}
+      </span>
+    </button>
+  `;
+}
+
 export function GalleryCard(url, index) {
   return `
     <button type="button" class="gb-gal" data-gallery="${index}" style="--i:${index}"

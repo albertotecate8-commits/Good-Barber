@@ -25,6 +25,14 @@ export function serviceImage(service) {
   return null;
 }
 
+// La lámina del corte destacado la administra el panel
+// (featured_cuts.image_url). Si no hay ninguna —porque el administrador aún
+// no la ha subido o la quitó— devuelve null y la tarjeta usa su respaldo
+// visual, igual que los servicios y los barberos.
+export function cutImage(cut) {
+  return hasText(cut?.image_url) ? cut.image_url.trim() : null;
+}
+
 export function barberImage(barber) {
   return hasText(barber?.photo_url) ? barber.photo_url.trim() : null;
 }
@@ -150,11 +158,47 @@ export function cargarBarberosPublicos() {
   );
 }
 
+/* ---------------------------------------------------------------
+   Cortes destacados de INICIO — sección OPCIONAL
+
+   Es contenido editorial: si no hay nada que mostrar, la sección
+   simplemente no se dibuja. Por eso esta consulta nunca puede tumbar la
+   página, ni siquiera cuando la vista public_featured_cuts todavía no
+   existe en la base de datos (una instalación anterior a esta función).
+
+   Igual que con las columnas toleradas, se acepta UN error concreto: que
+   la vista no exista. Cualquier otro error —permisos, red— también deja la
+   sección vacía en lugar de tumbar INICIO, porque una colección de fotos
+   decorativas no justifica romper la portada, el catálogo ni el botón de
+   reservar. Eso sí: se anota en la consola para que un fallo real siga
+   siendo visible a quien revise.
+   --------------------------------------------------------------- */
+export const VISTA_CORTES = "public_featured_cuts";
+
+export async function cargarCortesDestacados() {
+  try {
+    const { data, error } = await sb()
+      .from(VISTA_CORTES)
+      .select("*")
+      .order("sort_order")
+      .order("name");
+    if (error) {
+      console.warn(`[cortes destacados] sección omitida: ${error.message || error}`);
+      return [];
+    }
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.warn(`[cortes destacados] sección omitida: ${error?.message || error}`);
+    return [];
+  }
+}
+
 export async function loadPublicData() {
-  const [business, services, barbers] = await Promise.all([
+  const [business, services, barbers, cuts] = await Promise.all([
     sb().from("public_business").select("*").single(),
     cargarServiciosPublicos(),
     cargarBarberosPublicos(),
+    cargarCortesDestacados(),
   ]);
   if (business.error) throw business.error;
   if (services.error) throw services.error;
@@ -163,5 +207,6 @@ export async function loadPublicData() {
     business: business.data || null,
     services: services.data || [],
     barbers: barbers.data || [],
+    cuts,
   };
 }

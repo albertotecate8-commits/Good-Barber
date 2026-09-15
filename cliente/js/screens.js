@@ -7,7 +7,7 @@ import { icon, iconForService } from "./icons.js";
 import { hasText, serviceImage, galleryImages } from "./data.js";
 import {
   BOOKING_URL, cssUrl, mediaFrame, PromoCard, ServiceCard, BarberCard,
-  GalleryCard, BarberAvatar, SectionHead,
+  GalleryCard, CutCard, BarberAvatar, SectionHead,
 } from "./components.js";
 
 const LOGO = "img/good-barber-logo.png";
@@ -149,6 +149,30 @@ export function Services(state) {
       ${SectionHead("Servicios", state.services.length, "La carta")}
       <div class="gb-svc-grid">
         ${state.services.map((s, i) => ServiceCard(s, i)).join("")}
+      </div>
+    </section>
+  `;
+}
+
+/* ===============================================================
+   Cortes destacados — contenido de INICIO administrado desde el panel
+
+   Sección opcional: si el administrador no ha publicado ningún corte, no
+   se dibuja nada y INICIO queda exactamente como estaba. No aparece en la
+   barra inferior ni cambia la navegación.
+
+   Es contenido editorial, NO catálogo: aquí no hay precio, ni duración, ni
+   botón de reservar. Los servicios reservables siguen viviendo solo en la
+   sección Servicios.
+   =============================================================== */
+export function FeaturedCuts(state) {
+  const cuts = state.cuts || [];
+  if (!cuts.length) return "";
+  return `
+    <section class="gb-section" id="cortes" aria-label="Cortes destacados">
+      ${SectionHead("Cortes destacados", cuts.length, "Elige tu estilo")}
+      <div class="gb-cut-rail" data-rail>
+        ${cuts.map((c, i) => CutCard(c, i)).join("")}
       </div>
     </section>
   `;
@@ -387,11 +411,15 @@ export function ServiceSheet(service, state) {
 /* ===============================================================
    Visor de galería
    =============================================================== */
-export function Lightbox(url, index, total) {
+// `etiqueta` es opcional: si no se pasa, se mantiene exactamente el texto de
+// siempre para la galería de trabajos. Los cortes destacados pasan su nombre,
+// que es información real y no un número de orden.
+export function Lightbox(url, index, total, etiqueta = null) {
+  const nombre = etiqueta || `Trabajo ${index + 1}`;
   return `
-    <div class="gb-lb" role="dialog" aria-modal="true" aria-label="Fotografía ${index + 1} de ${total}">
+    <div class="gb-lb" role="dialog" aria-modal="true" aria-label="${escapeHtml(nombre)} — ${index + 1} de ${total}">
       <button type="button" class="gb-lb-close" data-close-lb aria-label="Cerrar">${icon("close")}</button>
-      <img src="${escapeHtml(url)}" alt="Trabajo ${index + 1}">
+      <img src="${escapeHtml(url)}" alt="${escapeHtml(nombre)}">
     </div>
   `;
 }

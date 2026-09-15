@@ -4,6 +4,7 @@ import { formatCents, toCents } from "./money.js";
 import { dayTotalCents, groupRecordsByDate, weekTotalCents, settlementBreakdown, recordsTotalCents, recordLineTotalCents } from "./calc.js";
 import { startOfWeek, endOfWeek, toISODate, todayISO, weekLabel, formatDateText, parseISODate } from "./dates.js";
 import { imageFieldHTML, wireImageField } from "./image-field.js";
+import { borrarImagen } from "./media.js";
 
 const NAV_ITEMS = [
   { id: "dashboard", label: "Dashboard", icon: "📊" },
@@ -1066,6 +1067,7 @@ export async function renderAdminSettings(container) {
     { id: "negocio", label: "Negocio" },
     { id: "promo", label: "Promoción" },
     { id: "imagenes", label: "Imágenes" },
+    { id: "cortes", label: "Cortes destacados" },
     { id: "reservas", label: "Reservas" },
     { id: "operacion", label: "Operación" },
   ];
@@ -1103,6 +1105,7 @@ export async function renderAdminSettings(container) {
     if (activa === "negocio") panelNegocio(panel, settings, draw);
     else if (activa === "promo") panelPromo(panel, settings, draw);
     else if (activa === "imagenes") panelImagenes(panel, settings, draw);
+    else if (activa === "cortes") panelCortes(panel);
     else if (activa === "reservas") panelReservas(panel, settings, draw);
     else panelOperacion(panel, settings, draw);
   }
@@ -1243,6 +1246,171 @@ function panelImagenes(panel, settings, onDone) {
     } catch (error) {
       err.textContent = friendlyError(error);
       err.hidden = false;
+      boton.disabled = false;
+      boton.textContent = "Guardar";
+    }
+  });
+}
+
+/* ===============================================================
+   Cortes destacados de INICIO
+   ===============================================================
+
+   CMS de la colección editorial de la página pública. Es contenido, no
+   catálogo: no hay precio, ni duración, ni reserva, y no toca services.
+
+   Todo lo que el administrador puede hacer desde aquí —agregar, subir o
+   reemplazar la lámina, quitarla, renombrar, describir, reordenar, ocultar
+   y eliminar— se guarda en public.featured_cuts. No hay que editar código
+   nunca más para cambiar estas imágenes. */
+async function panelCortes(panel) {
+  async function draw() {
+    panel.innerHTML = `
+      <div class="flex-between mb-8">
+        <p class="view-sub" style="margin:0">Las láminas que se ven en INICIO. No son servicios reservables.</p>
+        <button class="btn btn-primary btn-sm" id="fc-add">+ Agregar corte</button>
+      </div>
+      <div id="fc-list" class="card card-flush"><div class="text-center" style="padding:30px"><div class="spinner" style="margin:auto"></div></div></div>`;
+
+    panel.querySelector("#fc-add").addEventListener("click", () => openCorteForm(null, draw));
+
+    let cortes;
+    try {
+      cortes = await data.listFeaturedCuts(false);
+    } catch (error) {
+      panel.querySelector("#fc-list").innerHTML =
+        `<div class="empty-state text-danger">${escapeHtml(friendlyError(error))}</div>`;
+      return;
+    }
+
+    if (!cortes.length) {
+      panel.querySelector("#fc-list").innerHTML =
+        `<div class="empty-state">Todavía no hay cortes destacados. Pulsa «+ Agregar corte».</div>`;
+      return;
+    }
+
+    panel.querySelector("#fc-list").innerHTML = cortes.map((c) => `
+      <div class="card-row fc-row">
+        <div class="fc-thumb">
+          ${c.image_url
+            ? `<img src="${escapeHtml(c.image_url)}" alt="">`
+            : `<span class="img-preview-empty">Sin lámina</span>`}
+        </div>
+        <div class="list-item-main">
+          <div class="list-item-title">
+            ${escapeHtml(c.name)}
+            ${!c.active ? '<span class="badge badge-neutral">Oculto</span>' : ""}
+          </div>
+          <div class="list-item-sub">
+            Orden ${c.sort_order}${c.description ? ` · ${escapeHtml(c.description)}` : ""}
+          </div>
+        </div>
+        <div class="flex gap-8">
+          <button class="btn btn-ghost btn-sm" data-fc-edit="${c.id}">Editar</button>
+          <button class="btn btn-ghost btn-sm text-danger" data-fc-del="${c.id}">Eliminar</button>
+        </div>
+      </div>`).join("");
+
+    panel.querySelectorAll("[data-fc-edit]").forEach((btn) => {
+      const corte = cortes.find((c) => c.id === btn.dataset.fcEdit);
+      btn.addEventListener("click", () => openCorteForm(corte, draw));
+    });
+
+    panel.querySelectorAll("[data-fc-del]").forEach((btn) => {
+      const corte = cortes.find((c) => c.id === btn.dataset.fcDel);
+      btn.addEventListener("click", async () => {
+        const ok = await confirmDialog({
+          title: "Eliminar corte destacado",
+          message: `Se quitará «${corte.name}» de INICIO y se borrará su lámina. Esto no afecta a servicios, reservas ni finanzas.`,
+          confirmLabel: "Eliminar",
+          danger: true,
+        });
+        if (!ok) return;
+        try {
+          await data.deleteFeaturedCut(corte.id);
+          // La lámina se borra después del registro: si el borrado del
+          // archivo falla, el corte ya desapareció de la web igualmente.
+          if (corte.image_url) await borrarImagen(corte.image_url);
+          toast("Corte eliminado.", "success");
+          draw();
+        } catch (error) {
+          toast(friendlyError(error), "error");
+        }
+      });
+    });
+  }
+
+  draw();
+}
+
+function openCorteForm(corte, onDone) {
+  const isEdit = !!corte;
+  const { overlay, close } = openModal(`
+    <button class="btn btn-ghost btn-icon modal-close" data-close-modal aria-label="Cerrar">✕</button>
+    <h3>${isEdit ? "Editar corte destacado" : "Nuevo corte destacado"}</h3>
+    <div class="field mt-16"><label for="fc-name">Nombre</label>
+      <input id="fc-name" value="${isEdit ? escapeHtml(corte.name) : ""}" maxlength="60"
+             placeholder="Corte clásico"></div>
+    <div class="field"><label for="fc-desc">Descripción</label>
+      <input id="fc-desc" value="${isEdit ? escapeHtml(corte.description || "") : ""}" maxlength="120"
+             placeholder="Opcional">
+      <p class="field-help">Si la dejas vacía, no se muestra nada bajo el nombre.</p></div>
+    <div class="field"><label for="fc-order">Orden de aparición</label>
+      <input id="fc-order" type="number" min="0" max="999" value="${isEdit ? corte.sort_order ?? 0 : 0}">
+      <p class="field-help">Menor número, más arriba.</p></div>
+    ${imageFieldHTML("fc-img", "Lámina del corte", isEdit ? corte.image_url : null,
+      "Vertical, formato 2:3 (por ejemplo 1024×1536). Se muestra completa, sin recortar.")}
+    <div class="field">
+      <label class="switch-row" for="fc-active">
+        <input type="checkbox" id="fc-active" ${!isEdit || corte.active !== false ? "checked" : ""}>
+        <span>Visible en INICIO</span>
+      </label>
+      <p class="field-help">Si lo apagas, deja de verse en la página pública pero el registro se conserva.</p>
+    </div>
+    <div id="fc-err" class="text-danger mb-8" hidden></div>
+    <div class="flex gap-8 mt-16">
+      <button type="button" class="btn btn-primary" id="fc-save">Guardar</button>
+      <button type="button" class="btn btn-ghost" data-close-modal>Cancelar</button>
+    </div>
+  `);
+
+  const imagen = wireImageField(overlay, "fc-img", {
+    carpeta: "cortes",
+    urlActual: isEdit ? corte.image_url || null : null,
+  });
+
+  overlay.querySelector("#fc-save").addEventListener("click", async (e) => {
+    const boton = e.currentTarget;
+    const err = overlay.querySelector("#fc-err");
+    err.hidden = true;
+    const name = overlay.querySelector("#fc-name").value.trim();
+    if (!name) return mostrar(err, "Escribe el nombre del corte.");
+
+    boton.disabled = true;
+    boton.textContent = imagen.hayCambio() ? "Subiendo…" : "Guardando…";
+    try {
+      const image_url = await imagen.guardar();
+      boton.textContent = "Guardando…";
+      const fila = {
+        name,
+        description: overlay.querySelector("#fc-desc").value.trim() || null,
+        sort_order: Number(overlay.querySelector("#fc-order").value || 0),
+        active: overlay.querySelector("#fc-active").checked,
+        image_url,
+      };
+      if (isEdit) await data.updateFeaturedCut(corte.id, fila);
+      else await data.createFeaturedCut({
+        name: fila.name,
+        description: fila.description,
+        sortOrder: fila.sort_order,
+        active: fila.active,
+        imageUrl: image_url,
+      });
+      toast("Corte guardado. Ya se ve en INICIO.", "success");
+      close();
+      onDone();
+    } catch (error) {
+      mostrar(err, friendlyError(error));
       boton.disabled = false;
       boton.textContent = "Guardar";
     }

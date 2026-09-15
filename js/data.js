@@ -143,6 +143,39 @@ export async function updateService(serviceId, patch) {
   return unwrap(await sb().from("services").update(patch).eq("id", serviceId).select().single());
 }
 
+// ---------- featured_cuts (cortes destacados de INICIO) ----------
+// Contenido editorial de la página pública. No son servicios: no tienen
+// precio ni duración y no se reservan. La escritura solo la permite RLS al
+// administrador; aquí únicamente se pide lo que ya está autorizado.
+
+export async function listFeaturedCuts(onlyActive = false) {
+  let query = sb().from("featured_cuts").select("*").order("sort_order").order("name");
+  if (onlyActive) query = query.eq("active", true);
+  return unwrap(await query);
+}
+
+export async function createFeaturedCut({ name, description, imageUrl, sortOrder, active }) {
+  const fila = { name };
+  if (description !== undefined) fila.description = description;
+  if (imageUrl !== undefined) fila.image_url = imageUrl;
+  if (sortOrder !== undefined) fila.sort_order = sortOrder;
+  if (active !== undefined) fila.active = active;
+  return unwrap(await sb().from("featured_cuts").insert(fila).select().single());
+}
+
+export async function updateFeaturedCut(cutId, patch) {
+  return unwrap(await sb().from("featured_cuts").update(patch).eq("id", cutId).select().single());
+}
+
+// Borrado real: esto es contenido de la web, no información histórica. La
+// lámina del bucket la borra quien llama, que es el único que sabe si la
+// operación llegó a completarse.
+export async function deleteFeaturedCut(cutId) {
+  const { error } = await sb().from("featured_cuts").delete().eq("id", cutId);
+  if (error) throw error;
+  return true;
+}
+
 // ---------- service_records ----------
 export async function createServiceRecord({ barberId, clientId, service, discountCents = 0, notes, createdBy }) {
   return unwrap(

@@ -716,6 +716,77 @@ body.gb-locked {
 }
 
 /* ===============================================================
+   Cortes destacados
+
+   Las láminas son verticales 2:3 y ya traen dentro su propia rotulación
+   (GOOD BARBER, el nombre del corte, FRENTE / PERFIL / DETRÁS). El marco se
+   adapta a la imagen y no al contrario: el hueco tiene exactamente esa
+   proporción y la imagen se encaja COMPLETA (object-fit: contain), así que
+   no se recorta ni se deforma nunca. El sobrante, si lo hubiera, se resuelve
+   en negro para que se funda con la tarjeta.
+
+   Reutiliza el mismo carril con anclaje que los barberos y los mismos
+   tokens de color, radio y sombra: no introduce lenguaje visual nuevo.
+   =============================================================== */
+.gb-cut-rail {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  margin: 0 calc(var(--gb-gutter) * -1);
+  padding: 4px var(--gb-gutter) 6px;
+}
+.gb-cut-rail::-webkit-scrollbar { display: none; }
+.gb-cut {
+  flex: 0 0 186px;
+  scroll-snap-align: start;
+  display: block;
+  width: 186px;
+  padding: 0;
+  text-align: left;
+  border-radius: var(--gb-r-lg);
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+  background: var(--gb-plate);
+  box-shadow: var(--inset-hairline), var(--shadow-sm);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: transform 0.18s ease;
+}
+.gb-cut:hover { transform: translateY(-2px); }
+/* La proporción original de la lámina, sin negociación. */
+.gb-cut-media {
+  aspect-ratio: 2 / 3;
+  max-width: 100%;
+  background: #000;
+}
+.gb-cut-media img { object-fit: contain; }
+.gb-cut-mono {
+  font-size: 30px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  color: rgba(238, 201, 136, 0.72);
+  text-shadow: 0 6px 22px rgba(0, 0, 0, 0.55);
+}
+.gb-cut-body { display: block; padding: 11px 13px 14px; }
+.gb-cut-name {
+  display: block;
+  font-size: 14.5px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.gb-cut-desc {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+/* ===============================================================
    Cómo reservar
    =============================================================== */
 .gb-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
@@ -1258,7 +1329,17 @@ body.gb-locked {
   .gb-steps { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .gb-contact-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
-  /* Con el ancho disponible el carril pasa a rejilla. */
+  /* Con el ancho disponible los carriles pasan a rejilla. */
+  .gb-cut-rail {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 240px));
+    justify-content: start;
+    overflow: visible;
+    margin: 0;
+    padding: 0;
+  }
+  .gb-cut { flex: initial; width: auto; }
+
   .gb-brb-rail {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(170px, 212px));
