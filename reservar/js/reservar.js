@@ -12,7 +12,12 @@ import { escapeHtml } from "../../js/ui.js";
 import { formatCents } from "../../js/money.js";
 import { icon, iconForService } from "../../cliente/js/icons.js";
 import { initials } from "../../cliente/js/components.js";
-import { hasText, barberImage } from "../../cliente/js/data.js";
+import {
+  hasText,
+  barberImage,
+  cargarServiciosPublicos,
+  cargarBarberosPublicos,
+} from "../../cliente/js/data.js";
 import { stepIn, press, railTo, confirmPop } from "../../cliente/js/motion.js";
 
 function sb() {
@@ -103,9 +108,11 @@ async function boot() {
   try {
     const [{ data: business, error: e1 }, { data: services, error: e2 }, { data: barbers, error: e3 }] = await Promise.all([
       sb().from("public_business").select("*").single(),
-      sb().from("public_services").select("*").order("sort_order"),
-      // Mismo orden que /cliente/: manda sort_order del panel, desempata el nombre.
-      sb().from("public_barbers").select("*").order("sort_order").order("name"),
+      // Las mismas dos consultas que /cliente/, desde el mismo sitio: manda
+      // sort_order del panel y, si la base de datos todavía no tiene esa
+      // columna, se cae al orden por nombre en lugar de tumbar la página.
+      cargarServiciosPublicos(),
+      cargarBarberosPublicos(),
     ]);
     if (e1) throw e1;
     if (e2) throw e2;
