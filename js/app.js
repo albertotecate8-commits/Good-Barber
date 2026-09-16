@@ -179,7 +179,38 @@ function mountBarberShell(ctx) {
     barberViews[viewId](content, ctx);
   }
 
-  navigate("home");
+  // Si el barbero llegó tocando una notificación, la URL trae ?cita=<id>.
+  // Se abre la agenda en vez de Inicio y se limpia el contador del icono.
+  // Cualquier fallo aquí es irrelevante: se entra a Inicio como siempre.
+  const desdeNotificacion = new URLSearchParams(window.location.search).get("cita");
+  navigate(desdeNotificacion ? "agenda" : "home");
+  if (desdeNotificacion) limpiarRastroDeNotificacion();
+
+  // La aplicación ya estaba abierta y el barbero toca una notificación: el
+  // service worker avisa por aquí y se navega sin recargar.
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.addEventListener("message", (event) => {
+      if (event.data?.tipo !== "ir-a-cita") return;
+      try {
+        const url = new URL(event.data.url, window.location.origin);
+        const cita = url.searchParams.get("cita");
+        if (cita) window.history.replaceState({}, "", `?cita=${cita}`);
+      } catch {
+        /* sin identificador: se abre la agenda igualmente */
+      }
+      navigate("agenda");
+      limpiarRastroDeNotificacion();
+    });
+  }
+}
+
+// Al entrar, el contador del icono se pone a cero: representa citas nuevas
+// sin mirar, y el barbero acaba de mirarlas. Mejora progresiva: si la API no
+// existe, no ocurre nada.
+function limpiarRastroDeNotificacion() {
+  import("./push.js")
+    .then((push) => push.limpiarContador())
+    .catch(() => {});
 }
 
 function mountAdminShell(profile) {

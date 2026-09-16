@@ -143,6 +143,60 @@ export async function updateService(serviceId, patch) {
   return unwrap(await sb().from("services").update(patch).eq("id", serviceId).select().single());
 }
 
+// ---------- push_subscriptions (notificaciones del barbero) ----------
+// El RLS garantiza que cada quien solo toca las suyas: profile_id tiene que
+// coincidir con auth.uid() y barber_id con current_barber_id(). Aquí NO se
+// manda el profile_id — lo pone la base desde el token, así que el navegador
+// no puede registrar una suscripción a nombre de otro.
+
+export async function guardarSuscripcionPush({ barberId, endpoint, p256dh, auth, userAgent, origin }) {
+  const { data: sesion } = await sb().auth.getSession();
+  const profileId = sesion?.session?.user?.id;
+  if (!profileId) throw new Error("Debes iniciar sesión para activar las notificaciones.");
+
+  // upsert por endpoint: si este dispositivo ya estaba registrado se
+  // actualiza en vez de crear una segunda fila. Reactivar tras un fallo
+  // vuelve a poner active = true.
+  return unwrap(
+    await sb()
+      .from("push_subscriptions")
+      .upsert(
+        {
+          profile_id: profileId,
+          barber_id: barberId ?? null,
+          endpoint,
+          p256dh,
+          auth,
+          user_agent: userAgent ?? null,
+          origin: origin ?? null,
+          active: true,
+          last_error: null,
+          failure_count: 0,
+          last_seen_at: new Date().toISOString(),
+        },
+        { onConflict: "endpoint" }
+      )
+      .select()
+      .single()
+  );
+}
+
+export async function existeSuscripcionPush(endpoint) {
+  const { data, error } = await sb()
+    .from("push_subscriptions")
+    .select("id, active")
+    .eq("endpoint", endpoint)
+    .maybeSingle();
+  if (error) throw error;
+  return Boolean(data && data.active);
+}
+
+export async function borrarSuscripcionPush(endpoint) {
+  const { error } = await sb().from("push_subscriptions").delete().eq("endpoint", endpoint);
+  if (error) throw error;
+  return true;
+}
+
 // ---------- hero_slides (carrusel de la portada de INICIO) ----------
 // Las fotografías de la baraja 3D de la portada. Colección propia, distinta
 // de featured_cuts: otra tabla, otro formato (3:4) y otra carpeta del bucket.

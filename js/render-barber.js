@@ -4,6 +4,7 @@ import { formatCents, toCents, fromCents } from "./money.js";
 import { dayTotalCents, groupRecordsByDate, weekTotalCents, settlementBreakdown, recordLineTotalCents } from "./calc.js";
 import { startOfWeek, endOfWeek, toISODate, todayISO, weekLabel, formatDateText, DIAS, dayNameFromDate, parseISODate } from "./dates.js";
 import { updatePassword } from "./auth.js";
+import * as push from "./push.js";
 
 const NAV_ITEMS = [
   { id: "home", label: "Inicio", icon: "🏠" },
@@ -850,6 +851,12 @@ export function renderBarberProfile(container, ctx) {
       <p class="mt-8">${ctx.barber.default_percentage}% para ti / ${(100 - ctx.barber.default_percentage).toFixed(2)}% Good Barber</p>
     </div>
 
+    <div class="card" id="push-card">
+      <h3>🔔 Notificaciones</h3>
+      <p class="field-help mt-8">Recibe un aviso en tu teléfono cuando entre una cita nueva, aunque Good Barber esté cerrada.</p>
+      <div class="mt-16" id="push-estado"><div class="spinner" style="margin:0"></div></div>
+    </div>
+
     <div class="card">
       <h3>Cambiar contraseña</h3>
       <div class="field mt-16">
@@ -859,6 +866,73 @@ export function renderBarberProfile(container, ctx) {
       <button class="btn btn-primary btn-block" id="change-password-btn">Actualizar contraseña</button>
     </div>
   `;
+
+  // ---- 🔔 Notificaciones -------------------------------------------------
+  // El permiso se pide SOLO al pulsar el botón, nunca al cargar la pantalla.
+  // iOS lo exige, y además es lo correcto: nadie debe encontrarse un diálogo
+  // de permisos sin haberlo provocado.
+  async function pintarPush() {
+    const caja = container.querySelector("#push-estado");
+    if (!caja) return;
+
+    let estado;
+    try {
+      estado = await push.estadoActual();
+    } catch (error) {
+      caja.innerHTML = `<p class="text-danger">${escapeHtml(friendlyError(error))}</p>`;
+      return;
+    }
+
+    // El navegador no puede: se explica por qué y no se ofrece un botón que
+    // no funcionaría. En iPhone sin instalar, este es el mensaje que sale.
+    if (!estado.puede) {
+      caja.innerHTML = `
+        <p style="font-weight:700">Notificaciones desactivadas</p>
+        <p class="field-help mt-8">${escapeHtml(estado.mensaje)}</p>
+        ${estado.motivo === "ios-sin-instalar"
+          ? `<p class="field-help mt-8">Toca el botón de compartir de Safari y elige «Añadir a pantalla de inicio». Después abre Good Barber desde ahí.</p>`
+          : ""}`;
+      return;
+    }
+
+    if (estado.activo) {
+      caja.innerHTML = `
+        <p style="font-weight:700">✅ Notificaciones activadas</p>
+        <p class="field-help mt-8">Este dispositivo recibirá un aviso con cada cita nueva. No es necesario volver a activarlas.</p>
+        <button class="btn btn-ghost btn-block mt-16" id="push-off">Desactivar notificaciones</button>`;
+      caja.querySelector("#push-off").addEventListener("click", async (e) => {
+        const boton = e.currentTarget;
+        boton.disabled = true;
+        boton.textContent = "Desactivando…";
+        try {
+          await push.desactivar();
+          toast("Notificaciones desactivadas en este dispositivo.", "success");
+        } catch (error) {
+          toast(friendlyError(error), "error");
+        }
+        pintarPush();
+      });
+      return;
+    }
+
+    caja.innerHTML = `
+      <p style="font-weight:700">Notificaciones desactivadas</p>
+      <button class="btn btn-primary btn-block mt-16" id="push-on">🔔 Activar notificaciones</button>`;
+    caja.querySelector("#push-on").addEventListener("click", async (e) => {
+      const boton = e.currentTarget;
+      boton.disabled = true;
+      boton.textContent = "Activando…";
+      try {
+        await push.activar(ctx.barber.id);
+        toast("✅ Notificaciones activadas.", "success");
+      } catch (error) {
+        toast(friendlyError(error), "error");
+      }
+      pintarPush();
+    });
+  }
+
+  pintarPush();
 
   container.querySelector("#change-password-btn").addEventListener("click", async () => {
     const value = container.querySelector("#new-password").value;
