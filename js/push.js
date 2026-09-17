@@ -1,10 +1,12 @@
-// Notificaciones push del barbero: activar, desactivar y saber en qué estado
-// está este dispositivo.
+// Notificaciones push del barbero y del administrador: activar, desactivar y
+// saber en qué estado está este dispositivo.
 //
 // Lo que NO hace, a propósito:
-//   · No pide permiso al cargar la página. Solo cuando el barbero pulsa el
-//     botón. iOS además lo exige: rechaza la petición si no viene de un
-//     gesto directo del usuario.
+//   · No pide permiso al cargar la página. Solo cuando se pulsa el botón.
+//     iOS además lo exige: rechaza la petición si no viene de un gesto
+//     directo del usuario.
+//   · No le quita la suscripción a otra cuenta para quedarse con el
+//     dispositivo. Si ya está tomado, lo dice y no toca nada.
 //   · No reproduce ningún sonido desde la página. El aviso lo dibuja el
 //     sistema operativo, que decide sonido, vibración y pantalla de bloqueo
 //     según lo que el usuario tenga configurado para Good Barber.
@@ -119,7 +121,13 @@ export async function estadoActual() {
   return { activo: guardada, puede: true, motivo: null, mensaje: "", endpoint: sub.endpoint };
 }
 
-/* Activar. SOLO se llama desde el botón, dentro del gesto del usuario. */
+/* Activar. SOLO se llama desde el botón, dentro del gesto del usuario.
+
+   Devuelve { ok: true, endpoint } cuando quedó guardada, o
+   { ok: false, motivo, mensaje } cuando el dispositivo ya está tomado por
+   otra cuenta. Los fallos de verdad (sin permiso, sin red) siguen lanzando. */
+export const CONFLICTO_OTRA_CUENTA = "otra-cuenta";
+
 export async function activar(barberId) {
   const c = capacidades();
   if (!c.puede) throw new Error(c.mensaje);
@@ -132,8 +140,10 @@ export async function activar(barberId) {
   const reg = await registroSW();
   if (!reg) throw new Error("El service worker no está listo todavía.");
 
-  // Si ya había una suscripción en este navegador se reutiliza: el endpoint
-  // es el mismo y en la base hace upsert, así que no se duplica la fila.
+  // Si ya había una suscripción en este navegador se reutiliza: el endpoint es
+  // el mismo y, si la fila es mía, se actualiza en vez de crear una segunda.
+  // Ojo: el endpoint es del NAVEGADOR y del ORIGEN, no de la cuenta. Puede
+  // pertenecer a quien inició sesión aquí antes que yo.
   let sub = await reg.pushManager.getSubscription();
   if (!sub) {
     sub = await reg.pushManager.subscribe({
@@ -145,16 +155,26 @@ export async function activar(barberId) {
   }
 
   const json = sub.toJSON();
-  await data.guardarSuscripcionPush({
-    barberId,
-    endpoint: sub.endpoint,
-    p256dh: json.keys?.p256dh || bytesABase64Url(sub.getKey("p256dh")),
-    auth: json.keys?.auth || bytesABase64Url(sub.getKey("auth")),
-    userAgent: navigator.userAgent,
-    origin: window.location.origin,
-  });
+  try {
+    await data.guardarSuscripcionPush({
+      barberId,
+      endpoint: sub.endpoint,
+      p256dh: json.keys?.p256dh || bytesABase64Url(sub.getKey("p256dh")),
+      auth: json.keys?.auth || bytesABase64Url(sub.getKey("auth")),
+      userAgent: navigator.userAgent,
+      origin: window.location.origin,
+    });
+  } catch (error) {
+    if (error?.motivo === data.ENDPOINT_DE_OTRA_CUENTA) {
+      // NO se cancela la suscripción del navegador. Es de la otra cuenta:
+      // cancelarla la dejaría sin avisos sin que esa persona se entere.
+      // Que lo haga ella, desde su sesión, con el botón de desactivar.
+      return { ok: false, motivo: CONFLICTO_OTRA_CUENTA, mensaje: error.message };
+    }
+    throw error;
+  }
 
-  return { endpoint: sub.endpoint };
+  return { ok: true, endpoint: sub.endpoint };
 }
 
 /* Desactivar: solo ESTE dispositivo. Los demás teléfonos del mismo barbero

@@ -1,6 +1,13 @@
 // Edge Function: send-appointment-push
 //
-// Avisa al barbero, en su teléfono, de que le entró una cita nueva.
+// Avisa en el teléfono de que entró una cita nueva:
+//   · al barbero al que le tocó la cita;
+//   · y a las suscripciones de la casa (barber_id NULL), que son las del
+//     administrador y reciben TODAS las citas, de cualquier barbero.
+//
+// Que una suscripción de la casa sea de verdad de un administrador se
+// comprueba en esta función, contra profiles, con service_role. No se delega
+// en el RLS: aquí es donde se decide a quién sale el envío.
 //
 // LA REGLA QUE MANDA SOBRE TODO LO DEMÁS
 // --------------------------------------
@@ -119,10 +126,12 @@ Deno.serve(async (req: Request) => {
       return responder({ ok: false, motivo: "faltan las claves VAPID" });
     }
 
-    // Destinatarios: SOLO los dispositivos activos de ESE barbero.
-    const { data: subs, error: errorSubs } = await db
+    const COLUMNAS = "id, endpoint, p256dh, auth, profile_id, failure_count";
+
+    // (A) Los dispositivos activos del barbero al que le entró la cita.
+    const { data: subsBarbero, error: errorSubs } = await db
       .from("push_subscriptions")
-      .select("id, endpoint, p256dh, auth, profile_id, failure_count")
+      .select(COLUMNAS)
       .eq("barber_id", cita.barber_id)
       .eq("active", true);
 
@@ -131,14 +140,59 @@ Deno.serve(async (req: Request) => {
       return responder({ ok: false, motivo: errorSubs.message });
     }
 
-    if (!subs || subs.length === 0) {
-      // El barbero no ha activado notificaciones. No es un error.
-      await cerrarCola("skipped", "el barbero no tiene dispositivos activos");
+    // (B) Los dispositivos de la casa: barber_id NULL, que recibe TODAS las
+    // citas. Se aceptan solo si su perfil es administrador activo, y eso se
+    // comprueba AQUÍ, en el servidor, leyendo profiles con service_role. El
+    // RLS ya reserva el NULL al administrador, pero esta función no se fía de
+    // ello: si esa política cambiara, o entrara una fila por otra vía, un
+    // barbero no empezaría a recibir las citas de sus compañeros.
+    const { data: admins, error: errorAdmins } = await db
+      .from("profiles")
+      .select("id")
+      .eq("role", "admin")
+      .eq("active", true);
+
+    if (errorAdmins) {
+      await cerrarCola("failed", errorAdmins.message);
+      return responder({ ok: false, motivo: errorAdmins.message });
+    }
+
+    const idsAdmin = (admins ?? []).map((a) => a.id);
+    let subsCasa: NonNullable<typeof subsBarbero> = [];
+    if (idsAdmin.length) {
+      const { data, error } = await db
+        .from("push_subscriptions")
+        .select(COLUMNAS)
+        .is("barber_id", null)
+        .eq("active", true)
+        .in("profile_id", idsAdmin);
+      if (error) {
+        await cerrarCola("failed", error.message);
+        return responder({ ok: false, motivo: error.message });
+      }
+      subsCasa = data ?? [];
+    }
+
+    // Para elegir el texto de cada aviso: el administrador ve de qué barbero
+    // es la cita; el barbero ya lo sabe.
+    const esAdmin = new Set(idsAdmin);
+
+    // Un dispositivo no puede aparecer dos veces. El endpoint ya es único en
+    // la tabla, pero se deduplica por id de todas formas.
+    const porId = new Map<string, NonNullable<typeof subsBarbero>[number]>();
+    for (const s of [...(subsBarbero ?? []), ...subsCasa]) porId.set(s.id, s);
+    const subs = [...porId.values()];
+
+    if (subs.length === 0) {
+      // Nadie ha activado notificaciones. No es un error.
+      await cerrarCola("skipped", "no hay dispositivos activos que avisar");
       return responder({ ok: true, enviados: 0, motivo: "sin dispositivos" });
     }
 
+    // En la cola queda apuntado el barbero de la cita cuando tiene teléfono;
+    // si solo avisamos a la casa, queda el administrador.
     await db.from("notification_queue")
-      .update({ recipient_profile_id: subs[0].profile_id })
+      .update({ recipient_profile_id: (subsBarbero?.[0] ?? subs[0]).profile_id })
       .eq("id", filaCola.id);
 
     const { data: ajustes } = await db
@@ -147,12 +201,34 @@ Deno.serve(async (req: Request) => {
 
     webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE);
 
-    const cuerpo = JSON.stringify({
-      title: "🔔 Good Barber",
-      body: `Nueva cita\n${cita.client_name} · ${cita.service_name}\n${cuando(cita.starts_at, zona)}`,
+    // El administrador recibe las citas de TODOS, así que necesita saber de
+    // quién es esta. El barbero no: en su teléfono todas son suyas, y meterle
+    // su propio nombre en cada aviso solo le quita una línea de pantalla.
+    const { data: barbero } = await db
+      .from("barbers").select("name").eq("id", cita.barber_id).maybeSingle();
+    const nombreBarbero = barbero?.name || "";
+
+    const comun = {
       appointment_id: cita.id,
       url: `/?cita=${cita.id}`,
       tag: `cita-${cita.id}`,
+    };
+
+    const cuerpoBarbero = JSON.stringify({
+      ...comun,
+      title: "🔔 Good Barber",
+      body: `Nueva cita\n${cita.client_name} · ${cita.service_name}\n${cuando(cita.starts_at, zona)}`,
+    });
+
+    const cuerpoAdmin = JSON.stringify({
+      ...comun,
+      title: "🔔 Nueva cita",
+      body: [
+        `Cliente: ${cita.client_name}`,
+        `Servicio: ${cita.service_name}`,
+        `Hora: ${cuando(cita.starts_at, zona)}`,
+        nombreBarbero ? `Barbero: ${nombreBarbero}` : "",
+      ].filter(Boolean).join("\n"),
     });
 
     // Cada dispositivo se evalúa por separado: que uno falle no impide a los
@@ -161,7 +237,7 @@ Deno.serve(async (req: Request) => {
       subs.map((s) =>
         webpush.sendNotification(
           { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-          cuerpo,
+          esAdmin.has(s.profile_id) ? cuerpoAdmin : cuerpoBarbero,
           {
             // Apple lo documenta: 'high' intenta entregar de inmediato en vez
             // de agrupar el aviso para más tarde. Es el control real de

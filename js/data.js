@@ -143,42 +143,74 @@ export async function updateService(serviceId, patch) {
   return unwrap(await sb().from("services").update(patch).eq("id", serviceId).select().single());
 }
 
-// ---------- push_subscriptions (notificaciones del barbero) ----------
+// ---------- push_subscriptions (notificaciones del barbero y del admin) ----------
 // El RLS garantiza que cada quien solo toca las suyas: profile_id tiene que
-// coincidir con auth.uid() y barber_id con current_barber_id(). Aquí NO se
-// manda el profile_id — lo pone la base desde el token, así que el navegador
-// no puede registrar una suscripción a nombre de otro.
+// coincidir con auth.uid(), y barber_id o es el del propio barbero o es NULL,
+// y entonces hay que ser administrador. El navegador manda esos valores, pero
+// quien decide es el servidor: da igual lo que se escriba aquí.
+
+// Un mismo navegador+origen tiene UN solo endpoint, sea quien sea el que
+// haya iniciado sesión. Si el dispositivo ya está registrado a nombre de otra
+// cuenta, el RLS no deja escribirlo — ni debe. Se avisa con este motivo en
+// lugar de arrastrar un 42501 sin explicación.
+export const ENDPOINT_DE_OTRA_CUENTA = "endpoint-de-otra-cuenta";
 
 export async function guardarSuscripcionPush({ barberId, endpoint, p256dh, auth, userAgent, origin }) {
   const { data: sesion } = await sb().auth.getSession();
   const profileId = sesion?.session?.user?.id;
   if (!profileId) throw new Error("Debes iniciar sesión para activar las notificaciones.");
 
-  // upsert por endpoint: si este dispositivo ya estaba registrado se
-  // actualiza en vez de crear una segunda fila. Reactivar tras un fallo
-  // vuelve a poner active = true.
-  return unwrap(
-    await sb()
-      .from("push_subscriptions")
-      .upsert(
-        {
-          profile_id: profileId,
-          barber_id: barberId ?? null,
-          endpoint,
-          p256dh,
-          auth,
-          user_agent: userAgent ?? null,
-          origin: origin ?? null,
-          active: true,
-          last_error: null,
-          failure_count: 0,
-          last_seen_at: new Date().toISOString(),
-        },
-        { onConflict: "endpoint" }
-      )
-      .select()
-      .single()
-  );
+  const fila = {
+    profile_id: profileId,
+    barber_id: barberId ?? null,
+    endpoint,
+    p256dh,
+    auth,
+    user_agent: userAgent ?? null,
+    origin: origin ?? null,
+    active: true,
+    last_error: null,
+    failure_count: 0,
+    last_seen_at: new Date().toISOString(),
+  };
+
+  // 1. ¿Este dispositivo ya es MÍO? El SELECT pasa por el RLS, así que solo
+  //    devuelve mis filas: aquí nunca aparece la de otra cuenta.
+  const { data: mia, error: errorLectura } = await sb()
+    .from("push_subscriptions")
+    .select("id")
+    .eq("endpoint", endpoint)
+    .maybeSingle();
+  if (errorLectura) throw errorLectura;
+
+  // Ya era mío: se actualiza por id. Reactiva tras un fallo y no duplica fila.
+  if (mia) {
+    return unwrap(
+      await sb().from("push_subscriptions").update(fila).eq("id", mia.id).select().single()
+    );
+  }
+
+  // 2. No es mío: INSERT limpio. NADA de upsert por endpoint — el
+  //    ON CONFLICT DO UPDATE era justo lo que intentaba pisar la fila de otro
+  //    usuario y el RLS lo rechazaba con 42501 sin decir por qué.
+  const { data: creada, error } = await sb()
+    .from("push_subscriptions")
+    .insert(fila)
+    .select()
+    .single();
+  if (!error) return creada;
+
+  // 23505 = el endpoint ya existe y el paso 1 no lo vio, o sea que es de otra
+  // cuenta. Es lo único que se deduce: ni quién, ni su perfil, ni nada más.
+  if (error.code === "23505") {
+    const conflicto = new Error(
+      "Este dispositivo ya tiene las notificaciones activadas para otra cuenta. " +
+      "Desactívalas primero desde esa cuenta para poder activarlas aquí."
+    );
+    conflicto.motivo = ENDPOINT_DE_OTRA_CUENTA;
+    throw conflicto;
+  }
+  throw error;
 }
 
 export async function existeSuscripcionPush(endpoint) {

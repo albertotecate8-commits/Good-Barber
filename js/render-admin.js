@@ -5,6 +5,7 @@ import { dayTotalCents, groupRecordsByDate, weekTotalCents, settlementBreakdown,
 import { startOfWeek, endOfWeek, toISODate, todayISO, weekLabel, formatDateText, parseISODate } from "./dates.js";
 import { imageFieldHTML, wireImageField } from "./image-field.js";
 import { borrarImagen } from "./media.js";
+import { tarjetaPushHTML, montarTarjetaPush } from "./push-ui.js";
 
 const NAV_ITEMS = [
   { id: "dashboard", label: "Dashboard", icon: "📊" },
@@ -1159,6 +1160,10 @@ function panelNegocio(panel, settings, onDone) {
       </div>
     </div>`;
 
+  // El administrador no tiene barbero asignado: su suscripción va con
+  // barber_id NULL, que es como la base distingue «avisos de toda la casa».
+  montarTarjetaPush(panel, { barberId: null });
+
   panel.querySelector("#cfg-cancel").addEventListener("click", onDone);
   panel.querySelector("#cfg-save").addEventListener("click", (e) => {
     const err = panel.querySelector("#cfg-err");
@@ -1201,6 +1206,10 @@ function panelPromo(panel, settings, onDone) {
       </div>
     </div>`;
 
+  // El administrador no tiene barbero asignado: su suscripción va con
+  // barber_id NULL, que es como la base distingue «avisos de toda la casa».
+  montarTarjetaPush(panel, { barberId: null });
+
   panel.querySelector("#cfg-cancel").addEventListener("click", onDone);
   panel.querySelector("#cfg-save").addEventListener("click", (e) => {
     const err = panel.querySelector("#cfg-err");
@@ -1231,6 +1240,10 @@ function panelImagenes(panel, settings, onDone) {
 
   const logo = wireImageField(panel, "cfg-logo", { carpeta: "logo", urlActual: settings.logo_url });
   const hero = wireImageField(panel, "cfg-hero", { carpeta: "hero", urlActual: settings.hero_image_url });
+
+  // El administrador no tiene barbero asignado: su suscripción va con
+  // barber_id NULL, que es como la base distingue «avisos de toda la casa».
+  montarTarjetaPush(panel, { barberId: null });
 
   panel.querySelector("#cfg-cancel").addEventListener("click", onDone);
   panel.querySelector("#cfg-save").addEventListener("click", async (e) => {
@@ -1610,6 +1623,10 @@ function panelReservas(panel, settings, onDone) {
       </div>
     </div>`;
 
+  // El administrador no tiene barbero asignado: su suscripción va con
+  // barber_id NULL, que es como la base distingue «avisos de toda la casa».
+  montarTarjetaPush(panel, { barberId: null });
+
   panel.querySelector("#cfg-cancel").addEventListener("click", onDone);
   panel.querySelector("#cfg-save").addEventListener("click", (e) => {
     const err = panel.querySelector("#cfg-err");
@@ -1638,6 +1655,8 @@ function mostrar(caja, mensaje) {
 // Ajustes internos, que no ve el cliente. Se quedan aquí para no perderlos.
 function panelOperacion(panel, settings, onDone) {
   panel.innerHTML = `
+    ${tarjetaPushHTML("Recibe un aviso en tu teléfono con cada cita nueva, de cualquier barbero, aunque Good Barber esté cerrada.")}
+
     <div class="card">
       <div class="field"><label for="cfg-pct">Porcentaje por defecto del barbero (%)</label>
         <input id="cfg-pct" type="number" min="0" max="100" step="0.01" value="${settings.default_barber_percentage}"></div>
@@ -1650,6 +1669,10 @@ function panelOperacion(panel, settings, onDone) {
         <button class="btn btn-ghost" id="cfg-cancel">Cancelar</button>
       </div>
     </div>`;
+
+  // El administrador no tiene barbero asignado: su suscripción va con
+  // barber_id NULL, que es como la base distingue «avisos de toda la casa».
+  montarTarjetaPush(panel, { barberId: null });
 
   panel.querySelector("#cfg-cancel").addEventListener("click", onDone);
   panel.querySelector("#cfg-save").addEventListener("click", (e) => {
