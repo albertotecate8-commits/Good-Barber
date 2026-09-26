@@ -1,0 +1,175 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Paleta inspirada en la referencia: rosa chicle, crema y pasteles de sabores. */
+:root {
+  --bg: #fff9f6;
+  --surface: #ffffff;
+  --surface-2: #fff1f3;
+  --line: #f6e3e7;
+  --ink: #2b1b21;
+  --ink-2: #6f5b62;
+  --ink-3: #a8959b;
+
+  --pink: #f4527a;
+  --pink-strong: #e23d67;
+  --pink-soft: #ffe3ea;
+  --pink-ink: #c72c55;
+
+  --mango: #ffc542;
+  --mango-soft: #fff3d3;
+  --mint: #5fcfa2;
+  --mint-soft: #e2f6ed;
+  --choco: #8a5a3b;
+  --choco-soft: #f3e7df;
+  --grape: #a77ff0;
+  --grape-soft: #eee6fd;
+  --sky: #5ab6ee;
+  --sky-soft: #e1f1fc;
+
+  --ok: #2fbf71;
+  --warn: #ff9f2e;
+  --warn-soft: #fff0dc;
+  --danger: #ef3f5b;
+  --danger-soft: #ffe1e6;
+
+  --shadow-card: 0 1px 2px rgb(120 40 60 / 0.04), 0 8px 24px -12px rgb(200 60 100 / 0.18);
+  --shadow-pop: 0 12px 30px -10px rgb(244 82 122 / 0.55);
+  color-scheme: light;
+}
+
+.dark {
+  --bg: #170e12;
+  --surface: #23161c;
+  --surface-2: #2d1c24;
+  --line: #3a2630;
+  --ink: #fcecf1;
+  --ink-2: #c9b0b9;
+  --ink-3: #8d7580;
+
+  --pink: #ff6690;
+  --pink-strong: #ff4f7e;
+  --pink-soft: #45202e;
+  --pink-ink: #ff9ab5;
+
+  --mango-soft: #3d3016;
+  --mint-soft: #173529;
+  --choco-soft: #36251c;
+  --grape-soft: #2e2345;
+  --sky-soft: #172d3d;
+  --warn-soft: #3d2a12;
+  --danger-soft: #451a23;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 26px -14px rgb(0 0 0 / 0.7);
+  --shadow-pop: 0 12px 30px -12px rgb(255 102 144 / 0.5);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --font-display: "Fredoka", ui-rounded, system-ui, sans-serif;
+  --font-sans: "Poppins", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-pink: var(--pink);
+  --color-pink-strong: var(--pink-strong);
+  --color-pink-soft: var(--pink-soft);
+  --color-pink-ink: var(--pink-ink);
+  --color-mango: var(--mango);
+  --color-mango-soft: var(--mango-soft);
+  --color-mint: var(--mint);
+  --color-mint-soft: var(--mint-soft);
+  --color-choco: var(--choco);
+  --color-choco-soft: var(--choco-soft);
+  --color-grape: var(--grape);
+  --color-grape-soft: var(--grape-soft);
+  --color-sky: var(--sky);
+  --color-sky-soft: var(--sky-soft);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+
+  --shadow-card: var(--shadow-card);
+  --shadow-pop: var(--shadow-pop);
+
+  --animate-pop-in: pop-in 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+  --animate-fade-up: fade-up 0.4s ease-out both;
+  --animate-float: float 4s ease-in-out infinite;
+  --animate-wiggle: wiggle 1.4s ease-in-out infinite;
+}
+
+@keyframes pop-in {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(-4deg); }
+  50% { transform: translateY(-8px) rotate(4deg); }
+}
+@keyframes wiggle {
+  0%, 100% { transform: rotate(-6deg); }
+  50% { transform: rotate(6deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+@layer base {
+html, body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+}
+
+html, body { overflow-x: clip; }
+body { overscroll-behavior-y: none; }
+
+input, select, textarea, button { font: inherit; color: inherit; }
+
+/* Números alineados en tablas y montos */
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* Quitar flechas de input number */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input[type="number"] { -moz-appearance: textfield; }
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
+
+.pb-safe { padding-bottom: max(env(safe-area-inset-bottom), 0px); }
+.pt-safe { padding-top: max(env(safe-area-inset-top), 0px); }
+
+}
+
+/* Emoji como "ilustración 3D" */
+.candy-emoji {
+  filter: drop-shadow(0 6px 8px rgb(120 20 50 / 0.25));
+  line-height: 1;
+}
+
+/* Confeti de chispas (como en la portada de la referencia) */
+.sprinkles {
+  background-image:
+    radial-gradient(circle at 12% 30%, #ffd35c 0 2px, transparent 3px),
+    radial-gradient(circle at 78% 18%, #7fe0bb 0 2px, transparent 3px),
+    radial-gradient(circle at 60% 70%, #ffffff 0 2px, transparent 3px),
+    radial-gradient(circle at 30% 80%, #b58cff 0 2px, transparent 3px),
+    radial-gradient(circle at 90% 60%, #7cc8ff 0 2px, transparent 3px),
+    radial-gradient(circle at 45% 40%, #ffffff 0 1.5px, transparent 2.5px);
+}
