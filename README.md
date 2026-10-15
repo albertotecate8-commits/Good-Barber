@@ -4,6 +4,9 @@ Aplicación web estática (HTML + CSS + JavaScript, sin frameworks ni build) con
 a **Supabase** (Auth + Postgres + Row Level Security) para administrar una barbería
 con un administrador y dos barberos, cada uno con su propia cuenta y sus propios datos.
 
+> **Marketing AI Studio** (centro de marketing con IA para todos los negocios) vive en
+> [`marketing-studio/`](marketing-studio/README.md) y es independiente de esta app.
+
 ## Índice
 
 1. [Arquitectura](#arquitectura)

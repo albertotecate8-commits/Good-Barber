@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #0b0b0d;
+  --surface: #141417;
+  --surface-2: #1b1b1f;
+  --surface-3: #232328;
+  --border: #2a2a30;
+  --border-strong: #3a3a42;
+  --text: #f3f1ea;
+  --muted: #a3a1a8;
+  --faint: #7d7b84;
+  --gold: #c9a227;
+  --gold-soft: rgba(201, 162, 39, 0.12);
+  --positive: #3ecf8e;
+  --positive-soft: rgba(62, 207, 142, 0.12);
+  --action: #8b7bff;
+  --action-strong: #a294ff;
+  --action-soft: rgba(139, 123, 255, 0.14);
+  --warn: #f2b84b;
+  --warn-soft: rgba(242, 184, 75, 0.12);
+  --danger: #f06a6a;
+  --danger-soft: rgba(240, 106, 106, 0.12);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+  --color-ink: var(--text);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+  --color-positive: var(--positive);
+  --color-positive-soft: var(--positive-soft);
+  --color-action: var(--action);
+  --color-action-strong: var(--action-strong);
+  --color-action-soft: var(--action-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--action-strong);
+  outline-offset: 2px;
+}
+
+/* Controles de formulario coherentes y con tamaño táctil >= 44px */
+.input {
+  width: 100%;
+  min-height: 44px;
+  border-radius: 0.75rem;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  padding: 0.625rem 0.875rem;
+  color: var(--text);
+  font-size: 16px; /* evita el zoom automático de iOS */
+}
+.input::placeholder {
+  color: var(--faint);
+}
+.input:focus {
+  outline: none;
+  border-color: var(--action);
+  box-shadow: 0 0 0 3px var(--action-soft);
+}
+.input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+textarea.input {
+  min-height: 96px;
+  resize: vertical;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}

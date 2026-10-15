@@ -1,0 +1,30 @@
+name: Marketing AI Studio
+
+on:
+  push:
+    paths: ["marketing-studio/**", ".github/workflows/marketing-studio.yml"]
+  pull_request:
+    paths: ["marketing-studio/**", ".github/workflows/marketing-studio.yml"]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: marketing-studio
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: marketing-studio/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test:unit
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
