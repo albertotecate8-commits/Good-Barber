@@ -13,4 +13,9 @@ grant usage on schema auth to anon, authenticated, service_role;
 alter role supabase_auth_admin set search_path = auth;
 grant usage on schema public to anon, authenticated, service_role;
 grant all on all tables in schema public to service_role;
-alter default privileges in schema public grant all on tables to service_role;
+-- Igual que en Supabase real: todo objeto nuevo de public recibe por defecto
+-- TODOS los privilegios para anon, authenticated y service_role. Las
+-- migraciones deben revocar lo que sobra (ver 20261019000000_mkt_harden_grants).
+alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
+alter default privileges in schema public grant all on functions to anon, authenticated, service_role;

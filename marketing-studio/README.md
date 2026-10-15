@@ -6,7 +6,7 @@ citas de Good Barber (raíz del repositorio), que no se modifica.
 
 **Regla económica:** $0 MXN de gasto adicional en APIs. Ver `src/lib/providers/`.
 
-## Estado (Etapas 1 a 4)
+## Estado (Etapas 1 a 5)
 
 | Función | Estado |
 | --- | --- |
@@ -18,7 +18,8 @@ citas de Good Barber (raíz del repositorio), que no se modifica.
 | Registro honesto de proveedores de IA y bloqueo de gasto | Funciona (la invocación real llega en la Etapa 3) |
 | Calendario: vistas mes/semana/próximas, crear, editar, duplicar, eliminar, filtros, zona America/Mexico_City | Funciona y está probado |
 | Biblioteca: subir, filtrar, etiquetar, previsualizar, descargar, eliminar; aislada por negocio | Funciona y está probada (con almacenamiento local de desarrollo) |
-| Supabase Storage (bucket privado) | Código y políticas listos y probados contra un *mock* del esquema `storage`; **no probado contra un Supabase real** |
+| Supabase real (proyecto `marketing-ai-studio`, plan Free) | Creado; 6 migraciones aplicadas; esquema idéntico al local (huella de 10 categorías); políticas RLS y de Storage verificadas en la base real (17/17) |
+| Supabase Storage (bucket privado) | Bucket y políticas creados y verificados en la base real; **subida/descarga de archivos por HTTP aún sin probar** (la red del entorno bloquea supabase.co: ver `npm run smoke:remote`) |
 | Registro de «publicada a mano» | Funciona (es una declaración tuya, no confirma la plataforma) |
 | Director de Marketing: instrucción → tareas → investigación → estrategia, 5 anuncios, Reel, calendario, KPIs y medición | Funciona con el motor de plantillas (sin IA); probado |
 | Varios negocios en una petición (una campaña por negocio) | Funciona |
@@ -34,10 +35,12 @@ citas de Good Barber (raíz del repositorio), que no se modifica.
 | Editor gráfico en el navegador: recorte con foco, textos y precios exactos, logotipo sin deformar, plantillas, exportación en alta resolución y adaptación a otros formatos | Funciona y está probado (edición por código, no IA) |
 | Importar resultados de herramientas externas como versiones («Generado con IA») | Funciona |
 | Control de calidad: automático (precios, afirmaciones, dimensiones, contraste, tamaño legible, zonas seguras, resolución, logotipo, exposición) + revisión humana obligatoria para «definitivo» | Funciona y está probado |
-| Video: escenas, textos, música con licencia y montaje con FFmpeg | Funciona donde hay FFmpeg (probado con `ffprobe`); en Vercel se entrega el comando |
+| Video: escenas, textos, música con licencia y montaje con FFmpeg | Funciona donde hay FFmpeg (probado con `ffprobe`); en Netlify se entrega el comando |
 | Generación de imágenes o video con IA desde la app | **No disponible**: ninguna vía gratuita y permitida (ver abajo) |
 | Mensajes, analíticas automáticas | **Pendiente** |
-| Conexión con Meta y publicación automática | **Pendiente** (Etapa 5): ninguna red está conectada; programar **no** publica |
+| Hosting en Netlify Free (uso comercial permitido) | Preparado (`netlify.toml`); **no desplegado**: requiere tu inicio de sesión en Netlify |
+| Conexión oficial con Meta (vincular la página existente, solo lectura) | Implementada y probada con respuestas simuladas; **sin probar contra Meta** (no hay app de Meta); ninguna red está conectada |
+| Publicación automática en Facebook/Instagram | **Pendiente**: programar **no** publica |
 
 ## Arquitectura
 
@@ -67,7 +70,7 @@ citas de Good Barber (raíz del repositorio), que no se modifica.
 - `MKT_STORAGE_BACKEND=supabase` (por defecto): bucket privado `mkt-assets`, 50 MB por archivo;
   la subida va directo del navegador a Storage y sus políticas RLS exigen el registro pendiente.
 - `MKT_STORAGE_BACKEND=local`: solo desarrollo, en `.local-storage/`. La app lo anuncia en pantalla
-  y se niega a usarlo en Vercel.
+  y se niega a usarlo en Netlify o Vercel.
 - Los archivos se entregan por `/api/biblioteca/archivo/[id]`, que consulta con la sesión del
   usuario (RLS): sin acceso al negocio, la respuesta es 404.
 
@@ -91,7 +94,7 @@ citas de Good Barber (raíz del repositorio), que no se modifica.
 - `formats.ts`: formatos por red con zonas seguras (guías 2026; Meta no publica una única medida oficial).
 - `layout.ts` + `design.ts`: composición pura (recorte con punto focal, logotipo proporcional, ajuste de
   texto, plantillas dentro de la zona segura). `draw.ts` la dibuja en un `<canvas>` del navegador, tanto
-  para la vista previa como para exportar a tamaño real. Funciona igual en Vercel y en el iPhone.
+  para la vista previa como para exportar a tamaño real. Funciona igual en Netlify y en el iPhone.
 - `qa.ts`: comprobaciones automáticas (algunas medidas en los píxeles del lienzo, otras en el servidor) y
   una lista de revisión humana obligatoria. Lo que no se puede medir (defectos de una imagen con IA, permisos
   de personas) se pide a la persona; la app no certifica que una imagen sea «real» ni promete ventas.
@@ -102,6 +105,17 @@ citas de Good Barber (raíz del repositorio), que no se modifica.
   eso la generación es asistida: la app prepara el prompt (pidiendo la imagen sin texto para poner textos
   exactos con el editor), abre la herramienta y luego importas el resultado. El enlace `chatgpt.com/?q=` se
   ofrece como opción no oficial; Claude y Gemini no tienen precarga confirmada.
+
+### Conexión con Meta (`src/lib/meta/`)
+
+- `config.ts`: permisos que se piden (solo lectura) y variables necesarias; sin ellas la app explica qué falta.
+- `graph.ts`: Facebook Login, cambio de código por token de larga duración, `debug_token` (válido y de esta
+  app), páginas que administras con su Instagram y prueba del token de página. Nunca registra tokens.
+- `crypto.ts`: AES-256-GCM para tokens y `state` firmado (HMAC) + cookie httpOnly contra CSRF.
+- `service.ts`: la única parte que usa `service_role`, para guardar tokens cifrados en tablas que el navegador
+  no puede leer y fijar «Conectado» solo después de que Meta confirmó. Reutiliza el perfil ya registrado:
+  no crea páginas ni perfiles duplicados.
+- Rutas `/api/meta/conectar` y `/api/meta/retorno`; pantalla `/negocios/[slug]/meta` para elegir la página.
 
 ### Garantías aplicadas en la base de datos (no solo en la interfaz)
 
@@ -120,6 +134,8 @@ citas de Good Barber (raíz del repositorio), que no se modifica.
   negocio (triggers); el uso de IA se registra a nombre propio y no se edita ni se borra.
 - Proyectos creativos, referencias, versiones y sus archivos pertenecen a un solo negocio; un material
   «definitivo» exige archivo y revisión aprobada (restricción `CHECK`).
+- Los tokens de Meta y las sesiones OAuth están en tablas sin ningún privilegio para el navegador.
+- `authenticated` no tiene TRUNCATE/REFERENCES/TRIGGER ni escritura en tablas de solo lectura; `anon` no tiene acceso.
 
 ### Migraciones
 
@@ -129,8 +145,10 @@ citas de Good Barber (raíz del repositorio), que no se modifica.
 | `supabase/migrations/20261016000000_mkt_calendar_library.sql` | `supabase/rollbacks/20261016000000_mkt_calendar_library.down.sql` |
 | `supabase/migrations/20261017000000_mkt_director_research.sql` | `supabase/rollbacks/20261017000000_mkt_director_research.down.sql` |
 | `supabase/migrations/20261018000000_mkt_creative_studio.sql` | `supabase/rollbacks/20261018000000_mkt_creative_studio.down.sql` |
+| `supabase/migrations/20261019000000_mkt_harden_grants.sql` | `supabase/rollbacks/20261019000000_mkt_harden_grants.down.sql` |
+| `supabase/migrations/20261020000000_mkt_meta_connections.sql` | `supabase/rollbacks/20261020000000_mkt_meta_connections.down.sql` |
 
-Todas son idempotentes. Las dos últimas se probaron aplicando, re-aplicando, revirtiendo y volviendo a aplicar. 
+Todas son idempotentes. Desde la del Estudio se probaron aplicando, re-aplicando, revirtiendo y volviendo a aplicar. El entorno local replica los privilegios por defecto de Supabase real (`scripts/local-supabase/roles.sql`).
 
 ## Desarrollo local
 
@@ -151,7 +169,12 @@ npm run lint && npm run typecheck
 npm run test:unit         # lógica: dinero, validación, regla de gasto, proveedores
 npm run test:integration  # RLS, triggers y políticas de Storage contra el stack local
 npm run build && npm run test:e2e   # navegador real (escritorio + iPhone)
+npm run test:live         # fuentes de investigación EN VIVO (requiere internet)
+npm run smoke:remote      # servicios reales: Auth, base, Storage y app desplegada (ver docs/DESPLIEGUE.md)
 ```
+
+Contra el proyecto Supabase real (SQL Editor o conector): `scripts/remote/schema-fingerprint.sql` (huella
+del esquema para comparar con el local) y `scripts/remote/rls-check.sql` (permisos; no deja rastro).
 
 ## Despliegue
 

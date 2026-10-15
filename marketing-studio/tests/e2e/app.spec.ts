@@ -100,6 +100,24 @@ test("flujo completo: cargar negocios, editar Good Barber y revisar estado hones
   await expect(page.getByText("· @good_barber_oficial")).toBeVisible();
   await expect(page.getByText("No crear otra página.")).toBeVisible();
   await expect(page.getByText("Conectado", { exact: true })).toHaveCount(0);
+  // Conexión oficial con Meta: sin app de Meta configurada no se ofrece conectar.
+  await expect(page.getByRole("heading", { name: /Conexión oficial con Meta/ })).toBeVisible();
+  await expect(page.getByText(/Aún no disponible: falta configurar/)).toContainText("META_APP_ID");
+  await expect(page.getByRole("link", { name: "Conectar con Meta" })).toHaveCount(0);
+  await expectNoHorizontalScroll(page);
+  await shot("04b-redes-meta");
+  // Ni la ruta de inicio ni la de retorno marcan nada sin configuración / sin state válido.
+  const redesUrl = page.url();
+  const businessId = await page.evaluate(async (u) => {
+    const html = await (await fetch(u)).text();
+    return /negocio=([0-9a-f-]{36})/.exec(html)?.[1] ?? null;
+  }, redesUrl);
+  expect(businessId).toBeNull();
+  await page.goto("/api/meta/retorno?code=x&state=falso");
+  await expect(page).toHaveURL(/meta=sin-configurar/);
+  await expect(page.getByText("No se conectó nada.")).toBeVisible();
+  await page.goto(redesUrl);
+  await expect(page.getByText("Conectado", { exact: true })).toHaveCount(0);
 
   // Historial de auditoría
   await page.getByRole("link", { name: "Historial" }).click();

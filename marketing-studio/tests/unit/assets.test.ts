@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { assetUploadSchema, parseTags, safeFileName, sniffMatches } from "@/lib/validation/asset";
 import { storageConfig, storagePath } from "@/lib/storage/config";
+import { serverlessHost } from "@/lib/hosting";
 import { publishAvailability, type Publisher } from "@/lib/publishing";
 
 const BIZ = "11111111-1111-4111-8111-111111111111";
@@ -58,11 +59,17 @@ describe("configuración de almacenamiento", () => {
   it("usa Supabase por defecto", () => {
     expect(storageConfig({}).backend).toBe("supabase");
   });
-  it("permite el modo local solo fuera de Vercel", () => {
+  it("permite el modo local solo fuera de hostings sin servidor", () => {
     const local = storageConfig({ MKT_STORAGE_BACKEND: "local" });
     expect(local.backend).toBe("local_dev");
     expect(local.problem).toBeUndefined();
     expect(storageConfig({ MKT_STORAGE_BACKEND: "local", VERCEL: "1" }).problem).toMatch(/Vercel/);
+    expect(storageConfig({ MKT_STORAGE_BACKEND: "local", NETLIFY: "true" }).problem).toMatch(/Netlify/);
+    expect(storageConfig({ MKT_STORAGE_BACKEND: "local", AWS_LAMBDA_FUNCTION_NAME: "f" }).problem).toMatch(/sin servidor/);
+  });
+  it("detecta Netlify también en funciones (sin la variable NETLIFY)", () => {
+    expect(serverlessHost({ SITE_ID: "x", DEPLOY_URL: "https://x.netlify.app" })).toBe("Netlify");
+    expect(serverlessHost({})).toBeNull();
   });
   it("informa valores inválidos", () => {
     expect(storageConfig({ MKT_STORAGE_BACKEND: "s3" }).problem).toMatch(/no es válido/);

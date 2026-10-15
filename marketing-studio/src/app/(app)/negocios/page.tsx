@@ -2,13 +2,21 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { listBusinesses } from "@/lib/data/businesses";
 import { requireUser } from "@/lib/data/session";
-import { ButtonLink, EmptyState, PageHeader } from "@/components/ui";
+import { ButtonLink, EmptyState, Notice, PageHeader } from "@/components/ui";
 import { LoadInitialButton } from "@/components/load-initial-button";
 
 export const metadata = { title: "Negocios" };
 
-export default async function BusinessesPage() {
+const META_MESSAGES: Record<string, string> = {
+  "sin-configurar": "La conexión con Meta no está configurada en el servidor. No se conectó nada.",
+  "estado-invalido": "La respuesta de Meta no coincidió con tu solicitud (protección contra falsificación). No se conectó nada.",
+  "sin-permiso": "Solo el dueño de un negocio puede conectarlo con Meta. No se conectó nada.",
+  invalido: "Solicitud de conexión inválida. No se conectó nada.",
+};
+
+export default async function BusinessesPage({ searchParams }: { searchParams: Promise<{ meta?: string }> }) {
   const user = await requireUser();
+  const { meta } = await searchParams;
   const businesses = await listBusinesses();
   return (
     <>
@@ -23,6 +31,13 @@ export default async function BusinessesPage() {
           )
         }
       />
+      {meta && META_MESSAGES[meta] && (
+        <div className="mb-4">
+          <Notice tone="warn" title="Conexión con Meta">
+            {META_MESSAGES[meta]}
+          </Notice>
+        </div>
+      )}
       {businesses.length === 0 ? (
         <EmptyState title="Aún no hay negocios" action={user.isAdmin ? <LoadInitialButton /> : undefined}>
           Carga tus negocios iniciales o crea uno nuevo.

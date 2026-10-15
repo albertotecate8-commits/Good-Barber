@@ -233,8 +233,8 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
                 ))}
               </ul>
               <p className="mt-3 text-xs text-faint">
-                «Registrado» significa que el perfil está anotado, no que la app pueda publicar. La conexión oficial con
-                Meta se habilita en la Etapa 5.
+                «Registrado» significa que el perfil está anotado, no que la app pueda publicar. «Conectado» solo aparece
+                cuando autorizas la app en el diálogo oficial de Meta (Negocio → Redes sociales).
               </p>
             </>
           )}

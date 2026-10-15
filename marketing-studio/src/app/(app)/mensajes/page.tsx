@@ -4,7 +4,7 @@ export default function Page() {
   return (
     <ModulePlaceholder
       title="Mensajes y prospectos"
-      stage="Etapa 5"
+      stage="Pendiente"
       description="Bandeja de prospectos para los canales que se puedan integrar legalmente."
       planned={[
         "Registro manual de prospectos, estado, citas y resultado comercial.",

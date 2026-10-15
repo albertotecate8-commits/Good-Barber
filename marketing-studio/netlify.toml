@@ -1,0 +1,14 @@
+# Netlify (plan Free, sin tarjeta). En el panel: Base directory = marketing-studio.
+# El adaptador oficial de Next.js para Netlify se instala solo; no hace falta
+# agregarlo como dependencia.
+[build]
+  command = "npm run build"
+  publish = ".next"
+  # Cada despliegue a producción consume 15 de los 300 créditos mensuales del
+  # plan Free. Este comando evita construir cuando el commit no cambia nada de
+  # marketing-studio/ (p. ej. cambios de la app de citas, que vive en la raíz).
+  ignore = "bash scripts/netlify-ignore.sh"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NEXT_TELEMETRY_DISABLED = "1"

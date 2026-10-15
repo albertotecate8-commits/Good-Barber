@@ -8,6 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { serverlessHost } from "@/lib/hosting";
 import { readAssetBytes, storeGeneratedAsset } from "@/lib/storage/server-store";
 import { buildFfmpegArgs, renderBlocker, totalSeconds, wrapForVideo, type VideoPlan } from "./video";
 import type { CreativeFormat } from "./formats";
@@ -30,13 +31,14 @@ const FONT_CANDIDATES = [
 
 let cached: FfmpegStatus | null = null;
 
-/** FFmpeg es software libre local. En Vercel no existe: se informa y se ofrece el comando. */
+/** FFmpeg es software libre local. En hostings sin servidor no existe: se informa y se ofrece el comando. */
 export async function ffmpegStatus(): Promise<FfmpegStatus> {
   if (cached) return cached;
   const bin = process.env.MKT_FFMPEG_PATH || "ffmpeg";
   const font = [process.env.MKT_VIDEO_FONT, ...FONT_CANDIDATES].find((f): f is string => Boolean(f && fs.existsSync(/*turbopackIgnore: true*/ f))) ?? null;
-  if (process.env.VERCEL) {
-    cached = { available: false, reason: "El hosting gratuito de Vercel no incluye FFmpeg. Copia el comando y móntalo en tu computadora.", bin, font };
+  const host = serverlessHost();
+  if (host) {
+    cached = { available: false, reason: `El plan gratuito de ${host} no incluye FFmpeg. Copia el comando y móntalo en tu computadora.`, bin, font };
     return cached;
   }
   try {

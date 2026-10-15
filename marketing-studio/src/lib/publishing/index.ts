@@ -4,7 +4,8 @@
 // publicaciones son MANUALES. «Programar» en la app solo organiza la fecha;
 // nada se envía a Facebook ni a Instagram.
 //
-// Cuando exista la integración con Meta (Etapa 5):
+// La vinculación con Meta ya existe (src/lib/meta, solo lectura). Cuando se
+// agregue la publicación, con los permisos de publicar autorizados por ti:
 //   1. Un proceso del servidor (service_role) buscará publicaciones con
 //      status = 'scheduled', publish_mode = 'api' y scheduled_at <= ahora.
 //   2. Llamará al Publisher de la plataforma (Graph API), registrará cada

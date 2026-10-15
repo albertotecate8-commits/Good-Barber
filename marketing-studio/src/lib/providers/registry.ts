@@ -136,7 +136,7 @@ export const PROVIDERS: Provider[] = [
     usedFor: "Unir y recortar clips reales, subtítulos, formatos 9:16 / 1:1 / 16:9, exportar para redes.",
     limitations: [
       "Es edición por código, no generación con IA: un montaje de fotos no se presenta como video generado.",
-      "Vercel no incluye FFmpeg: allí la app entrega el comando para montarlo en tu computadora. Funciona en servidores con FFmpeg instalado (como el de desarrollo).",
+      "Netlify y Vercel no incluyen FFmpeg: allí la app entrega el comando para montarlo en tu computadora. Funciona en servidores con FFmpeg instalado (como el de desarrollo).",
     ],
     link: "https://ffmpeg.org/",
     verifiedOn: "2026-10-15",
@@ -156,13 +156,16 @@ export const PROVIDERS: Provider[] = [
     name: "Meta Graph API (Facebook e Instagram)",
     category: "redes",
     access: "official_setup",
-    envVars: ["META_APP_ID", "META_APP_SECRET"],
-    usedFor: "Conectar la página Good barber y la cuenta profesional de Instagram, publicar y leer estadísticas.",
+    envVars: ["META_APP_ID", "META_APP_SECRET", "MKT_APP_URL", "SUPABASE_SERVICE_ROLE_KEY", "MKT_TOKEN_KEY"],
+    usedFor:
+      "Vincular la página EXISTENTE «Good barber» y su Instagram profesional con Facebook Login (implementado, solo lectura). Publicar y leer estadísticas: pendiente.",
     limitations: [
-      "Requiere crear una app en Meta for Developers (lo haces tú) y, para publicar, pasar App Review con video de demostración.",
+      "Requiere crear una app gratuita en Meta for Developers (lo haces tú). Con acceso estándar solo funciona para personas con rol en la app; para tus propias páginas no hace falta App Review.",
+      "Hoy solo se piden permisos de lectura (pages_show_list, pages_read_engagement, instagram_basic, business_management). Publicar exigirá pages_manage_posts / instagram_content_publish y otra autorización tuya.",
       "Tener control total de la página no autoriza a una app nueva: hay que conceder permisos con el inicio de sesión oficial.",
+      "Probado con respuestas simuladas con el formato documentado; no se ha probado contra Meta real (no hay app de Meta configurada).",
     ],
-    link: "https://developers.facebook.com/docs/instagram-platform/content-publishing",
+    link: "https://developers.facebook.com/docs/facebook-login/facebook-login-for-business",
     verifiedOn: "2026-10-15",
   },
   {
@@ -274,7 +277,7 @@ export type RuntimeStatus = "ready_untested" | "missing_config" | "assisted" | "
 
 /**
  * Estado en tiempo de ejecución. Nunca devuelve "funcionando": eso solo se
- * puede afirmar tras una prueba real contra el proveedor (Etapa 4).
+ * puede afirmar tras una prueba real contra el proveedor.
  */
 export function runtimeStatus(p: Provider, env: Record<string, string | undefined> = process.env): RuntimeStatus {
   if (p.access === "paid_blocked") return "blocked";

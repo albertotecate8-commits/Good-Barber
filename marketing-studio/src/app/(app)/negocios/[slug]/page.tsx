@@ -7,6 +7,9 @@ import { formatDate, formatDateTime } from "@/lib/dates";
 import { PLATFORM_LABELS } from "@/lib/validation/business";
 import { Badge, Card, CardTitle, EmptyState, Notice } from "@/components/ui";
 import { ConnectionBadge } from "@/components/connection-badge";
+import { MetaConnectCard } from "@/components/meta-connect-card";
+import { createClient } from "@/lib/supabase/server";
+import { metaConfig } from "@/lib/meta/config";
 import {
   BrandForm,
   BusinessForm,
@@ -39,7 +42,7 @@ const TABS = [
 ] as const;
 type Tab = (typeof TABS)[number][0];
 
-type Props = { params: Promise<{ slug: string }>; searchParams: Promise<{ tab?: string }> };
+type Props = { params: Promise<{ slug: string }>; searchParams: Promise<{ tab?: string; meta?: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
@@ -59,7 +62,7 @@ const ENTITY_LABELS: Record<string, string> = {
 const ACTION_LABELS: Record<string, string> = { insert: "Creado", update: "Editado", delete: "Eliminado" };
 
 export default async function BusinessPage({ params, searchParams }: Props) {
-  const [{ slug }, { tab: rawTab }] = await Promise.all([params, searchParams]);
+  const [{ slug }, { tab: rawTab, meta: metaResult }] = await Promise.all([params, searchParams]);
   const tab: Tab = TABS.some(([t]) => t === rawTab) ? (rawTab as Tab) : "datos";
   const { business, brand, offerings, promotions, socials, audit } = await getBusinessDetail(slug);
   const accent = brand?.color_primary ?? "#C9A227";
@@ -245,10 +248,17 @@ export default async function BusinessPage({ params, searchParams }: Props) {
       {tab === "redes" && (
         <div className="grid gap-4">
           <Notice tone="gold" title="Registrar no es conectar">
-            Aquí anotas los perfiles del negocio. La app todavía <strong>no</strong> puede publicar ni leer estadísticas:
-            eso requiere la conexión oficial con Meta (Etapa 5), con tu autorización explícita. Nunca se guardan
-            contraseñas.
+            Aquí anotas los perfiles del negocio. Un perfil solo aparece como «Conectado» después de que autorizas la
+            app en el diálogo oficial de Meta y Meta lo confirma. La app todavía <strong>no</strong> publica. Nunca se
+            guardan contraseñas.
           </Notice>
+          <MetaConnectCard
+            businessId={business.id}
+            isOwner={await isOwnerOf(business.id)}
+            missing={metaConfig().missing}
+            connected={socials.some((s) => s.connection_status === "connected")}
+            result={metaResult}
+          />
           <Card>
             <CardTitle>Perfiles</CardTitle>
             {socials.length === 0 ? (
@@ -316,4 +326,10 @@ export default async function BusinessPage({ params, searchParams }: Props) {
       )}
     </>
   );
+}
+
+async function isOwnerOf(businessId: string) {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("mkt_is_owner", { p_business: businessId });
+  return Boolean(data);
 }

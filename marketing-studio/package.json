@@ -15,7 +15,9 @@
     "local:up": "node scripts/local-supabase/stack.mjs up",
     "local:seed": "node scripts/local-supabase/stack.mjs seed",
     "local:down": "node scripts/local-supabase/stack.mjs down",
-    "local:env": "node scripts/local-supabase/stack.mjs env"
+    "local:env": "node scripts/local-supabase/stack.mjs env",
+    "test:live": "vitest run --config vitest.live.config.mts",
+    "smoke:remote": "node scripts/remote/smoke.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
