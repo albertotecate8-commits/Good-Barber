@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useRef, useEffect, useTransition } from "react";
+import { useActionForm } from "@/lib/use-action-form";
+import { useRef, useEffect, useTransition } from "react";
 import type { ActionState } from "@/lib/action-state";
 import type { BrandProfile, Business, Offering } from "@/lib/data/types";
 import { PLATFORM_LABELS, SOCIAL_PLATFORMS } from "@/lib/validation/business";
@@ -48,10 +49,10 @@ export function BusinessForm({
   business?: Business;
   submitLabel: string;
 }) {
-  const [state, formAction, pending] = useActionState(action, {});
+  const [state, onSubmit, pending] = useActionForm(action);
   const b = business;
   return (
-    <form action={formAction} className="grid gap-4 sm:grid-cols-2" noValidate>
+    <form onSubmit={onSubmit} className="grid gap-4 sm:grid-cols-2" noValidate>
       <Field label="Nombre del negocio" name="name" error={state.errors?.name}>
         <input {...errProps(state, "name")} className="input" defaultValue={b?.name} required maxLength={80} />
       </Field>
@@ -108,9 +109,9 @@ const COLOR_FIELDS = [
 ] as const;
 
 export function BrandForm({ action, brand }: { action: FormAction; brand: BrandProfile }) {
-  const [state, formAction, pending] = useActionState(action, {});
+  const [state, onSubmit, pending] = useActionForm(action);
   return (
-    <form action={formAction} className="grid gap-4 sm:grid-cols-2" noValidate>
+    <form onSubmit={onSubmit} className="grid gap-4 sm:grid-cols-2" noValidate>
       <fieldset className="grid grid-cols-2 gap-3 sm:col-span-2 md:grid-cols-4">
         <legend className="mb-2 text-sm font-medium">Colores de marca</legend>
         {COLOR_FIELDS.map(([name, label]) => (
@@ -194,7 +195,7 @@ function ColorField({ name, label, value, error }: { name: string; label: string
 const KIND_LABELS = { service: "Servicio", package: "Paquete", product: "Producto" } as const;
 
 export function OfferingForm({ action, offering, submitLabel }: { action: FormAction; offering?: Offering; submitLabel: string }) {
-  const [state, formAction, pending] = useActionState(action, {});
+  const [state, onSubmit, pending] = useActionForm(action);
   const ref = useResetOnSuccess(offering ? {} : state);
   const suffix = offering?.id ?? "new";
   const p = (name: string) => {
@@ -206,7 +207,7 @@ export function OfferingForm({ action, offering, submitLabel }: { action: FormAc
     };
   };
   return (
-    <form ref={ref} action={formAction} className="grid gap-3 sm:grid-cols-[2fr_1fr_1fr]" noValidate>
+    <form ref={ref} onSubmit={onSubmit} className="grid gap-3 sm:grid-cols-[2fr_1fr_1fr]" noValidate>
       <Field label="Nombre" name={`name-${offering?.id ?? "new"}`} error={state.errors?.name}>
         <input {...p("name")} className="input" defaultValue={offering?.name} required maxLength={120} />
       </Field>
@@ -248,10 +249,10 @@ export function OfferingForm({ action, offering, submitLabel }: { action: FormAc
 }
 
 export function PromotionForm({ action }: { action: FormAction }) {
-  const [state, formAction, pending] = useActionState(action, {});
+  const [state, onSubmit, pending] = useActionForm(action);
   const ref = useResetOnSuccess(state);
   return (
-    <form ref={ref} action={formAction} className="grid gap-3 sm:grid-cols-2" noValidate>
+    <form ref={ref} onSubmit={onSubmit} className="grid gap-3 sm:grid-cols-2" noValidate>
       <div className="sm:col-span-2">
         <Field label="Título" name="title" error={state.errors?.title}>
           <input {...errProps(state, "title")} className="input" maxLength={120} placeholder="Ej. Martes de corte + cejas" />
@@ -283,10 +284,10 @@ export function PromotionForm({ action }: { action: FormAction }) {
 }
 
 export function SocialForm({ action }: { action: FormAction }) {
-  const [state, formAction, pending] = useActionState(action, {});
+  const [state, onSubmit, pending] = useActionForm(action);
   const ref = useResetOnSuccess(state);
   return (
-    <form ref={ref} action={formAction} className="grid gap-3 sm:grid-cols-3" noValidate>
+    <form ref={ref} onSubmit={onSubmit} className="grid gap-3 sm:grid-cols-3" noValidate>
       <Field label="Plataforma" name="platform">
         <select id="platform" name="platform" className="input" defaultValue="instagram">
           {SOCIAL_PLATFORMS.map((p) => (

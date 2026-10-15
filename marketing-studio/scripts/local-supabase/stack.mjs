@@ -108,6 +108,7 @@ async function up() {
     asPg(`${pg}/pg_ctl`, ["-D", PGDATA, "-o", `-p ${PG_PORT} -k /tmp -c listen_addresses=127.0.0.1`, "-l", path.join(PGDATA, "..", "mkt-local-postgres.log"), "-w", "start"]);
   }
   psql(path.join(ROOT, "scripts/local-supabase/roles.sql"), { file: true });
+  psql(path.join(ROOT, "scripts/local-supabase/storage-mock.sql"), { file: true });
 
   startDetached("auth", path.join(BIN, "auth"), [], {
     GOTRUE_API_HOST: "127.0.0.1",
@@ -206,5 +207,6 @@ if (cmd === "up") await up();
 else if (cmd === "down") down();
 else if (cmd === "seed") await seed();
 else if (cmd === "env") printEnv();
+else if (cmd === "keys") console.log(JSON.stringify({ API_URL, ANON_KEY, SERVICE_KEY }));
 else if (cmd === "proxy") proxy();
 else if (cmd) { console.error("Uso: stack.mjs up|down|seed|env"); process.exit(1); }

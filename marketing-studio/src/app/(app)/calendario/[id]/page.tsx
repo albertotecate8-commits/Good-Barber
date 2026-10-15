@@ -1,0 +1,166 @@
+import Link from "next/link";
+import { Download } from "lucide-react";
+import { getContentDetail } from "@/lib/data/content";
+import { listBusinesses } from "@/lib/data/businesses";
+import { listAssetOptions } from "@/lib/data/assets";
+import { CONTENT_STATUS_LABELS, CONTENT_STATUS_TONES } from "@/lib/content-labels";
+import { PLATFORM_LABELS } from "@/lib/validation/business";
+import { composePostText } from "@/lib/validation/content";
+import { publishAvailability } from "@/lib/publishing";
+import { formatDateTime } from "@/lib/dates";
+import { ContentForm } from "@/components/content-form";
+import { ConfirmButton } from "@/components/business-forms";
+import { AssetPreview, assetUrl } from "@/components/asset-preview";
+import { CopyTextButton, ManualPostForm } from "@/components/content-extras";
+import { Badge, Card, CardTitle, Notice, buttonClass } from "@/components/ui";
+import {
+  clearManuallyPosted,
+  deleteContent,
+  duplicateContent,
+  markManuallyPosted,
+  updateContent,
+} from "../actions";
+
+export const metadata = { title: "Publicación" };
+
+type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ guardado?: string; duplicado?: string }> };
+
+export default async function ContentPage({ params, searchParams }: Props) {
+  const [{ id }, sp] = await Promise.all([params, searchParams]);
+  const [{ item, asset, socials, attempts }, businesses, assets] = await Promise.all([
+    getContentDetail(id),
+    listBusinesses(),
+    listAssetOptions(),
+  ]);
+  const business = businesses.find((b) => b.id === item.business_id);
+  const availability = publishAvailability(item.platform, socials);
+  const text = composePostText(item.caption, item.hashtags);
+
+  return (
+    <>
+      <Link href="/calendario" className="text-sm text-muted hover:text-ink">
+        ← Calendario
+      </Link>
+      <header className="mb-5 mt-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-medium uppercase tracking-wider text-gold">
+            {business?.name} · {PLATFORM_LABELS[item.platform]}
+          </p>
+          <h1 className="truncate text-2xl font-semibold tracking-tight sm:text-3xl">{item.title || "Publicación sin título"}</h1>
+          <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted">
+            <Badge tone={CONTENT_STATUS_TONES[item.status]}>{CONTENT_STATUS_LABELS[item.status]}</Badge>
+            {item.scheduled_at ? formatDateTime(item.scheduled_at) : "Sin fecha"}
+            {item.manual_posted_at && <Badge tone="positive">Publicada a mano (declarado por ti)</Badge>}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <ConfirmButton action={duplicateContent.bind(null, item.id)} confirmText="¿Crear una copia como borrador, sin fecha?" variant="secondary">
+            Duplicar
+          </ConfirmButton>
+          <ConfirmButton action={deleteContent.bind(null, item.id)} confirmText="¿Eliminar esta publicación? No se puede deshacer.">
+            Eliminar
+          </ConfirmButton>
+        </div>
+      </header>
+
+      {(sp.guardado === "1" || sp.duplicado === "1") && (
+        <div className="mb-4" role="status">
+          <Notice tone="positive">{sp.duplicado === "1" ? "Copia creada como borrador." : "Publicación guardada."}</Notice>
+        </div>
+      )}
+
+      <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
+        <Card>
+          <CardTitle>Editar</CardTitle>
+          <ContentForm
+            action={updateContent.bind(null, item.id)}
+            businesses={businesses.map((b) => ({ id: b.id, name: b.name }))}
+            assets={assets}
+            item={item}
+            submitLabel="Guardar cambios"
+          />
+        </Card>
+
+        <div className="flex flex-col gap-4">
+          <Card>
+            <CardTitle>Cómo se publica</CardTitle>
+            {availability.mode === "manual" ? (
+              <div className="flex flex-col gap-3 text-sm">
+                <p>
+                  <Badge tone="gold">Publicación manual</Badge>
+                </p>
+                <p className="text-muted">{availability.reason}</p>
+                <p className="text-xs text-faint">
+                  Aunque esté «Programada», la app no enviará nada a {PLATFORM_LABELS[item.platform]}.
+                </p>
+                <CopyTextButton text={text} />
+                {asset && (
+                  <a href={assetUrl(asset.id, true)} className={buttonClass("secondary")}>
+                    <Download className="size-4" aria-hidden /> Descargar recurso
+                  </a>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-muted">Publicación automática disponible.</p>
+            )}
+          </Card>
+
+          <Card>
+            <CardTitle>Recurso creativo</CardTitle>
+            {asset ? (
+              <Link href={`/biblioteca/${asset.id}`} className="block">
+                <AssetPreview asset={asset} />
+                <p className="mt-2 truncate text-sm">{asset.title}</p>
+              </Link>
+            ) : (
+              <p className="text-sm text-muted">Sin recurso. Elige uno de la Biblioteca en el formulario.</p>
+            )}
+          </Card>
+
+          <Card>
+            <CardTitle>Registro manual</CardTitle>
+            {item.manual_posted_at ? (
+              <div className="flex flex-col gap-2 text-sm">
+                <p>Marcada como publicada por ti el {formatDateTime(item.manual_posted_at)}.</p>
+                {item.manual_post_url && (
+                  <a href={item.manual_post_url} target="_blank" rel="noopener noreferrer" className="break-all text-action-strong hover:underline">
+                    {item.manual_post_url}
+                  </a>
+                )}
+                <p className="text-xs text-faint">Es una declaración tuya, no una confirmación de la plataforma.</p>
+                <ConfirmButton action={clearManuallyPosted.bind(null, item.id)} confirmText="¿Quitar el registro de publicación manual?" variant="ghost">
+                  Deshacer registro
+                </ConfirmButton>
+              </div>
+            ) : (
+              <>
+                <p className="mb-3 text-sm text-muted">
+                  Cuando la publiques tú en la red, regístralo aquí para llevar el control. No cambia el estado a
+                  «Publicado».
+                </p>
+                <ManualPostForm action={markManuallyPosted.bind(null, item.id)} />
+              </>
+            )}
+          </Card>
+
+          <Card>
+            <CardTitle>Intentos de publicación automática</CardTitle>
+            {attempts.length === 0 ? (
+              <p className="text-sm text-muted">Ninguno. No hay integración oficial conectada.</p>
+            ) : (
+              <ul className="divide-y divide-line text-sm">
+                {attempts.map((a) => (
+                  <li key={a.id} className="py-2">
+                    <Badge tone={a.outcome === "success" ? "positive" : a.outcome === "error" ? "danger" : "neutral"}>{a.outcome}</Badge>{" "}
+                    <span className="text-xs text-faint">{formatDateTime(a.attempted_at)}</span>
+                    {a.error && <p className="text-xs text-danger">{a.error}</p>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </div>
+      </div>
+    </>
+  );
+}

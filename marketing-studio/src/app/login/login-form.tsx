@@ -1,13 +1,14 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionForm } from "@/lib/use-action-form";
+
 import { signIn } from "@/app/auth-actions";
 import { Button, Field } from "@/components/ui";
 
 export function LoginForm({ next }: { next?: string }) {
-  const [state, action, pending] = useActionState(signIn, {});
+  const [state, onSubmit, pending] = useActionForm(signIn);
   return (
-    <form action={action} className="flex flex-col gap-4" noValidate>
+    <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
       {next && <input type="hidden" name="next" value={next} />}
       <Field label="Correo" name="email">
         <input id="email" name="email" type="email" autoComplete="email" required className="input" />

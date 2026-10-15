@@ -69,7 +69,7 @@ export interface SocialAccount {
   notes: string;
 }
 
-export type ContentStatus = "draft" | "pending" | "approved" | "scheduled" | "published" | "error";
+export type ContentStatus = "draft" | "review" | "approved" | "scheduled" | "published" | "error";
 
 export interface ContentItem {
   id: string;
@@ -83,6 +83,42 @@ export interface ContentItem {
   status: ContentStatus;
   published_at: string | null;
   last_error: string | null;
+  hashtags: string[];
+  asset_id: string | null;
+  publish_mode: "manual" | "api";
+  manual_posted_at: string | null;
+  manual_post_url: string | null;
+  external_post_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Asset {
+  id: string;
+  business_id: string;
+  kind: "image" | "video" | "logo" | "document" | "other";
+  title: string;
+  description: string;
+  tags: string[];
+  asset_date: string | null;
+  storage_backend: "supabase" | "local_dev";
+  storage_path: string;
+  original_name: string;
+  mime_type: string;
+  size_bytes: number | null;
+  upload_status: "pending" | "ready";
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PublishAttempt {
+  id: number;
+  content_id: string;
+  platform: SocialPlatform;
+  attempted_at: string;
+  outcome: "success" | "error" | "skipped";
+  external_post_id: string | null;
+  error: string | null;
 }
 
 export type CampaignStatus = "idea" | "research" | "draft" | "review" | "approved" | "active" | "finished" | "archived";

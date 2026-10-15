@@ -29,6 +29,8 @@ export default defineConfig({
     command: `npx next start -p ${PORT}`,
     url: `http://localhost:${PORT}/login`,
     reuseExistingServer: true,
+    // La Biblioteca usa el almacenamiento local de desarrollo en las pruebas.
+    env: { ...process.env, MKT_STORAGE_BACKEND: "local" } as Record<string, string>,
     timeout: 60_000,
   },
 });

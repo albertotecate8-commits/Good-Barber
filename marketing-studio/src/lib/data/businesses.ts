@@ -144,3 +144,14 @@ export async function getDashboard(): Promise<DashboardData> {
     failedContent: failed.count ?? 0,
   };
 }
+
+/** Negocios activos con su color principal (para distinguirlos en calendario y biblioteca). */
+export const listBusinessesWithColor = cache(async () => {
+  const businesses = await listBusinesses();
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("mkt_brand_profiles").select("business_id,color_primary");
+  if (error) fail("los colores de marca", error);
+  const color = new Map((data ?? []).map((b) => [b.business_id as string, b.color_primary as string]));
+  return businesses.map((b) => ({ ...b, color: color.get(b.id) ?? "#C9A227" }));
+});
+export type BusinessWithColor = Awaited<ReturnType<typeof listBusinessesWithColor>>[number];

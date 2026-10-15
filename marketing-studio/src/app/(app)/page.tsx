@@ -6,6 +6,7 @@ import { PROVIDERS, runtimeStatus, type RuntimeStatus } from "@/lib/providers/re
 import { MONTHLY_BUDGET_MXN } from "@/lib/providers/budget";
 import { PLATFORM_LABELS } from "@/lib/validation/business";
 import { formatDateTime } from "@/lib/dates";
+import { CONTENT_STATUS_LABELS, CONTENT_STATUS_TONES } from "@/lib/content-labels";
 import { Badge, ButtonLink, Card, CardTitle, EmptyState, Notice, PageHeader } from "@/components/ui";
 import { ConnectionBadge } from "@/components/connection-badge";
 import { LoadInitialButton } from "@/components/load-initial-button";
@@ -155,20 +156,22 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
             <span id="h-proximas">Próximas publicaciones</span>
           </CardTitle>
           {data.upcoming.length === 0 ? (
-            <EmptyState title="No hay publicaciones programadas">
-              El calendario de contenido llega en la siguiente etapa.
+            <EmptyState title="No hay publicaciones próximas" action={<ButtonLink href="/calendario/nueva" variant="secondary">Planear una</ButtonLink>}>
+              Organízalas en el calendario. Programar no publica automáticamente en redes.
             </EmptyState>
           ) : (
             <ul className="divide-y divide-line">
               {data.upcoming.map((c) => (
                 <li key={c.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
                   <div className="min-w-0">
-                    <p className="truncate font-medium">{c.title || c.caption.slice(0, 60) || "Sin título"}</p>
+                    <Link href={`/calendario/${c.id}`} className="block truncate font-medium hover:text-action-strong">
+                      {c.title || c.caption.slice(0, 60) || "Sin título"}
+                    </Link>
                     <p className="text-xs text-muted">
                       {c.business_name} · {PLATFORM_LABELS[c.platform]} · {formatDateTime(c.scheduled_at)}
                     </p>
                   </div>
-                  <Badge>{c.status}</Badge>
+                  <Badge tone={CONTENT_STATUS_TONES[c.status]}>{CONTENT_STATUS_LABELS[c.status]}</Badge>
                 </li>
               ))}
             </ul>

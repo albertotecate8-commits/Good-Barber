@@ -2,6 +2,7 @@ import { ExternalLink } from "lucide-react";
 import { requireUser } from "@/lib/data/session";
 import { ACCESS_LABELS, PROVIDERS, STATUS_LABELS, runtimeStatus, type RuntimeStatus } from "@/lib/providers/registry";
 import { MONTHLY_BUDGET_MXN } from "@/lib/providers/budget";
+import { storageConfig } from "@/lib/storage/config";
 import { Badge, Card, CardTitle, Notice, PageHeader } from "@/components/ui";
 
 export const metadata = { title: "Configuración" };
@@ -25,6 +26,7 @@ const CATEGORY_LABELS = {
 
 export default async function SettingsPage() {
   const user = await requireUser();
+  const storage = storageConfig();
   return (
     <>
       <PageHeader title="Configuración" description="Cuenta, reglas de gasto y estado real de cada proveedor." />
@@ -50,6 +52,20 @@ export default async function SettingsPage() {
           </p>
         </Card>
       </div>
+
+      <Card className="mb-4">
+        <CardTitle>Almacenamiento de la Biblioteca</CardTitle>
+        <p className="text-sm">
+          {storage.label}{" "}
+          {storage.problem ? <Badge tone="danger">No disponible</Badge> : storage.backend === "local_dev" ? <Badge tone="warn">Solo desarrollo</Badge> : <Badge tone="action">Configurado</Badge>}
+        </p>
+        <p className="mt-1 text-xs text-faint">
+          {storage.problem ??
+            (storage.backend === "supabase"
+              ? "Bucket privado «mkt-assets» (plan gratuito: 1 GB en total y 50 MB por archivo). Si la migración no se aplicó en tu proyecto, la subida mostrará el error."
+              : "Variable MKT_STORAGE_BACKEND=local: los archivos quedan en el disco de este equipo, no en la nube.")}
+        </p>
+      </Card>
 
       <Notice tone="gold" title="Suscripción ≠ API">
         Tus suscripciones de ChatGPT, Claude y Google te dan acceso a sus aplicaciones, no a sus APIs. Para esas

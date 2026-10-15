@@ -21,8 +21,9 @@ async function login(page: Page) {
 }
 
 async function expectNoHorizontalScroll(page: Page) {
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-  expect(overflow).toBeLessThanOrEqual(0);
+  // En emulación móvil innerWidth crece con el contenido: se compara con el ancho del dispositivo.
+  const width = page.viewportSize()!.width;
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
 }
 
 test.describe.configure({ mode: "serial" });

@@ -45,5 +45,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|webp|ico)$).*)"],
+  // La subida local se excluye: el proxy trunca cuerpos > 10 MB. Esa ruta
+  // verifica la sesión por su cuenta.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/biblioteca/local/|.*\\.(?:svg|png|jpg|jpeg|webp|ico)$).*)"],
 };

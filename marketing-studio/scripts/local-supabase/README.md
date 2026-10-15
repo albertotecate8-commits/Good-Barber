@@ -13,3 +13,10 @@ npm run local:down
 ```
 
 Las claves JWT de este stack son de prueba y solo funcionan en tu máquina.
+
+## Biblioteca en local
+
+El stack local no incluye el servidor de Supabase Storage. `storage-mock.sql` crea solo las
+tablas `storage.buckets`/`storage.objects` para que la migración se aplique y las pruebas de
+integración verifiquen las **políticas RLS** de Storage con SQL. Para subir archivos de verdad
+en local, usa `MKT_STORAGE_BACKEND=local` (los archivos quedan en `.local-storage/`).

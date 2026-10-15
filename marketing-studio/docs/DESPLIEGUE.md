@@ -11,8 +11,14 @@ gratuito de Supabase permite 2 proyectos activos por organización (los proyecto
 pausan tras 1 semana sin actividad; se reactivan desde el panel).
 
 1. supabase.com → **New project** (plan Free). Región sugerida: la más cercana disponible.
-2. **SQL Editor** → pega y ejecuta `supabase/migrations/20261015000000_mkt_core.sql`
-   (es idempotente; se puede volver a ejecutar).
+2. **SQL Editor** → pega y ejecuta, **en orden**:
+   1. `supabase/migrations/20261015000000_mkt_core.sql`
+   2. `supabase/migrations/20261016000000_mkt_calendar_library.sql` — crea la biblioteca, los
+      campos del calendario y el bucket **privado** `mkt-assets` (50 MB por archivo) con sus
+      políticas. No activa nada de pago: el plan gratuito incluye 1 GB de Storage.
+   Son idempotentes. Para deshacer la segunda: `supabase/rollbacks/20261016000000_mkt_calendar_library.down.sql`
+   (borra los registros de la biblioteca; los archivos del bucket hay que vaciarlos a mano).
+   Comprueba en **Storage** que aparece el bucket `mkt-assets` marcado como privado.
 3. **Authentication → Sign In / Providers → Email**: desactiva *Allow new users to sign up*.
 4. **Authentication → Users → Add user**: crea tu usuario (correo + contraseña, marcado como confirmado).
 5. **SQL Editor**:
@@ -43,6 +49,7 @@ pausan tras 1 semana sin actividad; se reactivan desde el panel).
 | --- | --- | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Vercel + `.env.local` | No | URL del proyecto |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Vercel + `.env.local` | No (protegida por RLS) | Cliente Supabase |
+| `MKT_STORAGE_BACKEND` | No la definas en producción | No | `local` solo para desarrollo; en Vercel se rechaza |
 | `GEMINI_API_KEY` | Solo servidor | **Sí** | Textos con IA (Etapa 3) |
 | `META_APP_ID`, `META_APP_SECRET` | Solo servidor | **Sí** | Conexión oficial con Meta (Etapa 5) |
 
