@@ -38,7 +38,10 @@ describe("regla de gasto $0", () => {
 describe("estado de proveedores", () => {
   const gemini = PROVIDERS.find((p) => p.id === "gemini-text")!;
   it("nunca afirma que algo funciona sin probarlo", () => {
-    expect(runtimeStatus(gemini, { GEMINI_API_KEY: "x" })).toBe("ready_untested");
+    expect(runtimeStatus(gemini, { GEMINI_API_KEY: "x", GEMINI_FREE_TIER_CONFIRMED: "1" })).toBe("ready_untested");
+  });
+  it("Gemini exige confirmar que el proyecto no tiene facturación", () => {
+    expect(runtimeStatus(gemini, { GEMINI_API_KEY: "x" })).toBe("missing_config");
   });
   it("indica configuración faltante", () => {
     expect(runtimeStatus(gemini, {})).toBe("missing_config");

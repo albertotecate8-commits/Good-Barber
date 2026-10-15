@@ -56,6 +56,7 @@ export async function prepareAssetUpload(input: AssetUploadInput): Promise<Prepa
     id,
     business_id: v.business_id,
     kind: v.kind,
+    origin: v.origin,
     title: v.title,
     description: v.description,
     tags: v.tags,

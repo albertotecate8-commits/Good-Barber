@@ -114,7 +114,7 @@ test("flujo completo: cargar negocios, editar Good Barber y revisar estado hones
   await shot("05-configuracion");
 
   // Módulos pendientes declarados como tales
-  await page.goto("/crear");
+  await page.goto("/mensajes");
   await expect(page.getByText("Este módulo todavía no funciona")).toBeVisible();
 
   // Un negocio inexistente (o ajeno) muestra «No encontrado» sin datos. Con

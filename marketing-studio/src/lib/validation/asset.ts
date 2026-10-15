@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ASSET_KINDS, type AssetKind } from "@/lib/content-labels";
+import { ASSET_KINDS, ASSET_ORIGINS, type AssetKind, type AssetOrigin } from "@/lib/content-labels";
 import { isValidDateString } from "@/lib/tz";
 
 // Límite por archivo del plan gratuito de Supabase Storage.
@@ -62,6 +62,7 @@ export function parseTags(input: string): string[] {
 
 const metaFields = {
   kind: z.enum(ASSET_KINDS as [AssetKind, ...AssetKind[]], { message: "Elige un tipo" }),
+  origin: z.enum(ASSET_ORIGINS as [AssetOrigin, ...AssetOrigin[]]).default("unspecified"),
   title: z.string().trim().min(1, "Escribe un título").max(160),
   description: z.string().trim().max(2000),
   tags: z.string().max(2000).transform(parseTags),

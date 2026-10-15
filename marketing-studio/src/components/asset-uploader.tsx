@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ASSET_KINDS, ASSET_KIND_LABELS, type AssetKind } from "@/lib/content-labels";
+import { ASSET_KINDS, ASSET_KIND_LABELS, ASSET_ORIGINS, ASSET_ORIGIN_LABELS, type AssetKind, type AssetOrigin } from "@/lib/content-labels";
 import { ALLOWED_MIME, MAX_ASSET_BYTES, acceptFor } from "@/lib/validation/asset";
 import { createBrowserSupabase } from "@/lib/supabase/browser";
 import { discardPendingAsset, finalizeAssetUpload, prepareAssetUpload } from "@/app/(app)/biblioteca/actions";
@@ -51,6 +51,7 @@ export function AssetUploader({
     const prep = await prepareAssetUpload({
       business_id: String(form.get("business_id") ?? ""),
       kind,
+      origin: (String(form.get("origin") ?? "unspecified") as AssetOrigin),
       title: String(form.get("title") ?? "") || file.name,
       description: String(form.get("description") ?? ""),
       tags: String(form.get("tags") ?? ""),
@@ -124,6 +125,15 @@ export function AssetUploader({
           {ASSET_KINDS.map((k) => (
             <option key={k} value={k}>
               {ASSET_KIND_LABELS[k]}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Origen" name="up-origin" hint="Si lo generaste con ChatGPT, Gemini o Flow, elige «Generado con IA».">
+        <select id="up-origin" name="origin" className="input" defaultValue="unspecified">
+          {ASSET_ORIGINS.map((o) => (
+            <option key={o} value={o}>
+              {ASSET_ORIGIN_LABELS[o]}
             </option>
           ))}
         </select>

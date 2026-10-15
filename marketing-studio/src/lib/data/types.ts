@@ -97,6 +97,7 @@ export interface Asset {
   id: string;
   business_id: string;
   kind: "image" | "video" | "logo" | "document" | "other";
+  origin: "unspecified" | "real_photo" | "ai_generated" | "code_edited" | "imported_design";
   title: string;
   description: string;
   tags: string[];

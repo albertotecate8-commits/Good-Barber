@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Download, ExternalLink } from "lucide-react";
 import { getAssetDetail } from "@/lib/data/assets";
 import { listBusinesses } from "@/lib/data/businesses";
-import { ASSET_KIND_LABELS, CONTENT_STATUS_LABELS, CONTENT_STATUS_TONES } from "@/lib/content-labels";
+import { ASSET_KIND_LABELS, ASSET_ORIGIN_LABELS, CONTENT_STATUS_LABELS, CONTENT_STATUS_TONES } from "@/lib/content-labels";
 import { PLATFORM_LABELS } from "@/lib/validation/business";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import { AssetPreview, assetUrl, formatBytes } from "@/components/asset-preview";
@@ -44,6 +44,8 @@ export default async function AssetPage({ params }: { params: Promise<{ id: stri
           <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
             <dt className="text-muted">Archivo</dt>
             <dd className="break-all">{asset.original_name}</dd>
+            <dt className="text-muted">Origen</dt>
+            <dd>{ASSET_ORIGIN_LABELS[asset.origin]}</dd>
             <dt className="text-muted">Formato</dt>
             <dd>{asset.mime_type}</dd>
             <dt className="text-muted">Tamaño</dt>

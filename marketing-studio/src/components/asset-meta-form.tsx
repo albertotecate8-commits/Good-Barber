@@ -4,7 +4,7 @@ import { useActionForm } from "@/lib/use-action-form";
 
 import type { ActionState } from "@/lib/action-state";
 import type { Asset } from "@/lib/data/types";
-import { ASSET_KINDS, ASSET_KIND_LABELS } from "@/lib/content-labels";
+import { ASSET_KINDS, ASSET_KIND_LABELS, ASSET_ORIGINS, ASSET_ORIGIN_LABELS } from "@/lib/content-labels";
 import { Button, Field } from "./ui";
 
 export function AssetMetaForm({
@@ -26,6 +26,15 @@ export function AssetMetaForm({
           {ASSET_KINDS.map((k) => (
             <option key={k} value={k}>
               {ASSET_KIND_LABELS[k]}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Origen" name="origin">
+        <select id="origin" name="origin" className="input" defaultValue={asset.origin}>
+          {ASSET_ORIGINS.map((o) => (
+            <option key={o} value={o}>
+              {ASSET_ORIGIN_LABELS[o]}
             </option>
           ))}
         </select>

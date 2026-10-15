@@ -6,7 +6,7 @@ citas de Good Barber (raíz del repositorio), que no se modifica.
 
 **Regla económica:** $0 MXN de gasto adicional en APIs. Ver `src/lib/providers/`.
 
-## Estado (Etapas 1 y 2)
+## Estado (Etapas 1, 2 y 3)
 
 | Función | Estado |
 | --- | --- |
@@ -20,7 +20,16 @@ citas de Good Barber (raíz del repositorio), que no se modifica.
 | Biblioteca: subir, filtrar, etiquetar, previsualizar, descargar, eliminar; aislada por negocio | Funciona y está probada (con almacenamiento local de desarrollo) |
 | Supabase Storage (bucket privado) | Código y políticas listos y probados contra un *mock* del esquema `storage`; **no probado contra un Supabase real** |
 | Registro de «publicada a mano» | Funciona (es una declaración tuya, no confirma la plataforma) |
-| Campañas, investigación, creación, mensajes, analíticas | **Pendiente**: las pantallas indican que no funcionan todavía |
+| Director de Marketing: instrucción → tareas → investigación → estrategia, 5 anuncios, Reel, calendario, KPIs y medición | Funciona con el motor de plantillas (sin IA); probado |
+| Varios negocios en una petición (una campaña por negocio) | Funciona |
+| Investigación: informes, hallazgos con fuente/enlace/fecha/confianza/nivel de evidencia, registro manual | Funciona y está probado |
+| Fuentes automáticas: datos del negocio y calendario comercial verificado | Funcionan |
+| Fuentes automáticas: OpenStreetMap, RSS de Google Trends, Tavily | Implementadas y probadas con respuestas de formato documentado; **no probadas en vivo** (la red del entorno de desarrollo las bloquea; Tavily requiere clave) |
+| Fuentes asistidas: Biblioteca de anuncios de Meta, Google Maps, Google Trends Explore, TikTok Creative Center | Enlaces de consulta + registro manual |
+| Gemini API (opcional) | Implementada con candados de gasto; probada con respuestas simuladas, **no contra la API real** (no hay clave) |
+| Prompts asistidos para ChatGPT/Claude/Gemini/Flow e importación validada del resultado | Funciona |
+| Borradores en el calendario desde la campaña, experimentos y comparación | Funciona y está probado |
+| Mensajes, analíticas automáticas | **Pendiente** |
 | Conexión con Meta y publicación automática | **Pendiente** (Etapa 5): ninguna red está conectada; programar **no** publica |
 
 ## Arquitectura
@@ -55,6 +64,21 @@ citas de Good Barber (raíz del repositorio), que no se modifica.
 - Los archivos se entregan por `/api/biblioteca/archivo/[id]`, que consulta con la sesión del
   usuario (RLS): sin acceso al negocio, la respuesta es 404.
 
+### Director de Marketing e investigación (`src/lib/director/`, `src/lib/research/`)
+
+- `intent.ts` convierte la instrucción en tareas (cantidad de anuncios, Reel, periodo, competencia, objetivo sugerido).
+- `research/` ejecuta las fuentes; cada una deja constancia en `provider_runs` (consultada, sin resultados,
+  error, sin configurar u omitida). Un proveedor que falla no detiene a los demás. Nunca se sustituyen
+  resultados faltantes por datos inventados.
+- `template.ts` arma el plan **solo** con precios, promociones y marca registrados y con hallazgos con
+  fuente; cada sección lleva su nivel: hecho comprobado, observación, hipótesis o recomendación por probar.
+- `plan.ts` es el esquema único (zod) para el plan venga de plantillas, Gemini o una IA externa, y
+  `findUnknownPrices` marca montos que no coinciden con ningún precio real.
+- `gemini.ts` solo llama a Gemini con `GEMINI_API_KEY` **y** `GEMINI_FREE_TIER_CONFIRMED=1`, pasa por
+  `assertCallAllowed` (gasto $0 y tope diario) y registra cada uso en `mkt_ai_usage`.
+- `experiments.ts` resume resultados y sugiere qué probar, con umbral mínimo de datos y aviso de que
+  correlación no es causalidad.
+
 ### Garantías aplicadas en la base de datos (no solo en la interfaz)
 
 - Un usuario solo ve y edita negocios de los que es miembro (`owner`/`editor`; `viewer` solo lee).
@@ -68,6 +92,8 @@ citas de Good Barber (raíz del repositorio), que no se modifica.
   no cambia de negocio ni de datos técnicos.
 - El navegador no puede fijar los estados «Publicado»/«Error», el modo de publicación «api» ni los
   campos que solo llena la plataforma.
+- Hallazgos, investigaciones, campañas, experimentos y borradores solo se enlazan dentro del mismo
+  negocio (triggers); el uso de IA se registra a nombre propio y no se edita ni se borra.
 
 ### Migraciones
 
@@ -75,8 +101,9 @@ citas de Good Barber (raíz del repositorio), que no se modifica.
 | --- | --- |
 | `supabase/migrations/20261015000000_mkt_core.sql` | — |
 | `supabase/migrations/20261016000000_mkt_calendar_library.sql` | `supabase/rollbacks/20261016000000_mkt_calendar_library.down.sql` |
+| `supabase/migrations/20261017000000_mkt_director_research.sql` | `supabase/rollbacks/20261017000000_mkt_director_research.down.sql` |
 
-Ambas son idempotentes. La de calendario se probó aplicando, re-aplicando, revirtiendo y volviendo a aplicar.
+Todas son idempotentes. Las dos últimas se probaron aplicando, re-aplicando, revirtiendo y volviendo a aplicar. 
 
 ## Desarrollo local
 

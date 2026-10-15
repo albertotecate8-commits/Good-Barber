@@ -42,4 +42,15 @@ export const ASSET_KIND_LABELS = {
   other: "Otro",
 } as const;
 export type AssetKind = keyof typeof ASSET_KIND_LABELS;
+
+/** De dónde salió un recurso: no se presenta algo generado con IA como foto real. */
+export const ASSET_ORIGIN_LABELS = {
+  unspecified: "Sin especificar",
+  real_photo: "Foto o video real",
+  ai_generated: "Generado con IA",
+  code_edited: "Editado con código",
+  imported_design: "Diseño importado",
+} as const;
+export type AssetOrigin = keyof typeof ASSET_ORIGIN_LABELS;
+export const ASSET_ORIGINS = Object.keys(ASSET_ORIGIN_LABELS) as AssetOrigin[];
 export const ASSET_KINDS = Object.keys(ASSET_KIND_LABELS) as AssetKind[];

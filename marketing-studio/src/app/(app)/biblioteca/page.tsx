@@ -129,6 +129,11 @@ export default async function LibraryPage({ searchParams }: { searchParams: Prom
                           <span className="mr-1 inline-block size-2 rounded-full align-middle" style={{ background: b?.color }} aria-hidden />
                           {b?.name} · {ASSET_KIND_LABELS[a.kind]} · {formatBytes(a.size_bytes)}
                         </p>
+                        {a.origin === "ai_generated" && (
+                          <div className="mt-1.5">
+                            <Badge tone="action">Generado con IA</Badge>
+                          </div>
+                        )}
                         {a.tags.length > 0 && (
                           <div className="mt-1.5 flex flex-wrap gap-1">
                             {a.tags.slice(0, 3).map((t) => (
