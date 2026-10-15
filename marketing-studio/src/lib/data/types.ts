@@ -96,7 +96,10 @@ export interface ContentItem {
 export interface Asset {
   id: string;
   business_id: string;
-  kind: "image" | "video" | "logo" | "document" | "other";
+  kind: "image" | "video" | "logo" | "document" | "audio" | "other";
+  width: number | null;
+  height: number | null;
+  license_note: string;
   origin: "unspecified" | "real_photo" | "ai_generated" | "code_edited" | "imported_design";
   title: string;
   description: string;

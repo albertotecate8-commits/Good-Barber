@@ -14,7 +14,7 @@ export function AssetMetaForm({
   action: (s: ActionState, f: FormData) => Promise<ActionState>;
   asset: Asset;
 }) {
-  const [state, onSubmit, pending] = useActionForm(action);
+  const [state, onSubmit, pending, ready] = useActionForm(action);
   const e = state.errors ?? {};
   return (
     <form onSubmit={onSubmit} className="grid gap-4 sm:grid-cols-2" noValidate>
@@ -46,6 +46,11 @@ export function AssetMetaForm({
         <input id="tags" name="tags" className="input" defaultValue={asset.tags.join(", ")} />
       </Field>
       <div className="sm:col-span-2">
+        <Field label="Licencia (música, fotos de terceros)" name="license_note" error={e.license_note}>
+          <input id="license_note" name="license_note" className="input" defaultValue={asset.license_note} maxLength={1000} />
+        </Field>
+      </div>
+      <div className="sm:col-span-2">
         <Field label="Descripción" name="description" error={e.description}>
           <textarea id="description" name="description" className="input" defaultValue={asset.description} maxLength={2000} />
         </Field>
@@ -56,7 +61,7 @@ export function AssetMetaForm({
             {state.message}
           </p>
         )}
-        <Button type="submit" disabled={pending} className="sm:self-start">
+        <Button type="submit" disabled={pending || !ready} className="sm:self-start">
           {pending ? "Guardando…" : "Guardar datos"}
         </Button>
       </div>

@@ -49,7 +49,8 @@ export async function writeLocalStream(
   const tmp = `${finalPath}.${process.pid}.${Date.now()}.part`;
   const handle = await fsp.open(/*turbopackIgnore: true*/ tmp, "wx");
   let size = 0;
-  const head = new Uint8Array(64);
+  // Primeros 64 KB: alcanzan para verificar el tipo y leer las dimensiones.
+  const head = new Uint8Array(65536);
   let headLen = 0;
   try {
     const reader = body.getReader();

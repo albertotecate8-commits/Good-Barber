@@ -48,6 +48,20 @@ export default async function AssetPage({ params }: { params: Promise<{ id: stri
             <dd>{ASSET_ORIGIN_LABELS[asset.origin]}</dd>
             <dt className="text-muted">Formato</dt>
             <dd>{asset.mime_type}</dd>
+            {asset.width && asset.height ? (
+              <>
+                <dt className="text-muted">Dimensiones</dt>
+                <dd>
+                  {asset.width} × {asset.height} px
+                </dd>
+              </>
+            ) : null}
+            {asset.license_note && (
+              <>
+                <dt className="text-muted">Licencia</dt>
+                <dd className="break-words">{asset.license_note}</dd>
+              </>
+            )}
             <dt className="text-muted">Tamaño</dt>
             <dd>{formatBytes(asset.size_bytes)}</dd>
             <dt className="text-muted">Fecha</dt>

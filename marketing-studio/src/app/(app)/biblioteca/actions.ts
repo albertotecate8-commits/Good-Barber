@@ -10,6 +10,7 @@ import { formToObject } from "@/lib/validation/business";
 import { ALLOWED_MIME, MAX_ASSET_BYTES, assetMetaSchema, assetUploadSchema, safeFileName, sniffMatches, type AssetUploadInput } from "@/lib/validation/asset";
 import { SUPABASE_BUCKET, storageConfig, storagePath, type StorageBackend } from "@/lib/storage/config";
 import { removeLocal } from "@/lib/storage/local";
+import { imageSize } from "@/lib/creative/image-size";
 
 // Flujo de subida en 3 pasos (los archivos grandes no pasan por una Server
 // Action, que tiene límite de tamaño):
@@ -57,6 +58,7 @@ export async function prepareAssetUpload(input: AssetUploadInput): Promise<Prepa
     business_id: v.business_id,
     kind: v.kind,
     origin: v.origin,
+    license_note: v.license_note,
     title: v.title,
     description: v.description,
     tags: v.tags,
@@ -97,16 +99,18 @@ export async function finalizeAssetUpload(id: string): Promise<ActionState> {
   const size = Number(obj.metadata?.size ?? 0);
   const mimetype = String(obj.metadata?.mimetype ?? "");
   let problem = "";
+  let dims: { width: number; height: number } | null = null;
   if (!size || size > MAX_ASSET_BYTES) problem = "Tamaño de archivo no válido.";
   else if (mimetype && !ALLOWED_MIME[asset.kind as keyof typeof ALLOWED_MIME].includes(mimetype)) problem = "Tipo de archivo no permitido.";
   else {
     // Revisa los primeros bytes reales (que no sea, p. ej., un ejecutable con extensión .jpg).
     const { data: signed } = await supabase.storage.from(SUPABASE_BUCKET).createSignedUrl(asset.storage_path, 60);
     if (signed?.signedUrl) {
-      const head = await fetch(signed.signedUrl, { headers: { Range: "bytes=0-63" } })
+      const head = await fetch(signed.signedUrl, { headers: { Range: "bytes=0-65535" } })
         .then((r) => (r.ok ? r.arrayBuffer() : null))
         .catch(() => null);
       if (head && !sniffMatches(asset.mime_type, new Uint8Array(head))) problem = "El contenido del archivo no corresponde a su tipo.";
+      else if (head && asset.mime_type.startsWith("image/")) dims = imageSize(new Uint8Array(head));
     }
   }
   if (problem) {
@@ -116,7 +120,7 @@ export async function finalizeAssetUpload(id: string): Promise<ActionState> {
   }
   const { error: updateError } = await supabase
     .from("mkt_assets")
-    .update({ upload_status: "ready", size_bytes: size, mime_type: mimetype || asset.mime_type })
+    .update({ upload_status: "ready", size_bytes: size, mime_type: mimetype || asset.mime_type, ...(dims ?? {}) })
     .eq("id", id);
   if (updateError) return { message: friendlyDbError(updateError) };
   revalidatePath("/biblioteca");

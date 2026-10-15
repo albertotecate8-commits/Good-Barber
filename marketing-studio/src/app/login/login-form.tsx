@@ -6,7 +6,7 @@ import { signIn } from "@/app/auth-actions";
 import { Button, Field } from "@/components/ui";
 
 export function LoginForm({ next }: { next?: string }) {
-  const [state, onSubmit, pending] = useActionForm(signIn);
+  const [state, onSubmit, pending, ready] = useActionForm(signIn);
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
       {next && <input type="hidden" name="next" value={next} />}
@@ -21,7 +21,7 @@ export function LoginForm({ next }: { next?: string }) {
           {state.message}
         </p>
       )}
-      <Button type="submit" disabled={pending} className="mt-1 w-full">
+      <Button type="submit" disabled={pending || !ready} className="mt-1 w-full">
         {pending ? "Entrando…" : "Iniciar sesión"}
       </Button>
     </form>

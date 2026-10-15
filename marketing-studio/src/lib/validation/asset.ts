@@ -15,12 +15,14 @@ const DOCS = [
   "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 ];
 const SVG = "image/svg+xml";
+const AUDIO = ["audio/mpeg", "audio/mp4", "audio/wav", "audio/x-wav", "audio/ogg"];
 
 export const ALLOWED_MIME: Record<AssetKind, string[]> = {
   image: IMAGES,
   logo: [...IMAGES, SVG],
   video: VIDEOS,
   document: DOCS,
+  audio: AUDIO,
   other: [...IMAGES, SVG, ...VIDEOS, ...DOCS],
 };
 
@@ -66,6 +68,7 @@ const metaFields = {
   title: z.string().trim().min(1, "Escribe un título").max(160),
   description: z.string().trim().max(2000),
   tags: z.string().max(2000).transform(parseTags),
+  license_note: z.string().trim().max(1000).default(""),
   asset_date: z
     .string()
     .trim()
@@ -90,6 +93,9 @@ export const assetUploadSchema = z
         path: ["file"],
         message: `Tipo de archivo no permitido para «${v.kind}» (${v.mime_type || "desconocido"}).`,
       });
+    }
+    if (v.kind === "audio" && v.license_note.trim().length < 5) {
+      ctx.addIssue({ code: "custom", path: ["license_note"], message: "Indica la licencia de la música (propia, comprada o libre de regalías y de dónde)." });
     }
     if (v.size > MAX_ASSET_BYTES) {
       ctx.addIssue({ code: "custom", path: ["file"], message: "El archivo supera 50 MB (límite por archivo del plan gratuito)." });
@@ -120,6 +126,15 @@ export function sniffMatches(mime: string, head: Uint8Array): boolean {
       return ascii(4, 8) === "ftyp" || ascii(4, 8) === "moov" || ascii(4, 8) === "wide" || ascii(4, 8) === "mdat";
     case "video/webm":
       return b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3;
+    case "audio/mpeg":
+      return ascii(0, 3) === "ID3" || (b[0] === 0xff && (b[1] & 0xe0) === 0xe0);
+    case "audio/mp4":
+      return ascii(4, 8) === "ftyp";
+    case "audio/wav":
+    case "audio/x-wav":
+      return ascii(0, 4) === "RIFF" && ascii(8, 12) === "WAVE";
+    case "audio/ogg":
+      return ascii(0, 4) === "OggS";
     case "application/pdf":
       return ascii(0, 5) === "%PDF-";
     case "image/svg+xml": {

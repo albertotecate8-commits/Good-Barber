@@ -136,7 +136,7 @@ export const PROVIDERS: Provider[] = [
     usedFor: "Unir y recortar clips reales, subtítulos, formatos 9:16 / 1:1 / 16:9, exportar para redes.",
     limitations: [
       "Es edición por código, no generación con IA: un montaje de fotos no se presenta como video generado.",
-      "En hosting serverless gratuito no hay FFmpeg nativo; se usará en tu equipo o en el navegador (Etapa 4).",
+      "Vercel no incluye FFmpeg: allí la app entrega el comando para montarlo en tu computadora. Funciona en servidores con FFmpeg instalado (como el de desarrollo).",
     ],
     link: "https://ffmpeg.org/",
     verifiedOn: "2026-10-15",
@@ -146,8 +146,8 @@ export const PROVIDERS: Provider[] = [
     name: "Editor gráfico por código (navegador)",
     category: "edicion",
     access: "free_local",
-    usedFor: "Colocar logotipo, precios y textos exactos sobre imágenes; cambiar tamaños (post, historia, portada).",
-    limitations: ["Pendiente de construir (Etapa 4)."],
+    usedFor: "Estudio creativo: recortar, textos y precios exactos, logotipo sin deformar, plantillas, exportar y adaptar a otros formatos.",
+    limitations: ["Corre en tu navegador (Canvas): es edición por código, no generación de imágenes con IA."],
     link: "https://developer.mozilla.org/docs/Web/API/Canvas_API",
     verifiedOn: "2026-10-15",
   },
@@ -279,7 +279,7 @@ export type RuntimeStatus = "ready_untested" | "missing_config" | "assisted" | "
 export function runtimeStatus(p: Provider, env: Record<string, string | undefined> = process.env): RuntimeStatus {
   if (p.access === "paid_blocked") return "blocked";
   if (p.access === "assisted") return "assisted";
-  if (p.access === "free_local") return p.id === "ffmpeg" ? "ready_untested" : "pending_build";
+  if (p.access === "free_local") return "ready_untested";
   const missing = (p.envVars ?? []).filter((v) => !env[v]);
   return missing.length ? "missing_config" : "ready_untested";
 }

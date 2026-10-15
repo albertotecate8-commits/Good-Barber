@@ -49,7 +49,7 @@ export function BusinessForm({
   business?: Business;
   submitLabel: string;
 }) {
-  const [state, onSubmit, pending] = useActionForm(action);
+  const [state, onSubmit, pending, ready] = useActionForm(action);
   const b = business;
   return (
     <form onSubmit={onSubmit} className="grid gap-4 sm:grid-cols-2" noValidate>
@@ -93,7 +93,7 @@ export function BusinessForm({
       </div>
       <div className="flex flex-col gap-3 sm:col-span-2">
         <Feedback state={state} />
-        <Button type="submit" disabled={pending} className="sm:self-start">
+        <Button type="submit" disabled={pending || !ready} className="sm:self-start">
           {pending ? "Guardando…" : submitLabel}
         </Button>
       </div>
@@ -109,7 +109,7 @@ const COLOR_FIELDS = [
 ] as const;
 
 export function BrandForm({ action, brand }: { action: FormAction; brand: BrandProfile }) {
-  const [state, onSubmit, pending] = useActionForm(action);
+  const [state, onSubmit, pending, ready] = useActionForm(action);
   return (
     <form onSubmit={onSubmit} className="grid gap-4 sm:grid-cols-2" noValidate>
       <fieldset className="grid grid-cols-2 gap-3 sm:col-span-2 md:grid-cols-4">
@@ -147,7 +147,7 @@ export function BrandForm({ action, brand }: { action: FormAction; brand: BrandP
       </Field>
       <div className="flex flex-col gap-3 sm:col-span-2">
         <Feedback state={state} />
-        <Button type="submit" disabled={pending} className="sm:self-start">
+        <Button type="submit" disabled={pending || !ready} className="sm:self-start">
           {pending ? "Guardando…" : "Guardar identidad"}
         </Button>
       </div>
@@ -195,7 +195,7 @@ function ColorField({ name, label, value, error }: { name: string; label: string
 const KIND_LABELS = { service: "Servicio", package: "Paquete", product: "Producto" } as const;
 
 export function OfferingForm({ action, offering, submitLabel }: { action: FormAction; offering?: Offering; submitLabel: string }) {
-  const [state, onSubmit, pending] = useActionForm(action);
+  const [state, onSubmit, pending, ready] = useActionForm(action);
   const ref = useResetOnSuccess(offering ? {} : state);
   const suffix = offering?.id ?? "new";
   const p = (name: string) => {
@@ -240,7 +240,7 @@ export function OfferingForm({ action, offering, submitLabel }: { action: FormAc
       </label>
       <div className="flex flex-col gap-3 sm:col-span-3">
         <Feedback state={state} />
-        <Button type="submit" disabled={pending} variant={offering ? "secondary" : "primary"} className="sm:self-start">
+        <Button type="submit" disabled={pending || !ready} variant={offering ? "secondary" : "primary"} className="sm:self-start">
           {pending ? "Guardando…" : submitLabel}
         </Button>
       </div>
@@ -249,7 +249,7 @@ export function OfferingForm({ action, offering, submitLabel }: { action: FormAc
 }
 
 export function PromotionForm({ action }: { action: FormAction }) {
-  const [state, onSubmit, pending] = useActionForm(action);
+  const [state, onSubmit, pending, ready] = useActionForm(action);
   const ref = useResetOnSuccess(state);
   return (
     <form ref={ref} onSubmit={onSubmit} className="grid gap-3 sm:grid-cols-2" noValidate>
@@ -275,7 +275,7 @@ export function PromotionForm({ action }: { action: FormAction }) {
       </label>
       <div className="flex flex-col gap-3 sm:col-span-2">
         <Feedback state={state} />
-        <Button type="submit" disabled={pending} className="sm:self-start">
+        <Button type="submit" disabled={pending || !ready} className="sm:self-start">
           {pending ? "Guardando…" : "Agregar promoción"}
         </Button>
       </div>
@@ -284,7 +284,7 @@ export function PromotionForm({ action }: { action: FormAction }) {
 }
 
 export function SocialForm({ action }: { action: FormAction }) {
-  const [state, onSubmit, pending] = useActionForm(action);
+  const [state, onSubmit, pending, ready] = useActionForm(action);
   const ref = useResetOnSuccess(state);
   return (
     <form ref={ref} onSubmit={onSubmit} className="grid gap-3 sm:grid-cols-3" noValidate>
@@ -310,7 +310,7 @@ export function SocialForm({ action }: { action: FormAction }) {
       </div>
       <div className="flex flex-col gap-3 sm:col-span-3">
         <Feedback state={state} />
-        <Button type="submit" disabled={pending} className="sm:self-start">
+        <Button type="submit" disabled={pending || !ready} className="sm:self-start">
           {pending ? "Guardando…" : "Registrar perfil"}
         </Button>
       </div>

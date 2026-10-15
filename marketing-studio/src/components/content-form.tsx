@@ -28,7 +28,7 @@ export function ContentForm({
   defaults?: { business_id?: string; date?: string };
   submitLabel: string;
 }) {
-  const [state, onSubmit, pending] = useActionForm(action);
+  const [state, onSubmit, pending, ready] = useActionForm(action);
   const local = item?.scheduled_at ? utcToZoned(item.scheduled_at) : null;
   const [businessId, setBusinessId] = useState(item?.business_id ?? defaults?.business_id ?? businesses[0]?.id ?? "");
   const [platform, setPlatform] = useState<string>(item?.platform ?? "instagram");
@@ -176,7 +176,7 @@ export function ContentForm({
             {state.message}
           </p>
         )}
-        <Button type="submit" disabled={pending} className="sm:self-start">
+        <Button type="submit" disabled={pending || !ready} className="sm:self-start">
           {pending ? "Guardando…" : submitLabel}
         </Button>
       </div>

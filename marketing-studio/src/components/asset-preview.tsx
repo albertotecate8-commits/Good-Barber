@@ -1,4 +1,4 @@
-import { FileText, Film, ImageIcon } from "lucide-react";
+import { FileText, Film, ImageIcon, Music } from "lucide-react";
 import clsx from "clsx";
 import type { Asset } from "@/lib/data/types";
 
@@ -30,10 +30,13 @@ export function AssetPreview({
       <img src={assetUrl(asset.id)} alt={asset.title} loading="lazy" className={clsx(base, "object-contain", large ? "max-h-[70vh]" : "aspect-square object-cover")} />
     );
   }
+  if (asset.mime_type.startsWith("audio/") && large) {
+    return <audio src={assetUrl(asset.id)} controls preload="metadata" className="w-full" aria-label={asset.title} />;
+  }
   if (asset.mime_type.startsWith("video/") && large) {
     return <video src={assetUrl(asset.id)} controls preload="metadata" className={clsx(base, "max-h-[70vh]")} aria-label={asset.title} />;
   }
-  const Icon = asset.mime_type.startsWith("video/") ? Film : asset.mime_type.startsWith("image/") ? ImageIcon : FileText;
+  const Icon = asset.mime_type.startsWith("audio/") ? Music : asset.mime_type.startsWith("video/") ? Film : asset.mime_type.startsWith("image/") ? ImageIcon : FileText;
   return (
     <div className={clsx(base, "grid place-items-center text-faint", large ? "aspect-video" : "aspect-square")} aria-hidden={!large}>
       <Icon className="size-10" />

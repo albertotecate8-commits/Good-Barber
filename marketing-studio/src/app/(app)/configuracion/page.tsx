@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/data/session";
 import { ACCESS_LABELS, PROVIDERS, STATUS_LABELS, runtimeStatus, type RuntimeStatus } from "@/lib/providers/registry";
 import { MONTHLY_BUDGET_MXN } from "@/lib/providers/budget";
 import { storageConfig } from "@/lib/storage/config";
+import { ffmpegStatus } from "@/lib/creative/render";
 import { Badge, Card, CardTitle, Notice, PageHeader } from "@/components/ui";
 
 export const metadata = { title: "Configuración" };
@@ -27,6 +28,7 @@ const CATEGORY_LABELS = {
 export default async function SettingsPage() {
   const user = await requireUser();
   const storage = storageConfig();
+  const ff = await ffmpegStatus();
   return (
     <>
       <PageHeader title="Configuración" description="Cuenta, reglas de gasto y estado real de cada proveedor." />
@@ -64,6 +66,14 @@ export default async function SettingsPage() {
             (storage.backend === "supabase"
               ? "Bucket privado «mkt-assets» (plan gratuito: 1 GB en total y 50 MB por archivo). Si la migración no se aplicó en tu proyecto, la subida mostrará el error."
               : "Variable MKT_STORAGE_BACKEND=local: los archivos quedan en el disco de este equipo, no en la nube.")}
+        </p>
+      </Card>
+
+      <Card className="mb-4">
+        <CardTitle>Montaje de video (FFmpeg)</CardTitle>
+        <p className="text-sm">
+          {ff.available ? <Badge tone="positive">Disponible en este servidor</Badge> : <Badge tone="warn">No disponible aquí</Badge>}{" "}
+          {ff.available ? (ff.font ? "Con fuente para textos en pantalla." : "Sin fuente: los videos se montan sin texto en pantalla.") : ff.reason}
         </p>
       </Card>
 

@@ -30,7 +30,7 @@ export function ActionForm({
   className?: string;
   confirmText?: string;
 }) {
-  const [state, onSubmit, pending] = useActionForm(action);
+  const [state, onSubmit, pending, ready] = useActionForm(action);
   const ref = useRef<HTMLFormElement>(null);
   useEffect(() => {
     if (state.ok && resetOnSuccess) ref.current?.reset();
@@ -55,7 +55,7 @@ export function ActionForm({
             {state.message}
           </p>
         )}
-        <Button type="submit" variant={variant} disabled={pending} className="sm:self-start">
+        <Button type="submit" variant={variant} disabled={pending || !ready} className="sm:self-start">
           {pending ? pendingLabel : submitLabel}
         </Button>
       </form>

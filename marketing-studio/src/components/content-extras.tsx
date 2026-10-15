@@ -32,7 +32,7 @@ export function CopyTextButton({ text }: { text: string }) {
 }
 
 export function ManualPostForm({ action }: { action: (s: ActionState, f: FormData) => Promise<ActionState> }) {
-  const [state, onSubmit, pending] = useActionForm(action);
+  const [state, onSubmit, pending, ready] = useActionForm(action);
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-3" noValidate>
       <Field label="Enlace a la publicación (opcional)" name="manual_post_url" error={state.errors?.manual_post_url}>
@@ -50,7 +50,7 @@ export function ManualPostForm({ action }: { action: (s: ActionState, f: FormDat
           {state.message}
         </p>
       )}
-      <Button type="submit" variant="secondary" disabled={pending}>
+      <Button type="submit" variant="secondary" disabled={pending || !ready}>
         {pending ? "Guardando…" : "Ya la publiqué manualmente"}
       </Button>
     </form>

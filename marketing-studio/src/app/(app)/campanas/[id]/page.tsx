@@ -95,6 +95,9 @@ export default async function CampaignPage({ params, searchParams }: Props) {
           {campaign.plan_version > 1 && <Badge>Versión {campaign.plan_version}</Badge>}
         </p>
         {campaign.instruction && <p className="mt-2 break-words text-sm italic text-muted">«{campaign.instruction}»</p>}
+        <Link href={`/estudio?negocio=${business?.slug ?? ""}&campana=${campaign.id}`} className="mt-2 inline-block text-sm text-action-strong hover:underline">
+          Producir materiales en el Estudio creativo →
+        </Link>
       </header>
 
       {sp.nueva === "1" && (

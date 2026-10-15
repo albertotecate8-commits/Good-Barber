@@ -4,8 +4,8 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ASSET_KINDS, ASSET_KIND_LABELS, ASSET_ORIGINS, ASSET_ORIGIN_LABELS, type AssetKind, type AssetOrigin } from "@/lib/content-labels";
 import { ALLOWED_MIME, MAX_ASSET_BYTES, acceptFor } from "@/lib/validation/asset";
-import { createBrowserSupabase } from "@/lib/supabase/browser";
-import { discardPendingAsset, finalizeAssetUpload, prepareAssetUpload } from "@/app/(app)/biblioteca/actions";
+import { uploadToLibrary } from "@/lib/storage/client-upload";
+import { useHydrated } from "@/lib/use-action-form";
 import { Button, Field } from "./ui";
 
 type Status = { tone: "idle" | "busy" | "ok" | "error"; text: string };
@@ -14,14 +14,26 @@ export function AssetUploader({
   businesses,
   defaultBusinessId,
   disabledReason,
+  defaultKind = "image",
+  defaultOrigin = "unspecified",
+  defaultTags = "",
+  onUploaded,
+  submitLabel = "Subir archivo",
 }: {
   businesses: { id: string; name: string }[];
   defaultBusinessId?: string;
   disabledReason?: string;
+  defaultKind?: AssetKind;
+  defaultOrigin?: AssetOrigin;
+  defaultTags?: string;
+  /** Se llama con el id del recurso ya verificado (p. ej. para crear una versión). */
+  onUploaded?: (assetId: string) => void | Promise<void>;
+  submitLabel?: string;
 }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
-  const [kind, setKind] = useState<AssetKind>("image");
+  const ready = useHydrated();
+  const [kind, setKind] = useState<AssetKind>(defaultKind);
   const [status, setStatus] = useState<Status>({ tone: "idle", text: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [title, setTitle] = useState("");
@@ -47,56 +59,24 @@ export function AssetUploader({
       return;
     }
 
-    setStatus({ tone: "busy", text: "Preparando…" });
-    const prep = await prepareAssetUpload({
+    setStatus({ tone: "busy", text: "Subiendo archivo…" });
+    const result = await uploadToLibrary(file, {
       business_id: String(form.get("business_id") ?? ""),
       kind,
-      origin: (String(form.get("origin") ?? "unspecified") as AssetOrigin),
+      origin: String(form.get("origin") ?? "unspecified") as AssetOrigin,
       title: String(form.get("title") ?? "") || file.name,
       description: String(form.get("description") ?? ""),
       tags: String(form.get("tags") ?? ""),
+      license_note: String(form.get("license_note") ?? ""),
       asset_date: String(form.get("asset_date") ?? ""),
       original_name: file.name,
-      mime_type: file.type,
-      size: file.size,
-    }).catch(() => ({ ok: false as const, message: "No se pudo contactar al servidor." }));
-    if (!prep.ok) {
-      setErrors("errors" in prep && prep.errors ? prep.errors : {});
-      setStatus({ tone: "error", text: prep.message });
+    });
+    if (!result.ok) {
+      setErrors(result.errors ?? {});
+      setStatus({ tone: "error", text: result.message });
       return;
     }
-
-    setStatus({ tone: "busy", text: "Subiendo archivo…" });
-    try {
-      if (prep.backend === "supabase") {
-        const supabase = createBrowserSupabase();
-        const { error } = await supabase.storage
-          .from(prep.bucket)
-          .upload(prep.path, file, { contentType: file.type, upsert: false });
-        if (error) {
-          await discardPendingAsset(prep.id);
-          const notConfigured = /bucket not found|not found/i.test(error.message);
-          throw new Error(
-            notConfigured
-              ? "Supabase Storage no está configurado (falta el bucket «mkt-assets»). Ejecuta la migración de la Biblioteca en tu proyecto."
-              : `Supabase Storage rechazó el archivo: ${error.message}`,
-          );
-        }
-        const fin = await finalizeAssetUpload(prep.id);
-        if (!fin.ok) throw new Error(fin.message ?? "No se pudo verificar el archivo.");
-      } else {
-        const res = await fetch(`/api/biblioteca/local/${prep.id}`, {
-          method: "PUT",
-          body: file,
-          headers: { "Content-Type": "application/octet-stream" },
-        });
-        const body = await res.json().catch(() => ({ ok: false, message: "Respuesta inválida del servidor." }));
-        if (!res.ok || !body.ok) throw new Error(body.message ?? "No se pudo subir el archivo.");
-      }
-    } catch (err) {
-      setStatus({ tone: "error", text: (err as Error).message });
-      return;
-    }
+    onUploaded?.(result.id);
 
     setStatus({ tone: "ok", text: `«${file.name}» se subió correctamente.` });
     formRef.current?.reset();
@@ -130,7 +110,7 @@ export function AssetUploader({
         </select>
       </Field>
       <Field label="Origen" name="up-origin" hint="Si lo generaste con ChatGPT, Gemini o Flow, elige «Generado con IA».">
-        <select id="up-origin" name="origin" className="input" defaultValue="unspecified">
+        <select id="up-origin" name="origin" className="input" defaultValue={defaultOrigin}>
           {ASSET_ORIGINS.map((o) => (
             <option key={o} value={o}>
               {ASSET_ORIGIN_LABELS[o]}
@@ -154,6 +134,13 @@ export function AssetUploader({
           />
         </Field>
       </div>
+      {kind === "audio" && (
+        <div className="sm:col-span-2">
+          <Field label="Licencia de la música" name="up-license" error={errors.license_note} hint="Obligatorio: música propia, comprada o libre de regalías, y de dónde viene (enlace).">
+            <input id="up-license" name="license_note" className="input" maxLength={1000} aria-invalid={errors.license_note ? true : undefined} />
+          </Field>
+        </div>
+      )}
       <Field label="Título" name="up-title" error={errors.title}>
         <input id="up-title" name="title" className="input" value={title} onChange={(e) => {
             setTitle(e.target.value);
@@ -165,7 +152,7 @@ export function AssetUploader({
       </Field>
       <div className="sm:col-span-2">
         <Field label="Etiquetas" name="up-tags" hint="Separadas por comas: promoción, fade, local…">
-          <input id="up-tags" name="tags" className="input" maxLength={2000} />
+          <input id="up-tags" name="tags" className="input" maxLength={2000} defaultValue={defaultTags} />
         </Field>
       </div>
       <div className="sm:col-span-2">
@@ -188,8 +175,8 @@ export function AssetUploader({
             {status.text}
           </p>
         )}
-        <Button type="submit" disabled={status.tone === "busy"} className="sm:self-start">
-          {status.tone === "busy" ? "Subiendo…" : "Subir archivo"}
+        <Button type="submit" disabled={status.tone === "busy" || !ready} className="sm:self-start">
+          {status.tone === "busy" ? "Subiendo…" : submitLabel}
         </Button>
       </div>
     </form>

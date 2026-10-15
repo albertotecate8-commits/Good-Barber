@@ -23,7 +23,7 @@ export function DirectorForm({
   geminiReason: string | null;
   defaultBusinessId?: string;
 }) {
-  const [state, onSubmit, pending] = useActionForm(action);
+  const [state, onSubmit, pending, ready] = useActionForm(action);
   const [instruction, setInstruction] = useState("");
   const [goal, setGoal] = useState<Goal>("appointments");
   const [goalTouched, setGoalTouched] = useState(false);
@@ -124,7 +124,7 @@ export function DirectorForm({
             {state.message}
           </p>
         )}
-        <Button type="submit" disabled={pending} className="sm:self-start">
+        <Button type="submit" disabled={pending || !ready} className="sm:self-start">
           {pending ? "Investigando y preparando la campaña…" : "Preparar campaña"}
         </Button>
       </div>

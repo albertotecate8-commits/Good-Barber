@@ -6,7 +6,7 @@ citas de Good Barber (raíz del repositorio), que no se modifica.
 
 **Regla económica:** $0 MXN de gasto adicional en APIs. Ver `src/lib/providers/`.
 
-## Estado (Etapas 1, 2 y 3)
+## Estado (Etapas 1 a 4)
 
 | Función | Estado |
 | --- | --- |
@@ -29,6 +29,13 @@ citas de Good Barber (raíz del repositorio), que no se modifica.
 | Gemini API (opcional) | Implementada con candados de gasto; probada con respuestas simuladas, **no contra la API real** (no hay clave) |
 | Prompts asistidos para ChatGPT/Claude/Gemini/Flow e importación validada del resultado | Funciona |
 | Borradores en el calendario desde la campaña, experimentos y comparación | Funciona y está probado |
+| Estudio creativo: proyectos por negocio/campaña, referencias, tipo de material, formato | Funciona y está probado |
+| Conceptos y prompts para ChatGPT/Gemini/Claude/Flow con marca, precios y referencias | Funciona (son instrucciones, no imágenes) |
+| Editor gráfico en el navegador: recorte con foco, textos y precios exactos, logotipo sin deformar, plantillas, exportación en alta resolución y adaptación a otros formatos | Funciona y está probado (edición por código, no IA) |
+| Importar resultados de herramientas externas como versiones («Generado con IA») | Funciona |
+| Control de calidad: automático (precios, afirmaciones, dimensiones, contraste, tamaño legible, zonas seguras, resolución, logotipo, exposición) + revisión humana obligatoria para «definitivo» | Funciona y está probado |
+| Video: escenas, textos, música con licencia y montaje con FFmpeg | Funciona donde hay FFmpeg (probado con `ffprobe`); en Vercel se entrega el comando |
+| Generación de imágenes o video con IA desde la app | **No disponible**: ninguna vía gratuita y permitida (ver abajo) |
 | Mensajes, analíticas automáticas | **Pendiente** |
 | Conexión con Meta y publicación automática | **Pendiente** (Etapa 5): ninguna red está conectada; programar **no** publica |
 
@@ -79,6 +86,23 @@ citas de Good Barber (raíz del repositorio), que no se modifica.
 - `experiments.ts` resume resultados y sugiere qué probar, con umbral mínimo de datos y aviso de que
   correlación no es causalidad.
 
+### Estudio creativo (`src/lib/creative/`)
+
+- `formats.ts`: formatos por red con zonas seguras (guías 2026; Meta no publica una única medida oficial).
+- `layout.ts` + `design.ts`: composición pura (recorte con punto focal, logotipo proporcional, ajuste de
+  texto, plantillas dentro de la zona segura). `draw.ts` la dibuja en un `<canvas>` del navegador, tanto
+  para la vista previa como para exportar a tamaño real. Funciona igual en Vercel y en el iPhone.
+- `qa.ts`: comprobaciones automáticas (algunas medidas en los píxeles del lienzo, otras en el servidor) y
+  una lista de revisión humana obligatoria. Lo que no se puede medir (defectos de una imagen con IA, permisos
+  de personas) se pide a la persona; la app no certifica que una imagen sea «real» ni promete ventas.
+- `video.ts` + `render.ts`: plan de video validado (música exige licencia) y comando de FFmpeg sin shell.
+  Monta material existente; no genera video con IA.
+- **Integraciones de IA investigadas (octubre 2026):** las suscripciones de ChatGPT, Claude, Gemini y Google
+  Flow no incluyen API; la API de imágenes de Gemini, Veo y la de OpenAI son de pago; Flow no tiene API. Por
+  eso la generación es asistida: la app prepara el prompt (pidiendo la imagen sin texto para poner textos
+  exactos con el editor), abre la herramienta y luego importas el resultado. El enlace `chatgpt.com/?q=` se
+  ofrece como opción no oficial; Claude y Gemini no tienen precarga confirmada.
+
 ### Garantías aplicadas en la base de datos (no solo en la interfaz)
 
 - Un usuario solo ve y edita negocios de los que es miembro (`owner`/`editor`; `viewer` solo lee).
@@ -94,6 +118,8 @@ citas de Good Barber (raíz del repositorio), que no se modifica.
   campos que solo llena la plataforma.
 - Hallazgos, investigaciones, campañas, experimentos y borradores solo se enlazan dentro del mismo
   negocio (triggers); el uso de IA se registra a nombre propio y no se edita ni se borra.
+- Proyectos creativos, referencias, versiones y sus archivos pertenecen a un solo negocio; un material
+  «definitivo» exige archivo y revisión aprobada (restricción `CHECK`).
 
 ### Migraciones
 
@@ -102,6 +128,7 @@ citas de Good Barber (raíz del repositorio), que no se modifica.
 | `supabase/migrations/20261015000000_mkt_core.sql` | — |
 | `supabase/migrations/20261016000000_mkt_calendar_library.sql` | `supabase/rollbacks/20261016000000_mkt_calendar_library.down.sql` |
 | `supabase/migrations/20261017000000_mkt_director_research.sql` | `supabase/rollbacks/20261017000000_mkt_director_research.down.sql` |
+| `supabase/migrations/20261018000000_mkt_creative_studio.sql` | `supabase/rollbacks/20261018000000_mkt_creative_studio.down.sql` |
 
 Todas son idempotentes. Las dos últimas se probaron aplicando, re-aplicando, revirtiendo y volviendo a aplicar. 
 

@@ -29,6 +29,20 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     .maybeSingle();
   if (!asset || asset.upload_status !== "ready") return new NextResponse("No encontrado", { status: 404 });
 
+  // via=app: el servidor entrega los bytes desde el mismo origen (el editor
+  // necesita imágenes del mismo origen para leer sus píxeles en el lienzo).
+  if (asset.storage_backend === "supabase" && request.nextUrl.searchParams.get("via") === "app") {
+    const { data, error } = await supabase.storage.from(SUPABASE_BUCKET).download(asset.storage_path);
+    if (error || !data) return new NextResponse("No se pudo obtener el archivo de Supabase Storage.", { status: 502 });
+    return new NextResponse(data.stream(), {
+      headers: {
+        "Content-Type": asset.mime_type,
+        "Cache-Control": "private, no-store",
+        "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy": "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox",
+      },
+    });
+  }
   if (asset.storage_backend === "supabase") {
     const { data, error } = await supabase.storage
       .from(SUPABASE_BUCKET)

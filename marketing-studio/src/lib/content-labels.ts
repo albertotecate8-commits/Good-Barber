@@ -39,6 +39,7 @@ export const ASSET_KIND_LABELS = {
   video: "Video",
   logo: "Logotipo",
   document: "Documento",
+  audio: "Audio (música)",
   other: "Otro",
 } as const;
 export type AssetKind = keyof typeof ASSET_KIND_LABELS;

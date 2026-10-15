@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { storageConfig } from "@/lib/storage/config";
 import { removeLocal, writeLocalStream } from "@/lib/storage/local";
 import { MAX_ASSET_BYTES, sniffMatches } from "@/lib/validation/asset";
+import { imageSize } from "@/lib/creative/image-size";
 
 // Subida al almacenamiento LOCAL de desarrollo. Excluida del proxy (que
 // trunca cuerpos de más de 10 MB), por eso verifica aquí la sesión.
@@ -54,7 +55,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
   const { error } = await supabase
     .from("mkt_assets")
-    .update({ upload_status: "ready", size_bytes: written.size })
+    .update({ upload_status: "ready", size_bytes: written.size, ...(asset.mime_type.startsWith("image/") ? imageSize(written.head) ?? {} : {}) })
     .eq("id", id);
   if (error) {
     await discard();
