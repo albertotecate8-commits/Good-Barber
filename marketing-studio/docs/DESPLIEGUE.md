@@ -47,7 +47,7 @@ organización ya existe otro proyecto («shabex10@gmail.com's Project», una qui
 
 ### Migraciones aplicadas y verificadas
 
-Aplicadas las 6 migraciones de `supabase/migrations/` (de `20261015000000` a `20261020000000`).
+Aplicadas las 8 migraciones de `supabase/migrations/` (de `20261015000000` a `20261022000000`, incluidas publicación y prospectos).
 El conector de Supabase pide confirmación para cualquier sentencia con `DROP`, así que en la base
 nueva se aplicó el mismo SQL sin los `drop … if exists` (que en una base vacía no hacen nada) y con
 `create or replace trigger`. Para demostrar que el resultado es idéntico, `scripts/remote/schema-fingerprint.sql`
@@ -97,6 +97,10 @@ privilegios. El script completo (19 comprobaciones) se puede correr en el **SQL 
 ---
 
 ## 3. Hosting: Netlify (PREPARADO, falta tu inicio de sesión)
+
+**Opción más rápida (recomendada):** en claude.ai → *Configuración → Conectores* conecta el conector oficial
+**Netlify** y dímelo: con él puedo crear el sitio, configurar las variables públicas, desplegar y verificar la
+URL yo mismo. Si prefieres hacerlo a mano, sigue los pasos de abajo.
 
 Archivos listos: `netlify.toml` (comando de build, Node 22, omitir construcciones innecesarias) y
 `scripts/netlify-ignore.sh` (probado con 5 casos: sin caché, mismo commit, cambio en la app, cambio
@@ -152,7 +156,7 @@ subir una foto real a la Biblioteca, descargarla, crear un proyecto en el Estudi
 
 ---
 
-## 5. Conexión con Meta (PREPARADA, sin probar contra Meta)
+## 5. Conexión y publicación con Meta (PREPARADAS, sin probar contra Meta)
 
 **Qué hay implementado:** Facebook Login oficial que solo pide permisos de **lectura**
 (`pages_show_list`, `pages_read_engagement`, `instagram_basic`, `business_management`), verificación del
@@ -187,6 +191,29 @@ navegador no puede leer, y botón para desconectar. **No publica nada**: publica
 5. Para retirar el permiso en cualquier momento: Facebook → Configuración → *Integraciones comerciales*,
    y en la app el botón «Desconectar».
 
+### Publicación automática (implementada, APAGADA)
+
+- Cada publicación necesita tu **aprobación** en su pantalla del calendario (solo el dueño, con casilla de
+  confirmación). Si después cambias el texto, la imagen, la red, el formato, la fecha o el estado, la
+  aprobación se cancela sola.
+- Una función programada de Netlify (`netlify/functions/publicar-programadas.mts`, cada 15 min, horario UTC)
+  llama a `/api/meta/publicar-programadas` con `MKT_CRON_SECRET`; esa ruta no hace nada si
+  `MKT_PUBLISHING_ENABLED` no vale `1`.
+- No hay duplicados: cada fila se reserva de forma atómica, se guarda el id del post de Meta antes de
+  registrar el intento y la base no admite dos éxitos para el mismo contenido. Tras 3 fallos queda en «Error»
+  con el motivo.
+- Probado SOLO con la Graph API simulada. **No se publicó nada real.** Las funciones programadas de Netlify
+  solo corren en el despliegue de producción publicado; confirma en el panel de Netlify (*Functions*) que
+  aparece «publicar-programadas» después de desplegar. [Scheduled Functions](https://docs.netlify.com/build/functions/scheduled-functions/)
+
+**Para activarla (cuando quieras, después de conectar la página):**
+1. En Redes sociales → **Autorizar publicación** (Meta te pedirá `pages_manage_posts` e
+   `instagram_content_publish`).
+2. **Verificar permisos (sin publicar)**: debe decir «lista para publicar».
+3. En Netlify agrega `MKT_CRON_SECRET` (`openssl rand -base64 32`) y, solo cuando decidas,
+   `MKT_PUBLISHING_ENABLED=1`. Vuelve a desplegar.
+4. Prueba primero con una publicación de bajo riesgo aprobada por ti.
+
 Nota: la cuenta de Meta conectada a esta sesión de trabajo solo administra la página «Crujipollo», no
 «Good barber»; por eso no se usó para nada. La conexión real debe hacerla la cuenta que administra la página.
 
@@ -207,6 +234,8 @@ Nota: la cuenta de Meta conectada a esta sesión de trabajo solo administra la p
 | `META_GRAPH_VERSION` | Solo servidor | No | Opcional (por defecto `v26.0`) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Solo servidor | **Sí** | **Solo** para guardar tokens de Meta y fijar «Conectado»; nada más la usa |
 | `MKT_TOKEN_KEY` | Solo servidor | **Sí** | 32 bytes en base64 para cifrar tokens |
+| `MKT_CRON_SECRET` | Solo servidor | **Sí** | 24+ caracteres; lo usa la función programada para pedir la publicación |
+| `MKT_PUBLISHING_ENABLED` | Solo servidor | No | `1` activa la publicación automática de lo aprobado. Sin él, nada se publica |
 | `MKT_FFMPEG_PATH`, `MKT_VIDEO_FONT` | Solo servidor | No | Montaje de video donde haya FFmpeg (no en Netlify) |
 
 Nunca pongas valores secretos en variables con prefijo `NEXT_PUBLIC_`.

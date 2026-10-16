@@ -6,7 +6,7 @@ citas de Good Barber (raíz del repositorio), que no se modifica.
 
 **Regla económica:** $0 MXN de gasto adicional en APIs. Ver `src/lib/providers/`.
 
-## Estado (Etapas 1 a 5)
+## Estado (Etapas 1 a 6)
 
 | Función | Estado |
 | --- | --- |
@@ -18,7 +18,7 @@ citas de Good Barber (raíz del repositorio), que no se modifica.
 | Registro honesto de proveedores de IA y bloqueo de gasto | Funciona (la invocación real llega en la Etapa 3) |
 | Calendario: vistas mes/semana/próximas, crear, editar, duplicar, eliminar, filtros, zona America/Mexico_City | Funciona y está probado |
 | Biblioteca: subir, filtrar, etiquetar, previsualizar, descargar, eliminar; aislada por negocio | Funciona y está probada (con almacenamiento local de desarrollo) |
-| Supabase real (proyecto `marketing-ai-studio`, plan Free) | Creado; 6 migraciones aplicadas; esquema idéntico al local (huella de 10 categorías); políticas RLS y de Storage verificadas en la base real (17/17) |
+| Supabase real (proyecto `marketing-ai-studio`, plan Free) | Creado; 8 migraciones aplicadas; esquema idéntico al local (huella de 10 categorías); políticas RLS y de Storage verificadas en la base real (17/17) |
 | Supabase Storage (bucket privado) | Bucket y políticas creados y verificados en la base real; **subida/descarga de archivos por HTTP aún sin probar** (la red del entorno bloquea supabase.co: ver `npm run smoke:remote`) |
 | Registro de «publicada a mano» | Funciona (es una declaración tuya, no confirma la plataforma) |
 | Director de Marketing: instrucción → tareas → investigación → estrategia, 5 anuncios, Reel, calendario, KPIs y medición | Funciona con el motor de plantillas (sin IA); probado |
@@ -34,13 +34,18 @@ citas de Good Barber (raíz del repositorio), que no se modifica.
 | Conceptos y prompts para ChatGPT/Gemini/Claude/Flow con marca, precios y referencias | Funciona (son instrucciones, no imágenes) |
 | Editor gráfico en el navegador: recorte con foco, textos y precios exactos, logotipo sin deformar, plantillas, exportación en alta resolución y adaptación a otros formatos | Funciona y está probado (edición por código, no IA) |
 | Importar resultados de herramientas externas como versiones («Generado con IA») | Funciona |
-| Control de calidad: automático (precios, afirmaciones, dimensiones, contraste, tamaño legible, zonas seguras, resolución, logotipo, exposición) + revisión humana obligatoria para «definitivo» | Funciona y está probado |
+| Control de calidad: automático (precios, afirmaciones, ortografía en español, dimensiones, contraste, tamaño legible, zonas seguras, palabras partidas, textos encimados o sobre el logotipo, resolución, logotipo, tipografía de marca, exposición) + revisión humana obligatoria para «definitivo» | Funciona y está probado |
+| Tipografías de marca en el editor (7 familias libres OFL incluidas en la app) | Funciona y está probado |
+| Prompts con dirección fotográfica por giro y servicio (Good Barber: barbería realista, corte reconocible) | Funciona (son instrucciones para tu herramienta externa) |
 | Video: escenas, textos, música con licencia y montaje con FFmpeg | Funciona donde hay FFmpeg (probado con `ffprobe`); en Netlify se entrega el comando |
 | Generación de imágenes o video con IA desde la app | **No disponible**: ninguna vía gratuita y permitida (ver abajo) |
-| Mensajes, analíticas automáticas | **Pendiente** |
+| Prospectos y resultados: registro por negocio, atribución explícita a campañas, ventas reales, importación CSV | Funciona y está probado (no lee bandejas de mensajes: requiere permisos de Meta) |
+| Analíticas con datos reales (publicaciones, prospectos, ventas, costo por cliente solo con gasto real) | Funciona y está probado |
+| Alcance e interacciones desde Meta | **Pendiente**: requiere permisos de estadísticas y cuenta conectada |
+| Alternativas de campaña con «por qué probarla» e ideas separadas de campañas en ejecución | Funciona y está probado |
 | Hosting en Netlify Free (uso comercial permitido) | Preparado (`netlify.toml`); **no desplegado**: requiere tu inicio de sesión en Netlify |
 | Conexión oficial con Meta (vincular la página existente, solo lectura) | Implementada y probada con respuestas simuladas; **sin probar contra Meta** (no hay app de Meta); ninguna red está conectada |
-| Publicación automática en Facebook/Instagram | **Pendiente**: programar **no** publica |
+| Publicación automática en Facebook/Instagram (aprobación del dueño, programación, sin duplicados, reintentos) | Implementada y probada con la Graph API **simulada**; **apagada** (`MKT_PUBLISHING_ENABLED`) y sin probar contra Meta: no hay app de Meta ni cuenta conectada |
 
 ## Arquitectura
 
@@ -117,6 +122,24 @@ citas de Good Barber (raíz del repositorio), que no se modifica.
   no crea páginas ni perfiles duplicados.
 - Rutas `/api/meta/conectar` y `/api/meta/retorno`; pantalla `/negocios/[slug]/meta` para elegir la página.
 
+### Publicación automática (`src/lib/meta/publish.ts`, `worker.ts`)
+
+- Publicar exige: aprobación del **dueño** (con casilla de confirmación), cuenta conectada con
+  `pages_manage_posts` / `instagram_content_publish`, hora programada cumplida y `MKT_PUBLISHING_ENABLED=1`.
+- Editar texto, recurso, red, formato, fecha o estado de algo aprobado revoca la aprobación (trigger).
+- Función programada de Netlify (`netlify/functions/publicar-programadas.mts`, cada 15 min) → ruta
+  `/api/meta/publicar-programadas` protegida con `MKT_CRON_SECRET`.
+- Sin duplicados: reserva atómica por fila, id del post guardado antes del intento, índice único de éxito.
+  Máximo 3 intentos fallidos; luego «Error» con el motivo para revisión humana.
+- «Verificar permisos (sin publicar)» solo lee de Meta.
+
+### Prospectos y analíticas (`src/lib/validation/lead.ts`, `src/lib/analytics.ts`)
+
+- Prospectos por negocio con origen, estado, cita y venta real; atribución explícita (el cliente lo dijo o
+  usó el código) a campañas del mismo negocio. Importación CSV todo o nada.
+- La app de citas de Good Barber **no** se conecta: sus datos solo entran si los exportas e importas.
+- Analíticas solo con datos registrados; costo por cliente solo con gasto publicitario real capturado.
+
 ### Garantías aplicadas en la base de datos (no solo en la interfaz)
 
 - Un usuario solo ve y edita negocios de los que es miembro (`owner`/`editor`; `viewer` solo lee).
@@ -147,6 +170,8 @@ citas de Good Barber (raíz del repositorio), que no se modifica.
 | `supabase/migrations/20261018000000_mkt_creative_studio.sql` | `supabase/rollbacks/20261018000000_mkt_creative_studio.down.sql` |
 | `supabase/migrations/20261019000000_mkt_harden_grants.sql` | `supabase/rollbacks/20261019000000_mkt_harden_grants.down.sql` |
 | `supabase/migrations/20261020000000_mkt_meta_connections.sql` | `supabase/rollbacks/20261020000000_mkt_meta_connections.down.sql` |
+| `supabase/migrations/20261021000000_mkt_publishing.sql` | `supabase/rollbacks/20261021000000_mkt_publishing.down.sql` |
+| `supabase/migrations/20261022000000_mkt_leads.sql` | `supabase/rollbacks/20261022000000_mkt_leads.down.sql` |
 
 Todas son idempotentes. Desde la del Estudio se probaron aplicando, re-aplicando, revirtiendo y volviendo a aplicar. El entorno local replica los privilegios por defecto de Supabase real (`scripts/local-supabase/roles.sql`).
 
@@ -171,6 +196,8 @@ npm run test:integration  # RLS, triggers y políticas de Storage contra el stac
 npm run build && npm run test:e2e   # navegador real (escritorio + iPhone)
 npm run test:live         # fuentes de investigación EN VIVO (requiere internet)
 npm run smoke:remote      # servicios reales: Auth, base, Storage y app desplegada (ver docs/DESPLIEGUE.md)
+npm run check:secrets     # tras un build: ningún secreto ni módulo de servidor en el código del navegador
+npm run check:citas       # la rama no modifica la app de citas de Good Barber
 ```
 
 Contra el proyecto Supabase real (SQL Editor o conector): `scripts/remote/schema-fingerprint.sql` (huella

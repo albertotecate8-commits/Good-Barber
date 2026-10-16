@@ -14,6 +14,8 @@ jobs:
         working-directory: marketing-studio
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -23,8 +25,20 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test:unit
-      - name: Build
+      - name: Build (con secretos centinela)
         run: npm run build
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
+          SUPABASE_SERVICE_ROLE_KEY: centinela-service-role-NO-DEBE-SALIR
+          META_APP_SECRET: centinela-meta-secret-NO-DEBE-SALIR
+          MKT_TOKEN_KEY: Y2VudGluZWxhLXRva2VuLWtleS1uby1kZWJlLXNhbGly
+          MKT_CRON_SECRET: centinela-cron-secret-NO-DEBE-SALIR-123456
+          GEMINI_API_KEY: centinela-gemini-NO-DEBE-SALIR
+          TAVILY_API_KEY: centinela-tavily-NO-DEBE-SALIR
+      - name: Sin secretos en el código del navegador
+        run: node scripts/check-client-secrets.mjs
+      - name: La app de citas no se modificó
+        run: |
+          git fetch --no-tags origin main
+          bash scripts/check-citas-untouched.sh origin/main

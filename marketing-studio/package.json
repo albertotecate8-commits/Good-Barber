@@ -17,7 +17,9 @@
     "local:down": "node scripts/local-supabase/stack.mjs down",
     "local:env": "node scripts/local-supabase/stack.mjs env",
     "test:live": "vitest run --config vitest.live.config.mts",
-    "smoke:remote": "node scripts/remote/smoke.mjs"
+    "smoke:remote": "node scripts/remote/smoke.mjs",
+    "check:secrets": "node scripts/check-client-secrets.mjs",
+    "check:citas": "bash scripts/check-citas-untouched.sh origin/main"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
