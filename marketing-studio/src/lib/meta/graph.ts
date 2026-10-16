@@ -33,14 +33,20 @@ export class MetaError extends Error {
 
 const GRAPH = "https://graph.facebook.com";
 
-export function authorizeUrl(o: GraphOptions, state: string, scopes: readonly string[] = META_LINK_SCOPES) {
+/**
+ * Diálogo oficial de inicio de sesión. Con `configId` (Facebook Login for
+ * Business) los permisos vienen de la configuración guardada en Meta y NO se
+ * envía scope; sin él se usa Facebook Login clásico con scope.
+ */
+export function authorizeUrl(o: GraphOptions, state: string, scopes: readonly string[] = META_LINK_SCOPES, configId = "") {
   const q = new URLSearchParams({
     client_id: o.appId,
     redirect_uri: o.redirectUri,
     state,
     response_type: "code",
-    scope: scopes.join(","),
   });
+  if (configId) q.set("config_id", configId);
+  else q.set("scope", scopes.join(","));
   return `https://www.facebook.com/${o.graphVersion}/dialog/oauth?${q}`;
 }
 

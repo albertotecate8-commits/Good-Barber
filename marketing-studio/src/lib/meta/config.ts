@@ -8,15 +8,19 @@
 //     app (tú). Para tus propias páginas no hace falta App Review; publicar
 //     para cuentas de terceros exigiría App Review + verificación del negocio.
 //   * Para LEER y VINCULAR la página basta con permisos de lectura. Los de
-//     publicación (pages_manage_posts, instagram_content_publish) NO se piden
-//     todavía: se agregarán cuando exista la publicación y la autorices.
+//     publicación (pages_manage_posts, instagram_content_publish) solo se piden
+//     con «Autorizar publicación» (otra autorización explícita tuya).
+//   * Apps de tipo «Negocio»: Meta usa Facebook Login for Business, donde los
+//     permisos se guardan en una «configuración» del panel y el diálogo recibe
+//     config_id en lugar de scope. Si defines META_LOGIN_CONFIG_ID (lectura) y
+//     META_PUBLISH_CONFIG_ID (lectura + publicación) se usan; si no, scope.
 
 type Env = Record<string, string | undefined>;
 
 /** Permisos que se piden hoy: solo listar y leer tus páginas y su Instagram vinculado. */
 export const META_LINK_SCOPES = ["pages_show_list", "pages_read_engagement", "instagram_basic", "business_management"] as const;
 
-/** Permisos que hará falta pedir para publicar (no se usan todavía). */
+/** Permisos extra que se piden solo con «Autorizar publicación». */
 export const META_PUBLISH_SCOPES = ["pages_manage_posts", "instagram_content_publish"] as const;
 
 export const META_SESSION_MINUTES = 20;
@@ -28,6 +32,9 @@ export interface MetaConfig {
   appSecret: string;
   graphVersion: string;
   redirectUri: string;
+  /** Facebook Login for Business: id de la configuración de solo lectura / con publicación (opcionales). */
+  loginConfigId: string;
+  publishConfigId: string;
   serviceRoleKey: string;
   tokenKey: string;
 }
@@ -39,6 +46,8 @@ export function metaConfig(env: Env = process.env): MetaConfig {
     appSecret: env.META_APP_SECRET?.trim() ?? "",
     graphVersion: /^v\d{2}\.0$/.test(env.META_GRAPH_VERSION ?? "") ? env.META_GRAPH_VERSION! : "v26.0",
     redirectUri: appUrl ? `${appUrl}/api/meta/retorno` : "",
+    loginConfigId: /^\d{5,20}$/.test(env.META_LOGIN_CONFIG_ID?.trim() ?? "") ? env.META_LOGIN_CONFIG_ID!.trim() : "",
+    publishConfigId: /^\d{5,20}$/.test(env.META_PUBLISH_CONFIG_ID?.trim() ?? "") ? env.META_PUBLISH_CONFIG_ID!.trim() : "",
     serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY?.trim() ?? "",
     tokenKey: env.MKT_TOKEN_KEY?.trim() ?? "",
   };
@@ -72,4 +81,21 @@ export function publishingConfig(env: Env = process.env) {
   const enabled = env.MKT_PUBLISHING_ENABLED === "1";
   const missing = [...(enabled ? [] : ["MKT_PUBLISHING_ENABLED=1"]), ...(secret.length >= 24 ? [] : ["MKT_CRON_SECRET"])];
   return { enabled: enabled && secret.length >= 24, secret, missing };
+}
+
+/**
+ * Datos que hay que copiar en el panel de Meta for Developers. No incluye
+ * secretos: solo direcciones públicas derivadas de la URL del sitio.
+ */
+export function metaSetupInfo(env: Env = process.env) {
+  const appUrl = (env.MKT_APP_URL || env.URL || "").replace(/\/$/, "");
+  const https = /^https:\/\//.test(appUrl);
+  return {
+    appUrl,
+    https,
+    appDomain: appUrl ? new URL(appUrl).hostname : "",
+    redirectUri: appUrl ? `${appUrl}/api/meta/retorno` : "",
+    privacyUrl: appUrl ? `${appUrl}/privacidad` : "",
+    deletionUrl: appUrl ? `${appUrl}/eliminacion-de-datos` : "",
+  };
 }

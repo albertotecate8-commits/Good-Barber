@@ -163,8 +163,17 @@ subir una foto real a la Biblioteca, descargarla, crear un proyecto en el Estudi
 token con `debug_token` (válido y de tu app), elección explícita de la **página existente** (la app
 sugiere la que coincide con el perfil registrado, no crea páginas ni cambia propietarios o permisos),
 prueba del token de página antes de marcar «Conectado», tokens cifrados con AES-256-GCM en tablas que el
-navegador no puede leer, y botón para desconectar. **No publica nada**: publicar exigirá pedir
-`pages_manage_posts` / `instagram_content_publish` con otra autorización tuya.
+navegador no puede leer, y botón para desconectar. Los permisos de publicación
+(`pages_manage_posts` / `instagram_content_publish`) solo se piden con «Autorizar publicación».
+
+**Facebook Login for Business (apps de tipo Negocio):** Meta guarda los permisos en una *configuración*
+del panel y el diálogo recibe `config_id` en lugar de `scope`. La app lo soporta: define
+`META_LOGIN_CONFIG_ID` (configuración de solo lectura) y `META_PUBLISH_CONFIG_ID` (lectura + publicación).
+Sin esas variables usa Facebook Login clásico con `scope`.
+
+**Páginas públicas que Meta exige** (ya incluidas, sin iniciar sesión): `/privacidad` y
+`/eliminacion-de-datos`. **Configuración → Datos para la app de Meta** muestra las URL exactas de tu
+despliegue para copiarlas. `/api/salud` confirma que el sitio responde y llega a Supabase.
 
 **Qué dicen hoy las fuentes oficiales** (Graph API vigente: v26.0):
 - Con *acceso estándar* una app funciona para las personas con rol en ella (tú como administrador). Para
@@ -181,11 +190,17 @@ navegador no puede leer, y botón para desconectar. **No publica nada**: publica
 **Lo que TÚ debes hacer (cuando quieras conectar):**
 1. Con tu cuenta personal de Facebook que **administra la página «Good barber»**, entra a
    [developers.facebook.com](https://developers.facebook.com) → *My Apps* → **Create App** (gratis).
-   Caso de uso: administrar páginas / *Facebook Login for Business*. Déjala en modo desarrollo.
-2. En *Facebook Login → Settings* → **Valid OAuth Redirect URIs**: `https://TU-SITIO.netlify.app/api/meta/retorno`.
-3. En Netlify agrega (como secretas): `META_APP_ID`, `META_APP_SECRET`, `MKT_APP_URL`
-   (`https://TU-SITIO.netlify.app`), `SUPABASE_SERVICE_ROLE_KEY` y `MKT_TOKEN_KEY` (genera 32 bytes con
-   `openssl rand -base64 32`). Vuelve a desplegar.
+   Tipo **Negocio** / caso de uso administrar páginas con *Facebook Login for Business*. Déjala en modo desarrollo
+   (así solo funciona para ti y no requiere App Review para tus propias páginas).
+2. *Configuración de la app → Básica*: **Dominios de la app**, **URL de la política de privacidad** y
+   **URL de instrucciones de eliminación de datos** (cópialas de *Configuración → Datos para la app de Meta*).
+3. *Facebook Login for Business → Configuración*: **URI de redireccionamiento OAuth válidos** =
+   `https://TU-SITIO.netlify.app/api/meta/retorno`. Crea dos configuraciones con token de acceso de usuario:
+   «Solo lectura» (`pages_show_list`, `pages_read_engagement`, `instagram_basic`, `business_management`) y
+   «Publicación» (las anteriores + `pages_manage_posts`, `instagram_content_publish`). Anota sus ids.
+4. En Netlify agrega (como secretas): `META_APP_ID`, `META_APP_SECRET`, `META_LOGIN_CONFIG_ID`,
+   `META_PUBLISH_CONFIG_ID`, `SUPABASE_SERVICE_ROLE_KEY` y `MKT_TOKEN_KEY` (32 bytes:
+   `openssl rand -base64 32`). `MKT_APP_URL` solo si usas otro dominio (Netlify ya define `URL`). Vuelve a desplegar.
 4. En la app: **Negocios → Good Barber → Redes sociales → Conectar con Meta**. En el diálogo de Meta
    elige compartir solo la página «Good barber»; luego confírmala en la app.
 5. Para retirar el permiso en cualquier momento: Facebook → Configuración → *Integraciones comerciales*,
@@ -240,12 +255,13 @@ Nota: la cuenta de Meta conectada a esta sesión de trabajo solo administra la p
 | `NEXT_PUBLIC_SUPABASE_URL` | Netlify + `.env.local` | No | URL del proyecto |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Netlify + `.env.local` | No (protegida por RLS) | Clave pública (`sb_publishable_…` o la anon heredada) |
 | `MKT_STORAGE_BACKEND` | No la definas en producción | No | `local` solo para desarrollo; en Netlify/Vercel se rechaza |
-| `MKT_CONTACT_EMAIL` | Solo servidor | No | Recomendado: identificación ante OpenStreetMap |
+| `MKT_CONTACT_EMAIL` | Solo servidor | No | Recomendado: identificación ante OpenStreetMap y contacto en `/privacidad` (se fija al construir) |
 | `TAVILY_API_KEY` | Solo servidor | **Sí** | Opcional: búsqueda web (plan gratuito sin tarjeta) |
 | `GEMINI_API_KEY` / `GEMINI_FREE_TIER_CONFIRMED` / `GEMINI_MODEL` | Solo servidor | **Sí** / No / No | Opcional: redactar con Gemini solo en nivel gratuito confirmado |
 | `META_APP_ID`, `META_APP_SECRET` | Solo servidor | **Sí** (el secreto) | Conexión oficial con Meta |
 | `MKT_APP_URL` | Solo servidor | No | URL pública del sitio (si falta se usa `URL`, que Netlify define) |
 | `META_GRAPH_VERSION` | Solo servidor | No | Opcional (por defecto `v26.0`) |
+| `META_LOGIN_CONFIG_ID`, `META_PUBLISH_CONFIG_ID` | Solo servidor | No | Facebook Login for Business: ids de las configuraciones (lectura / publicación). Sin ellas se usa `scope` |
 | `SUPABASE_SERVICE_ROLE_KEY` | Solo servidor | **Sí** | **Solo** para guardar tokens de Meta y fijar «Conectado»; nada más la usa |
 | `MKT_TOKEN_KEY` | Solo servidor | **Sí** | 32 bytes en base64 para cifrar tokens |
 | `MKT_CRON_SECRET` | Solo servidor | **Sí** | 24+ caracteres; lo usa la función programada para pedir la publicación |

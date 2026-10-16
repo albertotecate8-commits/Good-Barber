@@ -31,8 +31,9 @@ export async function GET(req: NextRequest) {
   const nonce = newNonce();
   const state = signState({ u: user.id, b: businessId, n: nonce, e: Date.now() + 10 * 60_000 }, cfg.tokenKey);
   // ?permisos=publicar pide además los permisos de publicación (otra autorización explícita tuya).
-  const scopes = req.nextUrl.searchParams.get("permisos") === "publicar" ? [...META_LINK_SCOPES, ...META_PUBLISH_SCOPES] : META_LINK_SCOPES;
-  const res = NextResponse.redirect(authorizeUrl(graphOptions(cfg), state, scopes));
+  const publish = req.nextUrl.searchParams.get("permisos") === "publicar";
+  const scopes = publish ? [...META_LINK_SCOPES, ...META_PUBLISH_SCOPES] : META_LINK_SCOPES;
+  const res = NextResponse.redirect(authorizeUrl(graphOptions(cfg), state, scopes, publish ? cfg.publishConfigId : cfg.loginConfigId));
   res.cookies.set(META_NONCE_COOKIE, nonce, {
     httpOnly: true,
     secure: req.nextUrl.protocol === "https:",

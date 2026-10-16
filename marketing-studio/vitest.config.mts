@@ -13,8 +13,13 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["tests/**/*.test.ts"],
     testTimeout: 20000,
     hookTimeout: 30000,
+    projects: [
+      { extends: true, test: { name: "unit", include: ["tests/unit/**/*.test.ts"] } },
+      // Comparten una sola base local y el proceso de publicación toma TODO lo
+      // vencido: en paralelo, un archivo podía procesar las filas de otro.
+      { extends: true, test: { name: "integration", include: ["tests/integration/**/*.test.ts"], fileParallelism: false } },
+    ],
   },
 });

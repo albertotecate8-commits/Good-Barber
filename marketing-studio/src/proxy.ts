@@ -1,7 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/configuracion-inicial"];
+// Páginas públicas: Meta exige que la política de privacidad y las instrucciones
+// de eliminación de datos se puedan abrir sin sesión.
+const PUBLIC_PATHS = ["/login", "/configuracion-inicial", "/privacidad", "/eliminacion-de-datos", "/api/salud"];
 
 // Refresca la sesión de Supabase en cada petición y manda a /login a quien no
 // la tenga. Es solo la primera barrera: cada página y acción vuelve a

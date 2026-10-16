@@ -4,6 +4,7 @@ import { ACCESS_LABELS, PROVIDERS, STATUS_LABELS, runtimeStatus, type RuntimeSta
 import { MONTHLY_BUDGET_MXN } from "@/lib/providers/budget";
 import { storageConfig } from "@/lib/storage/config";
 import { ffmpegStatus } from "@/lib/creative/render";
+import { metaConfig, metaSetupInfo, publishingConfig } from "@/lib/meta/config";
 import { Badge, Card, CardTitle, Notice, PageHeader } from "@/components/ui";
 
 export const metadata = { title: "Configuración" };
@@ -29,6 +30,9 @@ export default async function SettingsPage() {
   const user = await requireUser();
   const storage = storageConfig();
   const ff = await ffmpegStatus();
+  const meta = metaConfig();
+  const setup = metaSetupInfo();
+  const pub = publishingConfig();
   return (
     <>
       <PageHeader title="Configuración" description="Cuenta, reglas de gasto y estado real de cada proveedor." />
@@ -54,6 +58,46 @@ export default async function SettingsPage() {
           </p>
         </Card>
       </div>
+
+      <Card className="mb-4">
+        <CardTitle>Datos para la app de Meta</CardTitle>
+        <p className="mb-3 text-sm text-muted">
+          Cópialos en Meta for Developers (Configuración de la app y Facebook Login). No contienen secretos.
+        </p>
+        {!setup.appUrl ? (
+          <Notice tone="warn">Falta la URL pública del sitio (Netlify la define sola como URL; o usa MKT_APP_URL).</Notice>
+        ) : (
+          <dl className="grid gap-2 text-sm sm:grid-cols-[220px_1fr]">
+            {[
+              ["Dominio de la app", setup.appDomain],
+              ["URL del sitio", setup.appUrl],
+              ["URI de redireccionamiento OAuth válido", setup.redirectUri],
+              ["Política de privacidad", setup.privacyUrl],
+              ["Instrucciones de eliminación de datos", setup.deletionUrl],
+            ].map(([k, v]) => (
+              <div key={k} className="contents">
+                <dt className="text-muted">{k}</dt>
+                <dd className="break-all font-mono text-xs">{v}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+        {setup.appUrl && !setup.https && <p className="mt-2 text-xs text-warn">Meta exige HTTPS fuera de localhost.</p>}
+        <ul className="mt-3 space-y-1 text-sm">
+          <li>
+            Conexión: {meta.ready ? <Badge tone="action">Configurada, sin probar</Badge> : <Badge tone="warn">Falta: {meta.missing.join(", ")}</Badge>}
+          </li>
+          <li>
+            Inicio de sesión:{" "}
+            {meta.loginConfigId ? <Badge tone="action">Facebook Login for Business (config_id)</Badge> : <Badge>Facebook Login (scope)</Badge>}
+            {meta.loginConfigId && !meta.publishConfigId && <span className="ml-2 text-xs text-warn">Falta META_PUBLISH_CONFIG_ID para «Autorizar publicación».</span>}
+          </li>
+          <li>
+            Publicación automática: {pub.enabled ? <Badge tone="positive">Encendida</Badge> : <Badge>Apagada</Badge>}
+            {!pub.enabled && <span className="ml-2 text-xs text-faint">Se enciende solo con tu autorización (MKT_PUBLISHING_ENABLED=1).</span>}
+          </li>
+        </ul>
+      </Card>
 
       <Card className="mb-4">
         <CardTitle>Almacenamiento de la Biblioteca</CardTitle>
