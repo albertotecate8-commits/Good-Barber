@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LOGO_POSITIONS, TEMPLATES, TEMPLATE_LABELS, type Design } from "@/lib/creative/design";
 import { drawDesign, loadImage, type ImageMap } from "@/lib/creative/draw";
+import { BRAND_FONTS, fontByKey } from "@/lib/creative/fonts";
 import type { CreativeFormat } from "@/lib/creative/formats";
 import type { QaCheck } from "@/lib/creative/qa";
 import { uploadToLibrary } from "@/lib/storage/client-upload";
@@ -65,6 +66,7 @@ export function CreativeEditor({
   const [adapt, setAdapt] = useState<string[]>([]);
   const preview = useRef<HTMLCanvasElement>(null);
   const [fontFamily, setFontFamily] = useState("sans-serif");
+  const [fontsReady, setFontsReady] = useState(0);
 
   const backgrounds = images.filter((i) => i.kind === "image" || i.kind === "logo");
   const logos = images.filter((i) => i.kind === "logo" || i.kind === "image");
@@ -91,6 +93,18 @@ export function CreativeEditor({
     document.fonts.ready.then(() => setFontFamily(family));
   }, []);
 
+  // Carga las tipografías elegidas (archivos de la propia app) antes de dibujar.
+  const fontsKey = `${design.fonts.heading},${design.fonts.body}`;
+  useEffect(() => {
+    let alive = true;
+    ensureFonts(fontsKey.split(","))
+      .then(() => alive && setFontsReady((n) => n + 1))
+      .catch(() => alive && setStatus({ tone: "error", text: "No se pudo cargar una tipografía; se usará la de la app." }));
+    return () => {
+      alive = false;
+    };
+  }, [fontsKey]);
+
   // Vista previa: el mismo dibujo, escalado.
   useEffect(() => {
     const canvas = preview.current;
@@ -103,7 +117,7 @@ export function CreativeEditor({
     if (!ctx) return;
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
     drawDesign(ctx, design, format, loaded, fontFamily);
-  }, [design, loaded, fontFamily, format]);
+  }, [design, loaded, fontFamily, format, fontsReady]);
 
   const set = <K extends keyof Design>(key: K, value: Partial<Design[K]>) =>
     setDesign((d) => ({ ...d, [key]: typeof value === "object" && value !== null ? { ...(d[key] as object), ...value } : value }) as Design);
@@ -115,6 +129,7 @@ export function CreativeEditor({
     canvas.height = d.height;
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) throw new Error("El navegador no permite dibujar.");
+    await ensureFonts([d.fonts.heading, d.fonts.body]);
     const { metrics } = drawDesign(ctx, d, target, loaded, fontFamily, { measureMetrics: true });
     const photo = Boolean(d.background.asset_id);
     const mime = photo ? "image/jpeg" : "image/png";
@@ -277,6 +292,23 @@ export function CreativeEditor({
               <input id={`ed-c-${k}`} type="color" className="h-11 w-full rounded-lg border border-line bg-transparent" value={design.colors[k]} onChange={(e) => set("colors", { [k]: e.target.value.toUpperCase() })} />
             </div>
           ))}
+          {(["heading", "body"] as const).map((k) => (
+            <div key={k} className="flex flex-col gap-1">
+              <Label htmlFor={`ed-font-${k}`}>{k === "heading" ? "Tipografía de títulos y precio" : "Tipografía del texto"}</Label>
+              <select
+                id={`ed-font-${k}`}
+                className="min-h-11 rounded-lg border border-line bg-surface px-2 text-sm"
+                value={design.fonts[k]}
+                onChange={(e) => setDesign((d) => ({ ...d, fonts: { ...d.fonts, [k]: e.target.value } }))}
+              >
+                {BRAND_FONTS.map((f) => (
+                  <option key={f.key} value={f.key}>
+                    {f.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ))}
           <div className="flex flex-col gap-1">
             <Label htmlFor="ed-scale">Tamaño de letra ({Math.round(design.text_scale * 100)} %)</Label>
             <input id="ed-scale" type="range" min={0.6} max={1.6} step={0.05} value={design.text_scale} onChange={(e) => setDesign((d) => ({ ...d, text_scale: Number(e.target.value) }))} />
@@ -316,5 +348,24 @@ export function CreativeEditor({
         ))}
       </div>
     </div>
+  );
+}
+
+const loadedFonts = new Set<string>();
+
+/** Registra en el navegador las tipografías del catálogo (archivos locales en /fonts). */
+async function ensureFonts(keys: string[]) {
+  await Promise.all(
+    keys.flatMap((key) => {
+      const font = fontByKey(key);
+      return font.files
+        .filter((file) => !loadedFonts.has(file.file))
+        .map(async (file) => {
+          const face = new FontFace(font.family, `url(${file.file})`, { weight: String(file.weight), style: "normal" });
+          await face.load();
+          document.fonts.add(face);
+          loadedFonts.add(file.file);
+        });
+    }),
   );
 }

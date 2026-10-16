@@ -72,7 +72,16 @@ export function dimensionCheck(actual: { width: number | null; height: number | 
 export interface CanvasMetrics {
   upscale: number | null;
   logo: { drawnRatio: number; naturalRatio: number } | null;
-  blocks: { role: string; fontSize: number; contrast: number; insideSafe: boolean; insideCanvas: boolean }[];
+  blocks: {
+    role: string;
+    fontSize: number;
+    contrast: number;
+    insideSafe: boolean;
+    insideCanvas: boolean;
+    brokenWord?: boolean;
+    overlapsText?: boolean;
+    overlapsLogo?: boolean;
+  }[];
   brightness: { mean: number; std: number };
   print: boolean;
   width: number;
@@ -116,6 +125,12 @@ export function canvasChecks(m: CanvasMetrics): QaCheck[] {
           ? { id: `contrast_${b.role}`, label: `Contraste (${b.role})`, level: "warning", detail: `Contraste ${b.contrast.toFixed(1)}:1 (ideal 4.5:1).`, source: "browser" }
           : { id: `contrast_${b.role}`, label: `Contraste (${b.role})`, level: "ok", detail: `Contraste ${b.contrast.toFixed(1)}:1.`, source: "browser" },
     );
+    if (b.brokenWord)
+      out.push({ id: `broken_${b.role}`, label: `Texto cortado (${b.role})`, level: "error", detail: "Una palabra no cabe en el ancho y quedaría partida. Acorta el texto o reduce el tamaño.", source: "browser" });
+    if (b.overlapsText)
+      out.push({ id: `overlap_${b.role}`, label: `Textos encimados (${b.role})`, level: "error", detail: "Este texto se encima con otro. Acorta los textos, reduce el tamaño o cambia la plantilla.", source: "browser" });
+    if (b.overlapsLogo)
+      out.push({ id: `overlap_logo_${b.role}`, label: `Texto sobre el logotipo (${b.role})`, level: "error", detail: "El texto tapa el logotipo. Mueve el logotipo a otra esquina o cambia la plantilla.", source: "browser" });
     if (!b.insideCanvas || !b.insideSafe)
       out.push({ id: `safe_${b.role}`, label: `Zona segura (${b.role})`, level: "error", detail: b.insideCanvas ? "El texto queda donde la interfaz de la red lo tapa." : "El texto se sale del diseño.", source: "browser" });
   }
@@ -155,10 +170,27 @@ export function sanitizeMetrics(input: unknown): CanvasMetrics | null {
         contrast: num(o.contrast, 1, 21) ?? 1,
         insideSafe: o.insideSafe === true,
         insideCanvas: o.insideCanvas === true,
+        brokenWord: o.brokenWord === true,
+        overlapsText: o.overlapsText === true,
+        overlapsLogo: o.overlapsLogo === true,
       };
     }),
     brightness: { mean: num(brightness.mean, 0, 1) ?? 0.5, std: num(brightness.std, 0, 1) ?? 0.2 },
     print: m.print === true,
     width,
   };
+}
+
+/** ¿El diseño usa la tipografía definida en la identidad de marca? */
+export function brandFontCheck(brandFont: string | null | undefined, designFontKey: string, catalog: { key: string; label: string; aliases: string[] }[]): QaCheck {
+  const label = "Tipografía de marca";
+  const name = (brandFont ?? "").trim();
+  if (!name) return { id: "brand_font", label, level: "ok", detail: "La identidad de marca no define tipografía.", source: "server" };
+  const n = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
+  const match = catalog.find((c) => c.aliases.includes(n));
+  if (!match)
+    return { id: "brand_font", label, level: "warning", detail: `La tipografía de marca «${name}» no está en el editor; se usó otra. Elige la más parecida o pide que se agregue.`, source: "server" };
+  if (match.key !== designFontKey)
+    return { id: "brand_font", label, level: "warning", detail: `La marca usa «${match.label}», pero el diseño usa otra tipografía en títulos.`, source: "server" };
+  return { id: "brand_font", label, level: "ok", detail: `Usa la tipografía de marca (${match.label}).`, source: "server" };
 }

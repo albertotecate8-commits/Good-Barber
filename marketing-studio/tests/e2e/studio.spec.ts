@@ -104,12 +104,16 @@ test("estudio creativo: de concepto a material revisado en el calendario", async
   await page.locator("#ed-price").fill("$120");
   await page.locator("#ed-cta").fill("Agenda por mensaje");
   await page.getByRole("checkbox", { name: /Instagram publicación cuadrada/ }).check();
+  // Tipografía del catálogo (archivo local OFL): debe cargarse antes de exportar.
+  await page.getByLabel("Tipografía de títulos y precio").selectOption("montserrat");
+  await expect.poll(() => page.evaluate(() => document.fonts.check('800 40px "MAS Montserrat"'))).toBe(true);
   await noHorizontalScroll(page);
   await shot("02-editor");
   await page.getByRole("button", { name: "Exportar y revisar" }).click();
   await expect(page.getByText(/2 versión\(es\) guardadas/)).toBeVisible({ timeout: 60_000 });
   await expect(page.getByText(/Logotipo sin deformar/).first()).toBeVisible();
   await expect(page.getByText(/Contraste \(headline\)/).first()).toBeVisible();
+  await expect(page.getByText(/No se encontraron palabras desconocidas/).first()).toBeVisible();
   const exported = psql(`select a.width || 'x' || a.height || '|' || a.origin from mkt_creative_versions v join mkt_assets a on a.id = v.asset_id where v.project_id = '${projectId}' and v.kind = 'code_edit' order by v.version_no`);
   expect(exported.split("\n")).toEqual(["1080x1350|code_edited", "1080x1080|code_edited"]);
   expect(psql(`select string_agg(distinct qa_status, ',') from mkt_creative_versions where project_id = '${projectId}' and kind = 'code_edit'`)).not.toContain("failed");
@@ -117,8 +121,10 @@ test("estudio creativo: de concepto a material revisado en el calendario", async
   // Precio inventado: la revisión automática lo marca como error
   await page.getByRole("checkbox", { name: /Instagram publicación cuadrada/ }).uncheck();
   await page.locator("#ed-price").fill("$99");
+  await page.locator("#ed-cta").fill("Agenda tu promocion");
   await page.getByRole("button", { name: "Exportar y revisar" }).click();
   await expect(page.getByText(/No coinciden con ningún precio registrado: \$99/)).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText(/«promocion» \(¿promoción/)).toBeVisible();
   await expect(page.getByText("Con errores")).toBeVisible();
 
   // ---------- Versiones, comparación y revisión ----------

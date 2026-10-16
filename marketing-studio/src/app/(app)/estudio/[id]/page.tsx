@@ -69,7 +69,7 @@ export default async function ProjectPage({ params, searchParams }: Props) {
   if (tab === "editor") {
     const from = versions.find((v) => v.id === sp.desde) ?? concepts[0];
     const supabase = await createClient();
-    const { data: brand } = await supabase.from("mkt_brand_profiles").select("color_primary,color_background").eq("business_id", project.business_id).maybeSingle();
+    const { data: brand } = await supabase.from("mkt_brand_profiles").select("color_primary,color_background,font_heading,font_body").eq("business_id", project.business_id).maybeSingle();
     const parsed = from?.kind === "code_edit" ? designSchema.safeParse(from.design) : null;
     initialDesign =
       parsed?.success && parsed.data.format_key === format.key

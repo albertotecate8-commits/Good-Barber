@@ -2,8 +2,9 @@
 // IA. La misma función sirve para la vista previa y para exportar a tamaño real.
 import type { Design } from "./design";
 import type { CreativeFormat } from "./formats";
-import { containRect, coverCrop, layoutDesign, logoRect, upscaleFactor, type Layout, type Rect } from "./layout";
+import { containRect, coverCrop, layoutCollisions, layoutDesign, logoRect, upscaleFactor, type Layout, type Rect } from "./layout";
 import { contrastRatio, hexToRgb } from "./color";
+import { canvasFontStack, effectiveWeight } from "./fonts";
 import type { CanvasMetrics } from "./qa";
 
 export type ImageMap = Map<string, HTMLImageElement>;
@@ -81,8 +82,13 @@ export function drawDesign(
     ctx.globalAlpha = 1;
   }
 
-  const measure = (s: string, size: number, weight: number) => {
-    ctx.font = `${weight} ${size}px ${fontFamily}`;
+  // Títulos, precio y botón usan la tipografía de títulos; el texto secundario, la de texto.
+  const fontFor = (role: string, size: number, weight: number) => {
+    const key = role === "body" ? design.fonts.body : design.fonts.heading;
+    return `${effectiveWeight(key, weight)} ${size}px ${canvasFontStack(key, fontFamily)}`;
+  };
+  const measure = (s: string, size: number, weight: number, role: string) => {
+    ctx.font = fontFor(role, size, weight);
     return ctx.measureText(s).width;
   };
   const layout = layoutDesign(design, format, measure);
@@ -94,9 +100,11 @@ export function drawDesign(
   }
 
   let logoMetric: CanvasMetrics["logo"] = null;
+  let logoBox: ReturnType<typeof logoRect> | null = null;
   const logo = design.logo.asset_id ? images.get(design.logo.asset_id) : undefined;
   if (logo) {
     const r = logoRect(logo.naturalWidth || 1, logo.naturalHeight || 1, design, layout.area);
+    logoBox = r;
     ctx.drawImage(logo, r.x, r.y, r.w, r.h);
     logoMetric = { drawnRatio: r.w / r.h, naturalRatio: (logo.naturalWidth || 1) / (logo.naturalHeight || 1) };
   }
@@ -111,7 +119,7 @@ export function drawDesign(
       ctx.fill();
     }
     ctx.fillStyle = b.color;
-    ctx.font = `${b.weight} ${b.fontSize}px ${fontFamily}`;
+    ctx.font = fontFor(b.role, b.fontSize, b.weight);
     ctx.textBaseline = "top";
     ctx.textAlign = b.align === "center" || b.box ? "center" : "left";
     const x = b.box || b.align === "center" ? b.rect.x + b.rect.w / 2 : b.rect.x;
@@ -133,6 +141,7 @@ export function drawDesign(
   const mean = lum.reduce((a, v) => a + v, 0) / lum.length;
   const std = Math.sqrt(lum.reduce((a, v) => a + (v - mean) ** 2, 0) / lum.length);
   const safe = { l: format.safe.left, t: format.safe.top, r: W - format.safe.right, b: H - format.safe.bottom };
+  const collisions = layoutCollisions(layout, logoBox);
 
   return {
     layout,
@@ -145,6 +154,9 @@ export function drawDesign(
         contrast: contrastRatio(hexToRgb(b.color), backgrounds[i]),
         insideCanvas: b.rect.x >= 0 && b.rect.y >= 0 && b.rect.x + b.rect.w <= W + 0.5 && b.rect.y + b.rect.h <= H + 0.5,
         insideSafe: b.rect.x >= safe.l - 0.5 && b.rect.y >= safe.t - 0.5 && b.rect.x + b.rect.w <= safe.r + 0.5 && b.rect.y + b.rect.h <= safe.b + 0.5,
+        brokenWord: b.brokenWord,
+        overlapsText: collisions[i].overlapsText,
+        overlapsLogo: collisions[i].overlapsLogo,
       })),
       brightness: { mean, std },
       print: format.platform === "print",

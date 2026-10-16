@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { APP_FONT_KEY, FONT_KEYS, matchBrandFont } from "./fonts";
 
 // Especificación de un diseño hecho con el editor (edición por código, no IA).
 // Se guarda en cada versión para poder reabrirlo, adaptarlo a otro formato y
@@ -50,13 +51,17 @@ export const designSchema = z.object({
     .object({ text: hex.default("#FFFFFF"), accent: hex.default("#C9A227"), accent_text: hex.default("#0B0B0D") })
     .default({ text: "#FFFFFF", accent: "#C9A227", accent_text: "#0B0B0D" }),
   text_scale: z.number().min(0.6).max(1.6).default(1),
+  /** Tipografías del catálogo (títulos/precio/botón y texto secundario). */
+  fonts: z
+    .object({ heading: z.enum(FONT_KEYS).default(APP_FONT_KEY), body: z.enum(FONT_KEYS).default(APP_FONT_KEY) })
+    .default({ heading: APP_FONT_KEY, body: APP_FONT_KEY }),
 });
 export type Design = z.infer<typeof designSchema>;
 
 /** Diseño inicial a partir de un concepto y de la identidad de marca. */
 export function defaultDesign(input: {
   format: { key: string; width: number; height: number };
-  brand: { color_primary: string; color_background: string } | null;
+  brand: { color_primary: string; color_background: string; font_heading?: string; font_body?: string } | null;
   concept?: { headline?: string; price?: string; cta?: string; body?: string; template?: Template } | null;
   backgroundAssetId?: string | null;
   logoAssetId?: string | null;
@@ -71,5 +76,9 @@ export function defaultDesign(input: {
     logo: { asset_id: input.logoAssetId ?? null },
     texts: { headline: c.headline ?? "", price: c.price ?? "", cta: c.cta ?? "", body: c.body ?? "" },
     colors: { text: "#FFFFFF", accent: input.brand?.color_primary ?? "#C9A227", accent_text: input.brand?.color_background ?? "#0B0B0D" },
+    fonts: {
+      heading: matchBrandFont(input.brand?.font_heading)?.key ?? APP_FONT_KEY,
+      body: matchBrandFont(input.brand?.font_body)?.key ?? APP_FONT_KEY,
+    },
   });
 }

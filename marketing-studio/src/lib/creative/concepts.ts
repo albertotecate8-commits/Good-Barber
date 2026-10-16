@@ -9,6 +9,7 @@ import { buildTemplatePlan, businessFacts, type BusinessContext } from "@/lib/di
 import type { CreativeFormat, MaterialType } from "./formats";
 import { MATERIAL_LABELS } from "./formats";
 import type { Template } from "./design";
+import { detectSector, photoDirection, serviceSubject } from "./photo-direction";
 
 export interface Concept {
   angle: string;
@@ -37,18 +38,25 @@ function priceFor(text: string, ctx: BusinessContext) {
   return first ? `${first.name} ${formatCents(first.price_cents)}` : "";
 }
 
-function imagePrompt(ctx: BusinessContext, material: MaterialType, format: CreativeFormat, scene: string, refs: ReferenceInfo[]) {
+function imagePrompt(ctx: BusinessContext, material: MaterialType, format: CreativeFormat, scene: string, refs: ReferenceInfo[], adText = "") {
   const b = ctx.business;
   const brand = ctx.brand;
+  const sector = detectSector(b.sector, b.name);
+  const dir = photoDirection(sector);
+  const subject = serviceSubject(sector, adText);
   return [
     `Crea una ${material === "product_photo" ? "fotografía de producto/servicio" : "imagen publicitaria"} para «${b.name}», ${b.sector}${b.city ? ` en ${b.city.split(",")[0]}` : ""}.`,
     `Formato: ${format.width}×${format.height} px (proporción ${format.width}:${format.height}), para ${format.label}.`,
     `Escena: ${scene}.`,
+    subject ? `Sujeto principal (debe reconocerse el servicio anunciado): ${subject}.` : "",
+    dir.look,
+    dir.setting,
     brand ? `Paleta: fondo ${brand.color_background}, acentos ${brand.color_primary} y ${brand.color_accent}. ${brand.visual_rules}` : "",
     format.safe.top || format.safe.bottom ? `Deja libre de elementos importantes la franja superior (${format.safe.top}px) e inferior (${format.safe.bottom}px).` : "",
     "NO incluyas texto, precios, letras ni logotipos en la imagen: se agregan después con el editor para que salgan exactos.",
-    "Estilo fotográfico realista, luz natural, sin deformaciones en manos, rostros ni objetos.",
+    dir.avoid,
     refs.length ? `Usa como referencia visual las imágenes que adjunto (${refs.map((r) => `«${r.title}»`).join(", ")}): respeta el estilo del lugar real.` : "",
+    dir.note,
   ]
     .filter(Boolean)
     .join("\n");
@@ -99,7 +107,7 @@ export function generateConcepts(input: {
       template: templates[i % templates.length],
       basis: ad.basis === "hypothesis" ? "hypothesis" : "recommendation",
       prompts: {
-        image: imagePrompt(ctx, material, format, scene, references),
+        image: imagePrompt(ctx, material, format, scene, references, `${ad.headline} ${ad.primary_text}`),
         copy: [
           `Escribe 3 variantes de texto para ${MATERIAL_LABELS[material].toLowerCase()} de «${ctx.business.name}» con el enfoque «${ad.angle}».`,
           `Texto base: «${ad.primary_text}». Llamada a la acción: «${ad.cta}».`,

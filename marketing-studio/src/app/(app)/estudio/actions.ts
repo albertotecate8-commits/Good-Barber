@@ -14,7 +14,10 @@ import { loadBusinessContext } from "@/lib/director/server";
 import { generateConcepts } from "@/lib/creative/concepts";
 import { designSchema } from "@/lib/creative/design";
 import { MATERIAL_TYPES, formatByKey, isVideoMaterial, type MaterialType } from "@/lib/creative/formats";
-import { MANUAL_CHECKS, canvasChecks, claimChecks, dimensionCheck, priceCheck, qaStatus, sanitizeMetrics, type QaCheck } from "@/lib/creative/qa";
+import { spellingCheck } from "@/lib/creative/spelling";
+import { getSpeller } from "@/lib/creative/spelling-server";
+import { BRAND_FONTS } from "@/lib/creative/fonts";
+import { MANUAL_CHECKS, brandFontCheck, canvasChecks, claimChecks, dimensionCheck, priceCheck, qaStatus, sanitizeMetrics, type QaCheck } from "@/lib/creative/qa";
 import { videoPlanSchema, type VideoPlan } from "@/lib/creative/video";
 import { renderVideo } from "@/lib/creative/render";
 
@@ -51,6 +54,18 @@ async function insertVersion(supabase: SupabaseClient, row: Record<string, unkno
 async function knownPrices(supabase: SupabaseClient, businessId: string) {
   const { data } = await supabase.from("mkt_offerings").select("price_cents").eq("business_id", businessId);
   return (data ?? []).map((o) => o.price_cents).filter((c): c is number => c !== null);
+}
+
+/** Nombres propios del negocio que el corrector no debe marcar. */
+async function brandTerms(supabase: SupabaseClient, businessId: string) {
+  const [{ data: biz }, { data: offers }, { data: socials }] = await Promise.all([
+    supabase.from("mkt_businesses").select("name,city,sector").eq("id", businessId).maybeSingle(),
+    supabase.from("mkt_offerings").select("name").eq("business_id", businessId),
+    supabase.from("mkt_social_accounts").select("handle").eq("business_id", businessId),
+  ]);
+  return [biz?.name, biz?.city, biz?.sector, ...(offers ?? []).map((o) => o.name), ...(socials ?? []).map((s) => s.handle)].filter(
+    (x): x is string => Boolean(x),
+  );
 }
 
 const refresh = (id: string) => {
@@ -239,6 +254,12 @@ export async function saveDesignVersion(
     dimensionCheck(asset, format),
     priceCheck(texts, await knownPrices(supabase, project.business_id)),
     ...claimChecks(texts),
+    spellingCheck(design.texts, await getSpeller(), await brandTerms(supabase, project.business_id)),
+    brandFontCheck(
+      (await supabase.from("mkt_brand_profiles").select("font_heading").eq("business_id", project.business_id).maybeSingle()).data?.font_heading,
+      design.fonts.heading,
+      BRAND_FONTS,
+    ),
     ...(metrics ? canvasChecks(metrics) : [{ id: "metrics", label: "Mediciones del lienzo", level: "warning" as const, detail: "No llegaron las mediciones del editor.", source: "server" as const }]),
   ];
   const status = qaStatus(checks);
@@ -455,6 +476,7 @@ export async function renderVideoVersion(projectId: string): Promise<ActionState
     { id: "render", label: "Montaje", level: "ok", detail: `Video de ${r.seconds} s montado con FFmpeg${r.probe ? ` (${r.probe})` : ""}. No es video generado con IA.`, source: "server" },
     priceCheck(texts, await knownPrices(supabase, project.business_id)),
     ...claimChecks(texts),
+    spellingCheck({ texts: texts.join("\n") }, await getSpeller(), await brandTerms(supabase, project.business_id)),
     plan.data.music.asset_id
       ? { id: "music", label: "Música", level: "ok", detail: `Licencia declarada: ${plan.data.music.license}${plan.data.music.license_detail ? ` — ${plan.data.music.license_detail}` : ""}.`, source: "server" }
       : { id: "music", label: "Música", level: "ok", detail: "Sin música (puedes agregar música desde la app de la red al publicar).", source: "server" },

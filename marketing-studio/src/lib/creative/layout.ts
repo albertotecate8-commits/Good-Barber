@@ -97,6 +97,8 @@ export interface TextBlock {
   /** Caja de fondo (CTA como botón, insignia de precio). */
   box: (Rect & { color: string; radius: number }) | null;
   rect: Rect;
+  /** Una palabra no cabe en el ancho y se partiría a la mitad. */
+  brokenWord: boolean;
 }
 
 export interface Layout {
@@ -114,9 +116,13 @@ const BASE: Record<Role, { size: number; weight: number }> = {
 
 /**
  * Coloca los textos según la plantilla dentro de la zona segura.
- * measure(texto, fontSize, weight) devuelve el ancho en px.
+ * measure(texto, fontSize, weight, role) devuelve el ancho en px (cada rol puede usar otra tipografía).
  */
-export function layoutDesign(design: Design, format: Pick<CreativeFormat, "safe">, measure: (s: string, size: number, weight: number) => number): Layout {
+export function layoutDesign(
+  design: Design,
+  format: Pick<CreativeFormat, "safe">,
+  measure: (s: string, size: number, weight: number, role: Role) => number,
+): Layout {
   const area = safeArea(design.width, design.height, format.safe);
   const ref = Math.min(design.width, design.height * 0.8);
   const align: "left" | "center" = design.template === "minimal" ? "left" : "center";
@@ -129,9 +135,11 @@ export function layoutDesign(design: Design, format: Pick<CreativeFormat, "safe"
     const weight = BASE[role].weight;
     const boxed = role === "cta" || (role === "price" && design.template === "price_badge");
     const innerW = boxed ? maxW - fontSize * 1.6 : maxW;
-    const lines = wrapText(text.trim(), innerW, (s) => measure(s, fontSize, weight));
+    const m = (s: string) => measure(s, fontSize, weight, role);
+    const lines = wrapText(text.trim(), innerW, m);
+    const brokenWord = text.trim().split(/\s+/).some((w) => m(w) > innerW);
     const lineHeight = Math.round(fontSize * 1.15);
-    const textW = Math.min(innerW, Math.max(...lines.map((l) => measure(l, fontSize, weight))));
+    const textW = Math.min(innerW, Math.max(...lines.map(m)));
     const h = lines.length * lineHeight;
     const color = boxed ? design.colors.accent_text : role === "price" ? design.colors.accent : design.colors.text;
     return {
@@ -144,6 +152,7 @@ export function layoutDesign(design: Design, format: Pick<CreativeFormat, "safe"
       color,
       box: boxed ? { x: 0, y: 0, w: textW + fontSize * 1.6, h: h + fontSize * 0.9, color: design.colors.accent, radius: role === "cta" ? (h + fontSize * 0.9) / 2 : fontSize * 0.4 } : null,
       rect: { x: 0, y: 0, w: boxed ? textW + fontSize * 1.6 : textW, h: boxed ? h + fontSize * 0.9 : h },
+      brokenWord,
     };
   };
 
@@ -186,4 +195,17 @@ export function layoutDesign(design: Design, format: Pick<CreativeFormat, "safe"
     }
   }
   return { area, band, blocks };
+}
+
+/** Intersección con una tolerancia (px) para no marcar bordes que solo se tocan. */
+export function rectsOverlap(a: Rect, b: Rect, tolerance = 1) {
+  return a.x + a.w - tolerance > b.x && b.x + b.w - tolerance > a.x && a.y + a.h - tolerance > b.y && b.y + b.h - tolerance > a.y;
+}
+
+/** Textos que se enciman entre sí o con el logotipo (con textos largos o tamaños grandes). */
+export function layoutCollisions(layout: Layout, logo: Rect | null) {
+  return layout.blocks.map((b, i) => ({
+    overlapsText: layout.blocks.some((o, j) => j !== i && rectsOverlap(b.rect, o.rect)),
+    overlapsLogo: logo ? rectsOverlap(b.rect, logo) : false,
+  }));
 }

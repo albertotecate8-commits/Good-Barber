@@ -113,7 +113,7 @@ describe("control de calidad", () => {
     expect(sanitizeMetrics(null)).toBeNull();
     const m = sanitizeMetrics({ width: 1080, upscale: -5, blocks: [{ role: "<script>", fontSize: 1e9, contrast: 99, insideSafe: "sí" }] });
     expect(m?.upscale).toBeNull();
-    expect(m?.blocks[0]).toEqual({ role: "texto", fontSize: 1, contrast: 1, insideSafe: false, insideCanvas: false });
+    expect(m?.blocks[0]).toEqual({ role: "texto", fontSize: 1, contrast: 1, insideSafe: false, insideCanvas: false, brokenWord: false, overlapsText: false, overlapsLogo: false });
   });
 });
 
