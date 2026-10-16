@@ -245,6 +245,20 @@ Nota: la cuenta de Meta conectada a esta sesión de trabajo solo administra la p
 
 ## 6. Variables de entorno
 
+**Qué es obligatorio de verdad** (revisado en el código, `0d2845c`+; verificado arrancando la app compilada sin
+ningún secreto: `/api/salud` → `ok`, inicio de sesión y permisos de administrador funcionan):
+
+| Para… | Variables | Dónde |
+| --- | --- | --- |
+| Que el sitio funcione (login, negocios, calendario, Biblioteca, grupos) | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Ya en `netlify.toml` (públicas) |
+| Conectar Meta y publicar en tu página | `SUPABASE_SERVICE_ROLE_KEY`, `MKT_TOKEN_KEY`, `META_APP_ID`, `META_APP_SECRET`, `MKT_APP_URL` | Netlify (secretas) |
+| Facebook Login for Business | `META_LOGIN_CONFIG_ID`, `META_PUBLISH_CONFIG_ID` | Netlify |
+| Publicación programada | `MKT_CRON_SECRET` y, solo con tu autorización, `MKT_PUBLISHING_ENABLED=1` | Netlify |
+| Opcionales | `MKT_CONTACT_EMAIL`, `TAVILY_API_KEY`, `GEMINI_*`, `META_GRAPH_VERSION` | Netlify |
+
+`URL`, `COMMIT_REF`, `NETLIFY`, `SITE_ID`, `DEPLOY_URL` los define Netlify. `MKT_APP_URL` se recomienda igual,
+porque las funciones del servidor no siempre reciben `URL` en tiempo de ejecución.
+
 | Variable | Dónde | Secreta | Uso |
 | --- | --- | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Netlify + `.env.local` | No | URL del proyecto |

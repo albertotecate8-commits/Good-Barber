@@ -11,6 +11,9 @@ const nextConfig: NextConfig = {
   // App privada: todo depende de la sesión, así que se usa renderizado
   // dinámico clásico en lugar de Cache Components.
   poweredByHeader: false,
+  // Commit desplegado (Netlify define COMMIT_REF al construir): /api/salud lo
+  // informa para verificar qué versión está en producción. No es un secreto.
+  env: { MKT_BUILD_COMMIT: (process.env.COMMIT_REF ?? "").slice(0, 7) },
   // El corrector ortográfico lee el diccionario con fs: se incluye en las funciones del servidor.
   outputFileTracingIncludes: {
     "/estudio/**": ["./node_modules/dictionary-es/index.aff", "./node_modules/dictionary-es/index.dic"],

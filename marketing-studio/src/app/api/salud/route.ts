@@ -16,6 +16,6 @@ export async function GET() {
       database = "error";
     }
   }
-  const commit = (process.env.COMMIT_REF ?? "").slice(0, 7) || null;
+  const commit = process.env.MKT_BUILD_COMMIT || null;
   return NextResponse.json({ ok: database === "ok", database, commit }, { status: database === "ok" ? 200 : 503, headers: { "cache-control": "no-store" } });
 }
