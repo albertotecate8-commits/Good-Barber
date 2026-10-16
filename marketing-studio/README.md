@@ -6,7 +6,7 @@ citas de Good Barber (raíz del repositorio), que no se modifica.
 
 **Regla económica:** $0 MXN de gasto adicional en APIs. Ver `src/lib/providers/`.
 
-## Estado (Etapas 1 a 6)
+## Estado (Etapas 1 a 7)
 
 | Función | Estado |
 | --- | --- |
@@ -18,7 +18,7 @@ citas de Good Barber (raíz del repositorio), que no se modifica.
 | Registro honesto de proveedores de IA y bloqueo de gasto | Funciona (la invocación real llega en la Etapa 3) |
 | Calendario: vistas mes/semana/próximas, crear, editar, duplicar, eliminar, filtros, zona America/Mexico_City | Funciona y está probado |
 | Biblioteca: subir, filtrar, etiquetar, previsualizar, descargar, eliminar; aislada por negocio | Funciona y está probada (con almacenamiento local de desarrollo) |
-| Supabase real (proyecto `marketing-ai-studio`, plan Free) | Creado; 8 migraciones aplicadas; esquema idéntico al local (huella de 10 categorías); políticas RLS y de Storage verificadas en la base real (17/17) |
+| Supabase real (proyecto `marketing-ai-studio`, plan Free) | Creado; 9 migraciones aplicadas; esquema idéntico al local (huella de 10 categorías); políticas RLS y de Storage verificadas en la base real (17/17) |
 | Supabase Storage (bucket privado) | Bucket y políticas creados y verificados en la base real; **subida/descarga de archivos por HTTP aún sin probar** (la red del entorno bloquea supabase.co: ver `npm run smoke:remote`) |
 | Registro de «publicada a mano» | Funciona (es una declaración tuya, no confirma la plataforma) |
 | Director de Marketing: instrucción → tareas → investigación → estrategia, 5 anuncios, Reel, calendario, KPIs y medición | Funciona con el motor de plantillas (sin IA); probado |
@@ -46,6 +46,8 @@ citas de Good Barber (raíz del repositorio), que no se modifica.
 | Hosting en Netlify Free (uso comercial permitido) | Preparado (`netlify.toml`); **no desplegado**: requiere tu inicio de sesión en Netlify |
 | Conexión oficial con Meta (vincular la página existente, solo lectura) | Implementada y probada con respuestas simuladas; **sin probar contra Meta** (no hay app de Meta); ninguna red está conectada |
 | Publicación automática en Facebook/Instagram (aprobación del dueño, programación, sin duplicados, reintentos) | Implementada y probada con la Graph API **simulada**; **apagada** (`MKT_PUBLISHING_ENABLED`) y sin probar contra Meta: no hay app de Meta ni cuenta conectada |
+| Enlace real de cada publicación (`permalink_url` / `permalink` de Meta) guardado con id, destino, texto y fecha | Implementado y probado con la Graph API **simulada**; sin probar contra Meta |
+| Distribución a grupos de Facebook: grupos por negocio, cola por publicación, diálogo oficial para compartir, confirmación tuya, pausa/continuar/cancelar, historial, límites de frecuencia | Funciona y está probado (local, navegador real escritorio + iPhone, Facebook interceptado). **Asistida**: Meta retiró la API de grupos en 2024; elegir el grupo y publicar ocurre dentro de Facebook |
 
 ## Arquitectura
 
@@ -133,6 +135,23 @@ citas de Good Barber (raíz del repositorio), que no se modifica.
   Máximo 3 intentos fallidos; luego «Error» con el motivo para revisión humana.
 - «Verificar permisos (sin publicar)» solo lee de Meta.
 
+### Distribución a grupos (`src/lib/distribution/`, `/distribucion`)
+
+- Meta eliminó la API de grupos el 22-abr-2024 (`publish_to_groups`): ninguna app publica sola en grupos.
+  La app NO usa endpoints no oficiales, cookies, contraseñas ni clics automatizados.
+- Grupos por negocio (`mkt_fb_groups`): nombre, dirección, forma de publicación (compartir el original,
+  publicación nueva como página o desde tu perfil), si la página puede participar, si piden aprobación,
+  reglas, días mínimos entre publicaciones, activo/inactivo, última distribución.
+- Al publicarse en la página, el worker guarda el enlace real y, si elegiste grupos antes («Guardar grupos
+  planeados» en la ficha de la publicación), crea la cola **solo con esos grupos**. También puedes crearla
+  después con «Distribuir a grupos».
+- Panel de cola (`/distribucion/[id]`): siguiente grupo, texto distinto por grupo con botón Copiar, botón que
+  abre el Share Dialog oficial (con `META_APP_ID`) o `sharer.php`, enlace al original y al grupo, recurso.
+  Estados: Pendiente de compartir → Abierto en Facebook (sin confirmar) → Pendiente de aprobación del grupo /
+  Confirmado como publicado / Omitido / Error. «Confirmado» solo lo marca la persona (la base guarda quién y cuándo).
+- Controles: un grupo no se repite para la misma publicación (índice único), pausa mínima por grupo, tope de
+  5 grupos por negocio cada 24 h, pausar/continuar/cancelar, todo persiste al recargar.
+
 ### Prospectos y analíticas (`src/lib/validation/lead.ts`, `src/lib/analytics.ts`)
 
 - Prospectos por negocio con origen, estado, cita y venta real; atribución explícita (el cliente lo dijo o
@@ -157,6 +176,8 @@ citas de Good Barber (raíz del repositorio), que no se modifica.
   negocio (triggers); el uso de IA se registra a nombre propio y no se edita ni se borra.
 - Proyectos creativos, referencias, versiones y sus archivos pertenecen a un solo negocio; un material
   «definitivo» exige archivo y revisión aprobada (restricción `CHECK`).
+- El enlace «confirmado por Meta» (`external_post_url`) solo lo escribe el servidor; grupos, colas y tareas
+  no mezclan negocios (trigger) y la confirmación de una tarea queda a nombre de quien la hace.
 - Los tokens de Meta y las sesiones OAuth están en tablas sin ningún privilegio para el navegador.
 - `authenticated` no tiene TRUNCATE/REFERENCES/TRIGGER ni escritura en tablas de solo lectura; `anon` no tiene acceso.
 
@@ -172,6 +193,7 @@ citas de Good Barber (raíz del repositorio), que no se modifica.
 | `supabase/migrations/20261020000000_mkt_meta_connections.sql` | `supabase/rollbacks/20261020000000_mkt_meta_connections.down.sql` |
 | `supabase/migrations/20261021000000_mkt_publishing.sql` | `supabase/rollbacks/20261021000000_mkt_publishing.down.sql` |
 | `supabase/migrations/20261022000000_mkt_leads.sql` | `supabase/rollbacks/20261022000000_mkt_leads.down.sql` |
+| `supabase/migrations/20261023000000_mkt_group_distribution.sql` | `supabase/rollbacks/20261023000000_mkt_group_distribution.down.sql` (borra grupos e historial) |
 
 Todas son idempotentes. Desde la del Estudio se probaron aplicando, re-aplicando, revirtiendo y volviendo a aplicar. El entorno local replica los privilegios por defecto de Supabase real (`scripts/local-supabase/roles.sql`).
 

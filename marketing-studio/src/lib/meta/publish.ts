@@ -135,3 +135,29 @@ export async function verifyPublishAccess(
   const node = await call(o, input.platform === "instagram" ? input.externalId : input.pageId, { fields: input.platform === "instagram" ? "id,username" : "id,name", access_token: input.pageToken }, "GET");
   return { reachable: String(node.id) === (input.platform === "instagram" ? input.externalId : input.pageId), missing, canCreateContent };
 }
+
+/**
+ * Enlace permanente de lo publicado: `permalink_url` (Post de página) o
+ * `permalink` (IG Media), campos oficiales. Si Meta no lo devuelve, se usa una
+ * URL construida a partir del id del post y se indica que no fue confirmada.
+ */
+export async function fetchPermalink(
+  o: GraphOptions,
+  platform: PublishPlatform,
+  externalPostId: string,
+  token: string,
+): Promise<{ url: string | null; confirmed: boolean }> {
+  try {
+    const field = platform === "instagram" ? "permalink" : "permalink_url";
+    const r = await call(o, externalPostId, { fields: field, access_token: token }, "GET");
+    const url = String(r[field] ?? "");
+    if (/^https:\/\/(www\.)?(facebook|instagram)\.com\//.test(url)) return { url, confirmed: true };
+  } catch {
+    // Sin enlace confirmado: se intenta una URL estándar abajo.
+  }
+  if (platform === "facebook_page" && /^\d+_\d+$/.test(externalPostId)) {
+    const [page, post] = externalPostId.split("_");
+    return { url: `https://www.facebook.com/${page}/posts/${post}`, confirmed: false };
+  }
+  return { url: null, confirmed: false };
+}

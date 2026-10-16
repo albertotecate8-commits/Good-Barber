@@ -47,7 +47,7 @@ organización ya existe otro proyecto («shabex10@gmail.com's Project», una qui
 
 ### Migraciones aplicadas y verificadas
 
-Aplicadas las 8 migraciones de `supabase/migrations/` (de `20261015000000` a `20261022000000`, incluidas publicación y prospectos).
+Aplicadas las 9 migraciones de `supabase/migrations/` (de `20261015000000` a `20261023000000`, incluidas publicación, prospectos y distribución a grupos).
 El conector de Supabase pide confirmación para cualquier sentencia con `DROP`, así que en la base
 nueva se aplicó el mismo SQL sin los `drop … if exists` (que en una base vacía no hacen nada) y con
 `create or replace trigger`. Para demostrar que el resultado es idéntico, `scripts/remote/schema-fingerprint.sql`
@@ -216,6 +216,20 @@ navegador no puede leer, y botón para desconectar. **No publica nada**: publica
 
 Nota: la cuenta de Meta conectada a esta sesión de trabajo solo administra la página «Crujipollo», no
 «Good barber»; por eso no se usó para nada. La conexión real debe hacerla la cuenta que administra la página.
+
+### Enlace de la publicación y distribución a grupos
+
+- Tras publicar en la página, el servidor pide a Meta el `permalink_url` (Instagram: `permalink`) y lo guarda
+  junto con el id del post; el intento registra destino, texto, recurso, fecha y si el enlace vino confirmado
+  por Meta. Si Meta no lo devuelve, se usa la URL estándar `facebook.com/{página}/posts/{post}` marcada como
+  no confirmada. [Referencia de Post](https://developers.facebook.com/docs/graph-api/reference/post/)
+- **Grupos:** Meta retiró la API de grupos el 22 de abril de 2024
+  ([TechCrunch](https://techcrunch.com/2024/01/23/meta-is-shutting-down-its-facebook-groups-api-for-developers/)).
+  Por eso la app abre el [Share Dialog oficial](https://developers.facebook.com/docs/sharing/reference/share-dialog/)
+  (requiere `META_APP_ID`; sin él usa `sharer.php`): tú eliges «Compartir en un grupo», el grupo, y publicas
+  dentro de Facebook. Luego confirmas en la app. Una página solo puede *solicitar* unirse a un grupo; el
+  administrador decide ([Ayuda de Facebook: unirse a un grupo](https://www.facebook.com/help/103763583048280)).
+- No requiere permisos adicionales de Meta ni variables nuevas.
 
 ---
 

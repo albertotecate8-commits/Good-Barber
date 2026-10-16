@@ -9,6 +9,7 @@ import {
   MessagesSquare,
   Search,
   Settings,
+  Share2,
   Sparkles,
   type LucideIcon,
 } from "lucide-react";
@@ -29,6 +30,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/investigacion", label: "Investigación", icon: Search },
   { href: "/calendario", label: "Calendario", icon: CalendarDays, primary: true },
   { href: "/campanas", label: "Campañas", icon: Megaphone },
+  { href: "/distribucion", label: "Distribución a grupos", icon: Share2 },
   { href: "/mensajes", label: "Mensajes y prospectos", icon: MessagesSquare },
   { href: "/analiticas", label: "Analíticas", icon: BarChart3 },
   { href: "/biblioteca", label: "Biblioteca", icon: FolderOpen },

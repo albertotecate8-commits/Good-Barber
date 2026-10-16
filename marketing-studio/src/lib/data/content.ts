@@ -15,7 +15,7 @@ export interface ContentFilters {
 }
 
 const COLUMNS =
-  "id,business_id,campaign_id,platform,format,title,caption,hashtags,scheduled_at,status,asset_id,publish_mode,manual_posted_at,manual_post_url,external_post_id,published_at,last_error,approved_at,publish_attempts,created_at,updated_at";
+  "id,business_id,campaign_id,platform,format,title,caption,hashtags,scheduled_at,status,asset_id,publish_mode,manual_posted_at,manual_post_url,external_post_id,external_post_url,planned_group_ids,published_at,last_error,approved_at,publish_attempts,created_at,updated_at";
 
 /** Publicaciones con fecha dentro del rango (RLS limita a los negocios del usuario). */
 export async function listScheduledContent(f: ContentFilters): Promise<ContentItem[]> {

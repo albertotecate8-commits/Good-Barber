@@ -89,6 +89,10 @@ export interface ContentItem {
   manual_posted_at: string | null;
   manual_post_url: string | null;
   external_post_id: string | null;
+  /** Enlace real del post (lo devuelve Meta al publicar). */
+  external_post_url: string | null;
+  /** Grupos elegidos para distribuir en cuanto salga en la página. */
+  planned_group_ids: string[];
   /** Aprobada por el dueño para publicación automática (la fija el servidor). */
   approved_at: string | null;
   publish_attempts: number;

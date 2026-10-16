@@ -10,6 +10,10 @@ import { publishReadiness } from "@/lib/meta/service";
 import { AutoPublishForm } from "@/components/auto-publish-form";
 import { approveAutoPublish, revokeAutoPublish } from "../publish-actions";
 import { formatDateTime } from "@/lib/dates";
+import { createClient } from "@/lib/supabase/server";
+import { POSTING_MODE_LABELS, type PostingMode } from "@/lib/distribution/core";
+import { DistributeForm } from "@/components/distribution";
+import { planGroups } from "../../distribucion/actions";
 import { ContentForm } from "@/components/content-form";
 import { ConfirmButton } from "@/components/business-forms";
 import { AssetPreview, assetUrl } from "@/components/asset-preview";
@@ -36,6 +40,17 @@ export default async function ContentPage({ params, searchParams }: Props) {
   ]);
   const business = businesses.find((b) => b.id === item.business_id);
   const readiness = await publishReadiness(item.business_id, item.platform);
+  const destination = readiness.accountName ? `la página «${readiness.accountName}»` : PLATFORM_LABELS[item.platform];
+  const isPage = item.platform === "facebook_page";
+  const sourceUrl = item.external_post_url ?? item.manual_post_url;
+  const supabase = await createClient();
+  const [{ data: groups }, { data: distributions }] = isPage
+    ? await Promise.all([
+        supabase.from("mkt_fb_groups").select("id, name, posting_mode, page_can_participate").eq("business_id", item.business_id).eq("active", true).order("name"),
+        supabase.from("mkt_distributions").select("id, status, created_at").eq("content_id", item.id).order("created_at", { ascending: false }).limit(1),
+      ])
+    : [{ data: [] }, { data: [] }];
+  const distribution = distributions?.[0] ?? null;
   void socials;
   const text = composePostText(item.caption, item.hashtags);
 
@@ -93,7 +108,7 @@ export default async function ContentPage({ params, searchParams }: Props) {
                   <Badge tone="positive">Aprobada para publicación automática</Badge>
                 </p>
                 <p className="text-muted">
-                  Aprobada el {formatDateTime(item.approved_at)}. Se publicará en {PLATFORM_LABELS[item.platform]} el{" "}
+                  Aprobada el {formatDateTime(item.approved_at)}. Se publicará en {destination} el{" "}
                   {formatDateTime(item.scheduled_at)} por la API oficial de Meta. Si editas algo, la aprobación se cancela sola.
                 </p>
                 {!readiness.publishingOn && (
@@ -118,7 +133,7 @@ export default async function ContentPage({ params, searchParams }: Props) {
                   Aunque esté «Programada», la app no enviará nada a {PLATFORM_LABELS[item.platform]} sin tu aprobación.
                 </p>
                 {readiness.ready && item.status !== "published" && (
-                  <AutoPublishForm action={approveAutoPublish.bind(null, item.id)} when={formatDateTime(item.scheduled_at)} platform={PLATFORM_LABELS[item.platform]} />
+                  <AutoPublishForm action={approveAutoPublish.bind(null, item.id)} when={formatDateTime(item.scheduled_at)} platform={destination} />
                 )}
                 <CopyTextButton text={text} />
                 {asset && (
@@ -129,6 +144,60 @@ export default async function ContentPage({ params, searchParams }: Props) {
               </div>
             )}
           </Card>
+
+          {isPage && (
+            <Card>
+              <CardTitle>Enlace y distribución a grupos</CardTitle>
+              <div className="flex flex-col gap-3 text-sm">
+                {item.external_post_url ? (
+                  <p>
+                    <a href={item.external_post_url} target="_blank" rel="noopener noreferrer" className="break-all text-action-strong hover:underline">
+                      Ver publicación en Facebook
+                    </a>
+                    <span className="block text-xs text-faint">Enlace devuelto por Meta al publicar.</span>
+                  </p>
+                ) : item.external_post_id ? (
+                  <p className="text-xs text-warn">Meta confirmó la publicación ({item.external_post_id}), pero no devolvió el enlace.</p>
+                ) : null}
+                {sourceUrl ? (
+                  <>
+                    {distribution && (
+                      <Link href={`/distribucion/${distribution.id}`} className={buttonClass("secondary")}>
+                        Ver cola de distribución
+                      </Link>
+                    )}
+                    <Link href={`/distribucion/nueva?contenido=${item.id}`} className={buttonClass("primary")}>
+                      Distribuir a grupos
+                    </Link>
+                  </>
+                ) : (groups ?? []).length === 0 ? (
+                  <p className="text-muted">
+                    No hay grupos activos para este negocio. <Link href="/distribucion" className="text-action-strong hover:underline">Agrégalos en Distribución a grupos</Link>.
+                  </p>
+                ) : (
+                  <>
+                    <p className="text-muted">
+                      Elige desde ahora los grupos: al publicarse en la página se creará la cola solo con estos grupos. Compartir en cada grupo
+                      lo confirmas tú dentro de Facebook.
+                    </p>
+                    <DistributeForm
+                      action={planGroups.bind(null, item.id)}
+                      groups={(groups ?? []).map((g) => ({
+                        id: g.id,
+                        name: g.name,
+                        mode: `${POSTING_MODE_LABELS[g.posting_mode as PostingMode]}${g.page_can_participate === "no" ? " · solo perfiles" : ""}`,
+                        blockedReason: null,
+                        lastActivity: null,
+                      }))}
+                      preselected={item.planned_group_ids ?? []}
+                      submitLabel="Guardar grupos planeados"
+                      pendingLabel="Guardando…"
+                    />
+                  </>
+                )}
+              </div>
+            </Card>
+          )}
 
           <Card>
             <CardTitle>Recurso creativo</CardTitle>

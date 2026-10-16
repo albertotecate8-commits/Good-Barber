@@ -162,20 +162,22 @@ export interface PublishReadiness {
   ready: boolean;
   reason: string | null;
   accountId: string | null;
+  /** Nombre de la página o cuenta destino (para mostrar a dónde se publicará). */
+  accountName: string | null;
   missingScopes: string[];
   publishingOn: boolean;
 }
 
 /** ¿Puede este negocio publicar automáticamente en esta red? (lee tokens con service_role, sin exponerlos). */
 export async function publishReadiness(businessId: string, platform: string): Promise<PublishReadiness> {
-  const base = { ready: false, accountId: null, missingScopes: [], publishingOn: publishingConfig().enabled };
+  const base = { ready: false, accountId: null, accountName: null, missingScopes: [], publishingOn: publishingConfig().enabled };
   if (platform !== "facebook_page" && platform !== "instagram") return { ...base, reason: "Esta red no tiene publicación automática oficial en la app." };
   const cfg = metaConfig();
   if (!cfg.ready) return { ...base, reason: "La conexión con Meta no está configurada en el servidor." };
   const db = admin(cfg);
   const { data: account } = await db
     .from("mkt_social_accounts")
-    .select("id")
+    .select("id, handle")
     .eq("business_id", businessId)
     .eq("platform", platform)
     .eq("connection_status", "connected")
@@ -186,8 +188,8 @@ export async function publishReadiness(businessId: string, platform: string): Pr
   const { data: token } = await db.from("mkt_social_tokens").select("scopes").eq("social_account_id", account.id).maybeSingle();
   const missing = missingScopes(platform, token?.scopes ?? []);
   if (missing.length)
-    return { ...base, accountId: account.id, missingScopes: missing, reason: `Falta autorizar la publicación (${missing.join(", ")}). Usa «Autorizar publicación» en Redes sociales.` };
-  return { ...base, ready: true, accountId: account.id, reason: null };
+    return { ...base, accountId: account.id, accountName: account.handle || null, missingScopes: missing, reason: `Falta autorizar la publicación (${missing.join(", ")}). Usa «Autorizar publicación» en Redes sociales.` };
+  return { ...base, ready: true, accountId: account.id, accountName: account.handle || null, reason: null };
 }
 
 /** Verificación segura (no publica): permisos concedidos, rol en la página y que la cuenta responda. */

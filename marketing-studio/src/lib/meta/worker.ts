@@ -4,7 +4,8 @@ import { composePostText } from "@/lib/validation/content";
 import { SUPABASE_BUCKET } from "@/lib/storage/config";
 import { decryptToken } from "./crypto";
 import { MetaError, type GraphOptions } from "./graph";
-import { missingScopes, publishToMeta, type PublishInput, type PublishPlatform } from "./publish";
+import { fetchPermalink, missingScopes, publishToMeta, type PublishInput, type PublishPlatform } from "./publish";
+import { createDistribution } from "@/lib/distribution/server";
 
 // Procesa las publicaciones aprobadas cuya hora ya llegó. Lo invoca la función
 // programada de Netlify (cada 15 min) a través de /api/meta/publicar-programadas.
@@ -26,6 +27,7 @@ export interface WorkerDeps {
   tokenKey: string;
   now?: Date;
   publish?: typeof publishToMeta;
+  permalink?: typeof fetchPermalink;
   limit?: number;
 }
 
@@ -45,7 +47,7 @@ export async function publishDue(deps: WorkerDeps): Promise<WorkerResult> {
 
   const { data: due, error } = await db
     .from("mkt_content_items")
-    .select("id, business_id, platform, format, caption, hashtags, asset_id, publish_attempts, publish_lock_at")
+    .select("id, business_id, platform, format, caption, hashtags, asset_id, publish_attempts, publish_lock_at, planned_group_ids, approved_by")
     .eq("status", "scheduled")
     .eq("publish_mode", "api")
     .not("approved_at", "is", null)
@@ -73,7 +75,7 @@ export async function publishDue(deps: WorkerDeps): Promise<WorkerResult> {
       continue;
     }
 
-    const record = async (outcome: "success" | "error" | "skipped", message: string, externalPostId: string | null = null) => {
+    const record = async (outcome: "success" | "error" | "skipped", message: string, externalPostId: string | null = null, response: Record<string, unknown> | null = null) => {
       await db.from("mkt_publish_attempts").insert({
         content_id: item.id,
         business_id: item.business_id,
@@ -81,6 +83,7 @@ export async function publishDue(deps: WorkerDeps): Promise<WorkerResult> {
         outcome,
         external_post_id: externalPostId,
         error: outcome === "success" ? null : message.slice(0, 500),
+        response,
       });
       out.details.push({ contentId: item.id, outcome, message });
     };
@@ -116,23 +119,48 @@ export async function publishDue(deps: WorkerDeps): Promise<WorkerResult> {
         media = { url: signed.signedUrl, kind };
       }
 
-      const { externalPostId } = await publish(deps.graph, {
-        platform,
-        externalId: account.external_id!,
-        pageToken: decryptToken(token.token_ciphertext, deps.tokenKey),
-        caption: composePostText(item.caption ?? "", item.hashtags ?? []),
-        format: item.format,
-        media,
-      }, { maxPolls: 6, pollIntervalMs: 3000 }); // cabe en el límite de 30 s de la función programada
+      const pageToken = decryptToken(token.token_ciphertext, deps.tokenKey);
+      const caption = composePostText(item.caption ?? "", item.hashtags ?? []);
+      const { externalPostId } = await publish(
+        deps.graph,
+        { platform, externalId: account.external_id!, pageToken, caption, format: item.format, media },
+        { maxPolls: 6, pollIntervalMs: 3000 }, // cabe en el límite de 30 s de la función programada
+      );
 
-      // Primero el id del post (clave contra duplicados), luego el intento.
+      // Primero el id del post (clave contra duplicados); el enlace se pide después
+      // y si falla no invalida la publicación.
       await db
         .from("mkt_content_items")
         .update({ status: "published", external_post_id: externalPostId, published_at: now.toISOString(), last_error: null, publish_lock_at: null })
         .eq("id", item.id)
         .is("external_post_id", null);
-      await record("success", "Publicado y confirmado por Meta.", externalPostId);
+      const link = await (deps.permalink ?? fetchPermalink)(deps.graph, platform, externalPostId, pageToken);
+      if (link.url) await db.from("mkt_content_items").update({ external_post_url: link.url }).eq("id", item.id);
+      await record("success", "Publicado y confirmado por Meta.", externalPostId, {
+        destination: { platform, external_id: account.external_id },
+        permalink: link.url,
+        permalink_confirmed: link.confirmed,
+        caption,
+        asset_id: item.asset_id,
+        published_at: now.toISOString(),
+      });
       out.published++;
+
+      // Distribución a grupos planeada al aprobar: SOLO los grupos que eligió el dueño.
+      if (link.url && platform === "facebook_page" && (item.planned_group_ids ?? []).length) {
+        try {
+          await createDistribution(db, {
+            businessId: item.business_id,
+            contentId: item.id,
+            groupIds: item.planned_group_ids,
+            sourceUrl: link.url,
+            createdBy: item.approved_by ?? null,
+            now,
+          });
+        } catch {
+          // La publicación ya salió; la distribución se puede crear a mano desde el panel.
+        }
+      }
     } catch (e) {
       const message = e instanceof MetaError ? e.message : "Error inesperado al publicar.";
       const attempts = (item.publish_attempts ?? 0) + 1;
