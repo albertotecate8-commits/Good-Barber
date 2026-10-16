@@ -56,7 +56,7 @@ ESQUEMA EXACTO:
   "audience": {"text": string, "basis": string, "finding_ids": []},
   "offer": {"text": string, "basis": string, "finding_ids": [], "offering_names": [string]},
   "visual_concept": {"text": string, "basis": string, "finding_ids": []},
-  "ads": [${adsCount} objetos {"angle", "headline" (máx. 150), "primary_text" (máx. 2200), "cta", "format": "post"|"story"|"reel"|"carousel", "platform": "instagram"|"facebook_page"|"tiktok"|"whatsapp", "visual_prompt", "asset_hint", "basis": "recommendation", "finding_ids": []}],
+  "ads": [${adsCount} objetos {"angle", "headline" (máx. 150), "primary_text" (máx. 2200), "cta", "format": "post"|"story"|"reel"|"carousel", "platform": "instagram"|"facebook_page"|"tiktok"|"whatsapp", "visual_prompt", "asset_hint", "test_rationale" (por qué probar esta alternativa y qué medir, máx. 600), "basis": "recommendation", "finding_ids": []}],
   "reel": {"duration_seconds": number, "hook": string, "scenes": [{"seconds": string, "shot": string, "on_screen_text": string, "voiceover": string}], "caption": string, "cta": string, "footage_note": string, "flow_prompt": string},
   "schedule": [{"date": "AAAA-MM-DD", "time": "HH:MM", "platform": string, "format": string, "ad_index": número o null, "is_reel": boolean, "note": string}],
   "kpis": [{"name": string, "target_note": string, "how_to_measure": string}],

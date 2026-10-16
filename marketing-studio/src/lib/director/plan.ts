@@ -58,6 +58,8 @@ export const adSchema = z.object({
   platform: z.enum(["instagram", "facebook_page", "tiktok", "whatsapp", "google_business", "youtube", "other"]).default("instagram"),
   visual_prompt: text(3000).default(""),
   asset_hint: text(500).default(""),
+  /** Por qué conviene probar esta alternativa y qué medir para decidir. */
+  test_rationale: text(600).default(""),
   basis: z.enum(BASES).default("recommendation"),
   finding_ids: ids,
 });

@@ -231,6 +231,12 @@ export default async function CampaignPage({ params, searchParams }: Props) {
                   <p className="text-xs text-faint">
                     {PLATFORM_LABELS[ad.platform as keyof typeof PLATFORM_LABELS] ?? ad.platform} · {FORMAT_LABELS[ad.format]}
                   </p>
+                  {ad.test_rationale && (
+                    <p className="mt-2 rounded-lg bg-surface-2 p-2 text-xs text-muted">
+                      <span className="font-medium text-ink">Por qué probarla: </span>
+                      {ad.test_rationale}
+                    </p>
+                  )}
                   <dl className="mt-2 flex flex-col gap-2 text-sm">
                     <div>
                       <dt className="text-xs text-muted">Título</dt>

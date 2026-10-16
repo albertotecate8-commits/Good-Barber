@@ -89,6 +89,9 @@ export interface ContentItem {
   manual_posted_at: string | null;
   manual_post_url: string | null;
   external_post_id: string | null;
+  /** Aprobada por el dueño para publicación automática (la fija el servidor). */
+  approved_at: string | null;
+  publish_attempts: number;
   created_at: string;
   updated_at: string;
 }

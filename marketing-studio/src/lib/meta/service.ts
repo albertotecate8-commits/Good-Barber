@@ -1,9 +1,10 @@
 import "server-only";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { publicEnv } from "@/lib/env";
-import { META_SESSION_MINUTES, metaConfig, type MetaConfig } from "./config";
+import { META_SESSION_MINUTES, metaConfig, publishingConfig, type MetaConfig } from "./config";
 import { decryptToken, encryptToken } from "./crypto";
 import { listPages, MetaError, verifyPageToken, type GraphOptions, type MetaPage } from "./graph";
+import { missingScopes, verifyPublishAccess, type PublishPlatform } from "./publish";
 
 // Única parte de la app que usa la service_role: guarda tokens cifrados en
 // tablas que el navegador no puede leer y fija «conectado» SOLO después de que
@@ -11,6 +12,11 @@ import { listPages, MetaError, verifyPageToken, type GraphOptions, type MetaPage
 
 export function graphOptions(cfg: MetaConfig = metaConfig()): GraphOptions {
   return { appId: cfg.appId, appSecret: cfg.appSecret, graphVersion: cfg.graphVersion, redirectUri: cfg.redirectUri };
+}
+
+/** Cliente con service_role. SOLO servidor; nunca llega al navegador. */
+export function adminClient(cfg: MetaConfig) {
+  return admin(cfg);
 }
 
 function admin(cfg: MetaConfig) {
@@ -150,4 +156,77 @@ export async function disconnectMeta(businessId: string) {
     .update({ connection_status: "not_connected", external_id: null, token_expires_at: null, last_checked_at: new Date().toISOString() })
     .in("id", ids);
   return ids.length;
+}
+
+export interface PublishReadiness {
+  ready: boolean;
+  reason: string | null;
+  accountId: string | null;
+  missingScopes: string[];
+  publishingOn: boolean;
+}
+
+/** ¿Puede este negocio publicar automáticamente en esta red? (lee tokens con service_role, sin exponerlos). */
+export async function publishReadiness(businessId: string, platform: string): Promise<PublishReadiness> {
+  const base = { ready: false, accountId: null, missingScopes: [], publishingOn: publishingConfig().enabled };
+  if (platform !== "facebook_page" && platform !== "instagram") return { ...base, reason: "Esta red no tiene publicación automática oficial en la app." };
+  const cfg = metaConfig();
+  if (!cfg.ready) return { ...base, reason: "La conexión con Meta no está configurada en el servidor." };
+  const db = admin(cfg);
+  const { data: account } = await db
+    .from("mkt_social_accounts")
+    .select("id")
+    .eq("business_id", businessId)
+    .eq("platform", platform)
+    .eq("connection_status", "connected")
+    .not("external_id", "is", null)
+    .limit(1)
+    .maybeSingle();
+  if (!account) return { ...base, reason: "La cuenta de esta red no está conectada con Meta (Negocio → Redes sociales)." };
+  const { data: token } = await db.from("mkt_social_tokens").select("scopes").eq("social_account_id", account.id).maybeSingle();
+  const missing = missingScopes(platform, token?.scopes ?? []);
+  if (missing.length)
+    return { ...base, accountId: account.id, missingScopes: missing, reason: `Falta autorizar la publicación (${missing.join(", ")}). Usa «Autorizar publicación» en Redes sociales.` };
+  return { ...base, ready: true, accountId: account.id, reason: null };
+}
+
+/** Verificación segura (no publica): permisos concedidos, rol en la página y que la cuenta responda. */
+export async function checkPublishAccess(businessId: string) {
+  const cfg = metaConfig();
+  if (!cfg.ready) throw new MetaError("La conexión con Meta no está configurada.", "not_configured");
+  const db = admin(cfg);
+  const { data: rows } = await db
+    .from("mkt_social_accounts")
+    .select("id, platform, external_id")
+    .eq("business_id", businessId)
+    .eq("connection_status", "connected")
+    .in("platform", ["facebook_page", "instagram"]);
+  const page = rows?.find((r) => r.platform === "facebook_page");
+  if (!rows?.length || !page?.external_id) throw new MetaError("No hay una página conectada.", "not_connected");
+  const results = [];
+  for (const r of rows) {
+    const { data: t } = await db.from("mkt_social_tokens").select("token_ciphertext, scopes, page_tasks").eq("social_account_id", r.id).maybeSingle();
+    if (!t || !r.external_id) continue;
+    const v = await verifyPublishAccess(graphOptions(cfg), {
+      platform: r.platform as PublishPlatform,
+      externalId: r.external_id,
+      pageId: page.external_id,
+      pageToken: decryptToken(t.token_ciphertext, cfg.tokenKey),
+      scopes: t.scopes ?? [],
+      pageTasks: t.page_tasks ?? [],
+    });
+    results.push({ platform: r.platform as PublishPlatform, ...v });
+  }
+  return results;
+}
+
+/** Marca una publicación como aprobada para publicación automática (solo tras verificar al dueño). */
+export async function setAutoPublish(contentId: string, approval: { userId: string } | null) {
+  const cfg = metaConfig();
+  const db = admin(cfg);
+  const patch = approval
+    ? { publish_mode: "api", status: "scheduled", approved_by: approval.userId, approved_at: new Date().toISOString(), publish_attempts: 0, last_error: null }
+    : { publish_mode: "manual", approved_by: null, approved_at: null };
+  const { data, error } = await db.from("mkt_content_items").update(patch).eq("id", contentId).is("external_post_id", null).select("id");
+  if (error || !data?.length) throw new MetaError("No se pudo actualizar la publicación.", "db");
 }

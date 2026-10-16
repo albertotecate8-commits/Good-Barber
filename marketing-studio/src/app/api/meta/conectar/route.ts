@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { META_NONCE_COOKIE, metaConfig } from "@/lib/meta/config";
+import { META_LINK_SCOPES, META_NONCE_COOKIE, META_PUBLISH_SCOPES, metaConfig } from "@/lib/meta/config";
 import { newNonce, signState } from "@/lib/meta/crypto";
 import { authorizeUrl } from "@/lib/meta/graph";
 import { graphOptions } from "@/lib/meta/service";
@@ -30,7 +30,9 @@ export async function GET(req: NextRequest) {
 
   const nonce = newNonce();
   const state = signState({ u: user.id, b: businessId, n: nonce, e: Date.now() + 10 * 60_000 }, cfg.tokenKey);
-  const res = NextResponse.redirect(authorizeUrl(graphOptions(cfg), state));
+  // ?permisos=publicar pide además los permisos de publicación (otra autorización explícita tuya).
+  const scopes = req.nextUrl.searchParams.get("permisos") === "publicar" ? [...META_LINK_SCOPES, ...META_PUBLISH_SCOPES] : META_LINK_SCOPES;
+  const res = NextResponse.redirect(authorizeUrl(graphOptions(cfg), state, scopes));
   res.cookies.set(META_NONCE_COOKIE, nonce, {
     httpOnly: true,
     secure: req.nextUrl.protocol === "https:",

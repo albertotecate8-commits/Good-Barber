@@ -3,7 +3,7 @@ import { BarChart3, Sparkles } from "lucide-react";
 import { listBusinessesWithColor } from "@/lib/data/businesses";
 import { listCampaigns } from "@/lib/data/director";
 import { GOAL_LABELS, PLAN_SOURCE_LABELS } from "@/lib/director/plan";
-import { CAMPAIGN_STATUSES, CAMPAIGN_STATUS_LABELS } from "@/lib/campaign-labels";
+import { CAMPAIGN_STAGES, CAMPAIGN_STATUSES, CAMPAIGN_STATUS_LABELS } from "@/lib/campaign-labels";
 import { formatDate } from "@/lib/dates";
 import { Badge, ButtonLink, EmptyState, Notice, PageHeader, buttonClass } from "@/components/ui";
 
@@ -82,27 +82,41 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
           Escribe una instrucción sencilla y el Director prepara la estrategia, los anuncios y el calendario.
         </EmptyState>
       ) : (
-        <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          {campaigns.map((c) => {
-            const b = bizMap.get(c.business_id);
+        <div className="flex flex-col gap-6">
+          {CAMPAIGN_STAGES.map((stage) => {
+            const items = campaigns.filter((c) => stage.statuses.includes(c.status));
+            if (!items.length) return null;
             return (
-              <li key={c.id} className="min-w-0">
-                <Link href={`/campanas/${c.id}`} className="block h-full rounded-2xl border border-line bg-surface p-4 hover:border-line-strong" style={{ borderLeft: `3px solid ${b?.color ?? "var(--gold)"}` }}>
-                  <span className="flex items-start justify-between gap-2">
-                    <span className="min-w-0 truncate font-medium">{c.name}</span>
-                    <Badge tone="action">{CAMPAIGN_STATUS_LABELS[c.status]}</Badge>
-                  </span>
-                  <span className="mt-1 block text-sm text-muted">
-                    {b?.name} · {c.goal ? GOAL_LABELS[c.goal] : c.objective || "Sin objetivo"}
-                  </span>
-                  <span className="mt-1 block text-xs text-faint">
-                    {formatDate(c.starts_on)} – {formatDate(c.ends_on)} · {PLAN_SOURCE_LABELS[c.plan_source]}
-                  </span>
-                </Link>
-              </li>
+              <section key={stage.key} aria-labelledby={`etapa-${stage.key}`}>
+                <h2 id={`etapa-${stage.key}`} className="text-sm font-semibold">
+                  {stage.label} <span className="font-normal text-muted">({items.length})</span>
+                </h2>
+                <p className="mb-2 text-xs text-faint">{stage.hint}</p>
+        <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  {items.map((c) => {
+                    const b = bizMap.get(c.business_id);
+                    return (
+                      <li key={c.id} className="min-w-0">
+                        <Link href={`/campanas/${c.id}`} className="block h-full rounded-2xl border border-line bg-surface p-4 hover:border-line-strong" style={{ borderLeft: `3px solid ${b?.color ?? "var(--gold)"}` }}>
+                          <span className="flex items-start justify-between gap-2">
+                            <span className="min-w-0 truncate font-medium">{c.name}</span>
+                            <Badge tone="action">{CAMPAIGN_STATUS_LABELS[c.status]}</Badge>
+                          </span>
+                          <span className="mt-1 block text-sm text-muted">
+                            {b?.name} · {c.goal ? GOAL_LABELS[c.goal] : c.objective || "Sin objetivo"}
+                          </span>
+                          <span className="mt-1 block text-xs text-faint">
+                            {formatDate(c.starts_on)} – {formatDate(c.ends_on)} · {PLAN_SOURCE_LABELS[c.plan_source]}
+                          </span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+                      </section>
             );
           })}
-        </ul>
+        </div>
       )}
     </>
   );

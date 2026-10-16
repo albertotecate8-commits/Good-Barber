@@ -66,6 +66,9 @@ describe("motor de estrategia por plantillas", () => {
     expect(plan.schedule).toHaveLength(6);
     expect(plan.schedule.every((s) => s.date >= TODAY && s.date <= "2026-10-18")).toBe(true);
   });
+  it("cada alternativa explica por qué probarla y qué medir (como hipótesis)", () => {
+    for (const ad of plan.ads) expect(ad.test_rationale).toMatch(/^Hipótesis: .+(Mide|Compara)/);
+  });
   it("solo usa precios registrados", () => {
     expect(findUnknownPrices(plan, [12000, 5000, 19900])).toEqual([]);
     expect(plan.ads[0].headline).toBe("Corte $120");

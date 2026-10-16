@@ -6,7 +6,9 @@ import { listAssetOptions } from "@/lib/data/assets";
 import { CONTENT_STATUS_LABELS, CONTENT_STATUS_TONES } from "@/lib/content-labels";
 import { PLATFORM_LABELS } from "@/lib/validation/business";
 import { composePostText } from "@/lib/validation/content";
-import { publishAvailability } from "@/lib/publishing";
+import { publishReadiness } from "@/lib/meta/service";
+import { AutoPublishForm } from "@/components/auto-publish-form";
+import { approveAutoPublish, revokeAutoPublish } from "../publish-actions";
 import { formatDateTime } from "@/lib/dates";
 import { ContentForm } from "@/components/content-form";
 import { ConfirmButton } from "@/components/business-forms";
@@ -33,7 +35,8 @@ export default async function ContentPage({ params, searchParams }: Props) {
     listAssetOptions(),
   ]);
   const business = businesses.find((b) => b.id === item.business_id);
-  const availability = publishAvailability(item.platform, socials);
+  const readiness = await publishReadiness(item.business_id, item.platform);
+  void socials;
   const text = composePostText(item.caption, item.hashtags);
 
   return (
@@ -84,15 +87,39 @@ export default async function ContentPage({ params, searchParams }: Props) {
         <div className="flex flex-col gap-4">
           <Card>
             <CardTitle>Cómo se publica</CardTitle>
-            {availability.mode === "manual" ? (
+            {item.publish_mode === "api" && item.approved_at ? (
+              <div className="flex flex-col gap-3 text-sm">
+                <p>
+                  <Badge tone="positive">Aprobada para publicación automática</Badge>
+                </p>
+                <p className="text-muted">
+                  Aprobada el {formatDateTime(item.approved_at)}. Se publicará en {PLATFORM_LABELS[item.platform]} el{" "}
+                  {formatDateTime(item.scheduled_at)} por la API oficial de Meta. Si editas algo, la aprobación se cancela sola.
+                </p>
+                {!readiness.publishingOn && (
+                  <Notice tone="warn">La publicación automática está APAGADA en el servidor: no saldrá hasta que la actives.</Notice>
+                )}
+                {item.publish_attempts > 0 && <p className="text-xs text-warn">Intentos fallidos: {item.publish_attempts} de 3.</p>}
+                <ConfirmButton action={revokeAutoPublish.bind(null, item.id)} confirmText="¿Cancelar la publicación automática? Quedará como publicación manual." variant="secondary">
+                  Cancelar publicación automática
+                </ConfirmButton>
+              </div>
+            ) : (
               <div className="flex flex-col gap-3 text-sm">
                 <p>
                   <Badge tone="gold">Publicación manual</Badge>
                 </p>
-                <p className="text-muted">{availability.reason}</p>
-                <p className="text-xs text-faint">
-                  Aunque esté «Programada», la app no enviará nada a {PLATFORM_LABELS[item.platform]}.
+                <p className="text-muted">
+                  {readiness.ready
+                    ? "La cuenta está conectada con permisos de publicación. Puedes aprobar que salga sola a la hora programada."
+                    : readiness.reason}
                 </p>
+                <p className="text-xs text-faint">
+                  Aunque esté «Programada», la app no enviará nada a {PLATFORM_LABELS[item.platform]} sin tu aprobación.
+                </p>
+                {readiness.ready && item.status !== "published" && (
+                  <AutoPublishForm action={approveAutoPublish.bind(null, item.id)} when={formatDateTime(item.scheduled_at)} platform={PLATFORM_LABELS[item.platform]} />
+                )}
                 <CopyTextButton text={text} />
                 {asset && (
                   <a href={assetUrl(asset.id, true)} className={buttonClass("secondary")}>
@@ -100,8 +127,6 @@ export default async function ContentPage({ params, searchParams }: Props) {
                   </a>
                 )}
               </div>
-            ) : (
-              <p className="text-sm text-muted">Publicación automática disponible.</p>
             )}
           </Card>
 
@@ -146,7 +171,7 @@ export default async function ContentPage({ params, searchParams }: Props) {
           <Card>
             <CardTitle>Intentos de publicación automática</CardTitle>
             {attempts.length === 0 ? (
-              <p className="text-sm text-muted">Ninguno. No hay integración oficial conectada.</p>
+              <p className="text-sm text-muted">Ninguno.</p>
             ) : (
               <ul className="divide-y divide-line text-sm">
                 {attempts.map((a) => (

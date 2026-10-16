@@ -62,3 +62,14 @@ export function validTokenKey(key: string) {
 
 /** Cookie httpOnly con el nonce del flujo OAuth (protección CSRF). */
 export const META_NONCE_COOKIE = "mkt_meta_nonce";
+
+/**
+ * Publicación automática: APAGADA salvo que MKT_PUBLISHING_ENABLED=1 (interruptor
+ * explícito tuyo) y exista MKT_CRON_SECRET (lo usa la función programada de Netlify).
+ */
+export function publishingConfig(env: Env = process.env) {
+  const secret = env.MKT_CRON_SECRET?.trim() ?? "";
+  const enabled = env.MKT_PUBLISHING_ENABLED === "1";
+  const missing = [...(enabled ? [] : ["MKT_PUBLISHING_ENABLED=1"]), ...(secret.length >= 24 ? [] : ["MKT_CRON_SECRET"])];
+  return { enabled: enabled && secret.length >= 24, secret, missing };
+}

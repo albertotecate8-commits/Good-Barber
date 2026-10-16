@@ -118,6 +118,11 @@ test("flujo completo: cargar negocios, editar Good Barber y revisar estado hones
   await expect(page.getByText("No se conectó nada.")).toBeVisible();
   await page.goto(redesUrl);
   await expect(page.getByText("Conectado", { exact: true })).toHaveCount(0);
+  // La ruta de publicación programada exige su secreto y no redirige a /login.
+  const cron = await page.request.post("/api/meta/publicar-programadas", { maxRedirects: 0 });
+  expect(cron.status()).toBe(401);
+  const cronForged = await page.request.post("/api/meta/publicar-programadas", { maxRedirects: 0, headers: { authorization: "Bearer cualquier-cosa-de-mas-de-24-caracteres" } });
+  expect(cronForged.status()).toBe(401);
 
   // Historial de auditoría
   await page.getByRole("link", { name: "Historial" }).click();

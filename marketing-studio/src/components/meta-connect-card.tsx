@@ -1,4 +1,6 @@
 import { disconnectMetaAccounts } from "@/app/(app)/negocios/meta-actions";
+import { verifyPublishPermissions } from "@/app/(app)/calendario/publish-actions";
+import { ActionForm } from "./action-form";
 import { ConfirmButton } from "./business-forms";
 import { buttonClass, Card, CardTitle, Notice } from "./ui";
 
@@ -49,6 +51,11 @@ export function MetaConnectCard({
                 {connected ? "Volver a autorizar" : "Conectar con Meta"}
               </a>
               {connected && (
+                <a href={`/api/meta/conectar?negocio=${businessId}&permisos=publicar`} className={buttonClass("secondary")}>
+                  Autorizar publicación
+                </a>
+              )}
+              {connected && (
                 <ConfirmButton
                   action={disconnectMetaAccounts.bind(null, businessId)}
                   confirmText="¿Desconectar Facebook/Instagram de la app? Se borran los tokens guardados. No afecta a tus páginas."
@@ -58,6 +65,17 @@ export function MetaConnectCard({
                 </ConfirmButton>
               )}
             </div>
+            {connected && (
+              <div className="rounded-xl border border-line p-3">
+                <p className="mb-2 text-xs text-muted">
+                  «Autorizar publicación» pide en Meta los permisos para publicar (pages_manage_posts e
+                  instagram_content_publish). Aun con ellos, nada sale sin que apruebes cada publicación.
+                </p>
+                <ActionForm action={verifyPublishPermissions.bind(null, businessId)} submitLabel="Verificar permisos (sin publicar)" pendingLabel="Consultando a Meta…" variant="secondary">
+                  {null}
+                </ActionForm>
+              </div>
+            )}
           </>
         )}
       </div>
