@@ -77,22 +77,18 @@ auditoría registrada. Las comprobaciones de TRUNCATE y DELETE no se pudieron co
 (pide una confirmación que no llega); el privilegio TRUNCATE sí quedó verificado por la huella de
 privilegios. El script completo (19 comprobaciones) se puede correr en el **SQL Editor** de Supabase.
 
-### Lo que TÚ debes hacer en Supabase (5 minutos)
+### Lo que TÚ debes hacer en Supabase (3 minutos)
 
-1. **Authentication → Sign In / Providers → Email**: desactiva **Allow new users to sign up**.
-   (Hoy está activado, como en todo proyecto nuevo. Un registro ajeno no vería datos —RLS lo impide—,
-   pero no debe existir.)
-2. **Authentication → Users → Add user → Create new user**: tu correo y una contraseña nueva,
-   marcando *Auto Confirm User*. **No compartas esa contraseña** (ni conmigo).
-3. **SQL Editor** → ejecuta (cambia el correo):
-   ```sql
-   insert into mkt_admins (user_id) select id from auth.users where email = 'TU-CORREO';
-   ```
-   (O dime «ya creé mi usuario con el correo X» y lo hago yo con el conector.)
-4. Después del paso 3 de Netlify: **Authentication → URL Configuration** → *Site URL* =
-   `https://TU-SITIO.netlify.app` y agrega esa misma URL en *Redirect URLs*.
-5. Solo si vas a conectar Meta: **Project Settings → API Keys** → copia la clave `service_role`
-   (secreta) para Netlify.
+Tu correo ya está **preautorizado** como administrador (`mkt_admin_invites`, migración
+`20261024000000`, válido hasta el 15-nov-2026). Al crear tu usuario con el correo confirmado, la base te da
+de alta sola: nadie más necesita conocer tu contraseña.
+
+1. **Authentication → Users → Add user → Create new user**: tu correo y una contraseña que solo tú conozcas,
+   con *Auto Confirm User* marcado.
+2. **Authentication → Sign In / Providers → Email**: desactiva **Allow new users to sign up** (la app no
+   usa registro público; un registro sin confirmar nunca obtiene permisos, pero así no existe).
+3. Solo para conectar Meta: **Project Settings → API Keys** → copia la clave `service_role` (secreta) y pégala
+   directamente en Netlify como `SUPABASE_SERVICE_ROLE_KEY` (nunca en el chat ni en Git).
 
 ---
 
@@ -113,16 +109,15 @@ solo en la app de citas y commit desconocido).
    - **Branch to deploy:** `claude/marketing-ai-studio` (hasta que lo fusiones a `main`).
    - **Base directory:** `marketing-studio`
    - Build command y publish directory: déjalos vacíos (los toma de `netlify.toml`).
-4. **Environment variables** (Add environment variables):
-   | Variable | Valor |
-   | --- | --- |
-   | `NEXT_PUBLIC_SUPABASE_URL` | `https://xlhzzyqekkageaegvbab.supabase.co` |
-   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `sb_publishable_3JSJSzEa9ojgEB5iSU-dgA_prnbQF-J` |
-   | `MKT_CONTACT_EMAIL` | (opcional) tu correo, para la política de uso de OpenStreetMap |
+4. **Environment variables:** las públicas de Supabase ya vienen en `netlify.toml` (se incrustan al
+   construir; verificado en el bundle del servidor y del proxy). Para el primer despliegue no hace falta
+   ninguna. Para Meta agrega después, como secretas: `SUPABASE_SERVICE_ROLE_KEY`, `MKT_TOKEN_KEY`,
+   `META_APP_ID`, `META_APP_SECRET`, `META_LOGIN_CONFIG_ID`, `META_PUBLISH_CONFIG_ID` y `MKT_APP_URL`
+   (la URL del sitio). **No** definas `MKT_PUBLISHING_ENABLED` hasta aprobar una publicación real de prueba.
    No definas `MKT_STORAGE_BACKEND` (la app se niega a usar disco local en Netlify).
 5. **Deploy**. Cuando termine, abre la URL `https://….netlify.app` desde el iPhone y la computadora.
    En el iPhone, Safari → Compartir → *Agregar a pantalla de inicio* para abrirla como app.
-6. Vuelve al paso 4 de Supabase (Site URL).
+6. Comprueba `https://TU-SITIO.netlify.app/api/salud` → `{"ok":true,"database":"ok",…}`.
 
 Netlify no crea nada en Vercel ni toca la app de citas: es un sitio aparte que solo construye la carpeta
 `marketing-studio`.

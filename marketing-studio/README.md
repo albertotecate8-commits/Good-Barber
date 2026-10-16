@@ -18,7 +18,7 @@ citas de Good Barber (raíz del repositorio), que no se modifica.
 | Registro honesto de proveedores de IA y bloqueo de gasto | Funciona (la invocación real llega en la Etapa 3) |
 | Calendario: vistas mes/semana/próximas, crear, editar, duplicar, eliminar, filtros, zona America/Mexico_City | Funciona y está probado |
 | Biblioteca: subir, filtrar, etiquetar, previsualizar, descargar, eliminar; aislada por negocio | Funciona y está probada (con almacenamiento local de desarrollo) |
-| Supabase real (proyecto `marketing-ai-studio`, plan Free) | Creado; 9 migraciones aplicadas; esquema idéntico al local (huella de 10 categorías); políticas RLS y de Storage verificadas en la base real (17/17) |
+| Supabase real (proyecto `marketing-ai-studio`, plan Free) | Creado; 10 migraciones aplicadas; esquema idéntico al local (huella de 10 categorías); políticas RLS y de Storage verificadas en la base real (17/17) |
 | Supabase Storage (bucket privado) | Bucket y políticas creados y verificados en la base real; **subida/descarga de archivos por HTTP aún sin probar** (la red del entorno bloquea supabase.co: ver `npm run smoke:remote`) |
 | Registro de «publicada a mano» | Funciona (es una declaración tuya, no confirma la plataforma) |
 | Director de Marketing: instrucción → tareas → investigación → estrategia, 5 anuncios, Reel, calendario, KPIs y medición | Funciona con el motor de plantillas (sin IA); probado |
@@ -162,7 +162,8 @@ citas de Good Barber (raíz del repositorio), que no se modifica.
 ### Garantías aplicadas en la base de datos (no solo en la interfaz)
 
 - Un usuario solo ve y edita negocios de los que es miembro (`owner`/`editor`; `viewer` solo lee).
-- Solo un administrador (`mkt_admins`) crea negocios, y siempre a su propio nombre.
+- Solo un administrador (`mkt_admins`) crea negocios, y siempre a su propio nombre. El primer administrador se
+  da de alta por correo preautorizado (`mkt_admin_invites`) y solo cuando ese correo está confirmado.
 - El navegador no puede marcar una red como «conectada» ni una publicación como «publicada»:
   eso lo hará el servidor solo tras la confirmación oficial de la plataforma.
 - La auditoría se escribe por triggers; nadie puede insertarla ni editarla desde el navegador.
@@ -194,6 +195,7 @@ citas de Good Barber (raíz del repositorio), que no se modifica.
 | `supabase/migrations/20261021000000_mkt_publishing.sql` | `supabase/rollbacks/20261021000000_mkt_publishing.down.sql` |
 | `supabase/migrations/20261022000000_mkt_leads.sql` | `supabase/rollbacks/20261022000000_mkt_leads.down.sql` |
 | `supabase/migrations/20261023000000_mkt_group_distribution.sql` | `supabase/rollbacks/20261023000000_mkt_group_distribution.down.sql` (borra grupos e historial) |
+| `supabase/migrations/20261024000000_mkt_admin_invites.sql` | `supabase/rollbacks/20261024000000_mkt_admin_invites.down.sql` |
 
 Todas son idempotentes. Desde la del Estudio se probaron aplicando, re-aplicando, revirtiendo y volviendo a aplicar. El entorno local replica los privilegios por defecto de Supabase real (`scripts/local-supabase/roles.sql`).
 

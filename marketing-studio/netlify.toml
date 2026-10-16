@@ -12,3 +12,11 @@
 [build.environment]
   NODE_VERSION = "22"
   NEXT_TELEMETRY_DISABLED = "1"
+  # Valores PÚBLICOS del proyecto Supabase de Marketing AI Studio (no el de la
+  # app de citas). La clave «publishable» está hecha para el navegador: la
+  # seguridad la dan las políticas RLS. Next.js los incrusta al construir, así
+  # que el sitio funciona sin capturarlos en el panel. Los SECRETOS
+  # (SUPABASE_SERVICE_ROLE_KEY, MKT_TOKEN_KEY, MKT_CRON_SECRET, META_APP_SECRET)
+  # nunca van aquí: solo en las variables de entorno de Netlify.
+  NEXT_PUBLIC_SUPABASE_URL = "https://xlhzzyqekkageaegvbab.supabase.co"
+  NEXT_PUBLIC_SUPABASE_ANON_KEY = "sb_publishable_3JSJSzEa9ojgEB5iSU-dgA_prnbQF-J"
