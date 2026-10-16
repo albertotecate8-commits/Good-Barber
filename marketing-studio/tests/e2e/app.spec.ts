@@ -136,9 +136,32 @@ test("flujo completo: cargar negocios, editar Good Barber y revisar estado hones
   await expectNoHorizontalScroll(page);
   await shot("05-configuracion");
 
-  // Módulos pendientes declarados como tales
-  await page.goto("/mensajes");
-  await expect(page.getByText("Este módulo todavía no funciona")).toBeVisible();
+  // Prospectos y resultados: registro, importación CSV y aislamiento por negocio
+  await page.goto("/mensajes?negocio=good-barber");
+  await expect(page.getByText("La app no lee tus bandejas")).toBeVisible();
+  await page.locator("#lead-contact_name").fill("Cliente de prueba");
+  await page.locator("#lead-status").selectOption("customer");
+  await page.locator("#lead-value").fill("$170");
+  await page.getByRole("button", { name: "Registrar prospecto" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Prospecto registrado." })).toBeVisible();
+  await page.getByLabel("Archivo CSV").setInputFiles({
+    name: "prospectos.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("fecha;nombre;origen;estado;monto\n16/10/2026;Ana;WhatsApp;cita;\n16/10/2026;Luis;Instagram;cliente;$120\n"),
+  });
+  await page.getByRole("button", { name: "Importar CSV" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "2 prospecto(s) importados." })).toBeVisible();
+  await expect(page.getByText("$290", { exact: true }).first()).toBeVisible();
+  await expectNoHorizontalScroll(page);
+  await page.goto("/mensajes?negocio=glamour-studio");
+  await expect(page.getByText("Sin prospectos registrados")).toBeVisible();
+
+  // Analíticas con datos reales y sin alcance inventado
+  await page.goto("/analiticas?negocio=good-barber");
+  await expect(page.getByText("Ventas registradas")).toBeVisible();
+  await expect(page.getByText("$290", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Alcance e interacciones: pendiente")).toBeVisible();
+  await expectNoHorizontalScroll(page);
 
   // Un negocio inexistente (o ajeno) muestra «No encontrado» sin datos. Con
   // streaming, Next.js puede responder 200 antes de saber que es 404.
