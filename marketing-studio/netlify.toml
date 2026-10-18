@@ -20,3 +20,12 @@
   # nunca van aquí: solo en las variables de entorno de Netlify.
   NEXT_PUBLIC_SUPABASE_URL = "https://xlhzzyqekkageaegvbab.supabase.co"
   NEXT_PUBLIC_SUPABASE_ANON_KEY = "sb_publishable_3JSJSzEa9ojgEB5iSU-dgA_prnbQF-J"
+
+# Adaptador oficial de Next.js (OpenNext). Netlify lo instala solo en sitios
+# enlazados desde el panel, pero NO en sitios creados por API y desplegados
+# subiendo el código: sin él se publica la carpeta .next cruda, sin la función
+# del servidor ni el proxy (comprobado en el primer despliegue). Sin versión
+# fija: Netlify lo actualiza en cada build.
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
