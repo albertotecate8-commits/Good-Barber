@@ -27,7 +27,7 @@ async function login(page: Page, email: string, password: string) {
   await page.getByLabel("Correo").fill(email);
   await page.getByLabel("Contraseña").fill(password);
   await page.getByRole("button", { name: "Iniciar sesión" }).click();
-  await expect(page.getByRole("heading", { name: "Inicio", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Crear", level: 1 })).toBeVisible();
 }
 
 test("correo preautorizado: inicia sesión y es administrador; uno no invitado es miembro sin permisos", async ({ page, browser }, info) => {

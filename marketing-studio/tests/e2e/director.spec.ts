@@ -22,7 +22,7 @@ async function login(page: Page, email = EMAIL) {
   await page.getByLabel("Correo").fill(email);
   await page.getByLabel("Contraseña").fill(PASSWORD);
   await page.getByRole("button", { name: "Iniciar sesión" }).click();
-  await expect(page.getByRole("heading", { name: "Inicio", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Crear", level: 1 })).toBeVisible();
 }
 
 async function noHorizontalScroll(page: Page) {

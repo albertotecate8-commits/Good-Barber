@@ -34,7 +34,7 @@ async function login(page: Page, email = EMAIL, password = PASSWORD) {
   await page.getByLabel("Correo").fill(email);
   await page.getByLabel("Contraseña").fill(password);
   await page.getByRole("button", { name: "Iniciar sesión" }).click();
-  await expect(page.getByRole("heading", { name: "Inicio", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Crear", level: 1 })).toBeVisible();
 }
 
 async function noHorizontalScroll(page: Page) {
@@ -201,8 +201,8 @@ test("biblioteca y calendario: flujo completo", async ({ page, browser }, info) 
   await expect(page.getByRole("link", { name: /Promo corte octubre/ })).toBeVisible();
   await page.goto(`/calendario?vista=proximas&hasta=${cdmxDate(0)}`);
   await expect(page.getByText("No hay publicaciones próximas")).toBeVisible();
-  // El panel de inicio muestra las próximas del negocio activo (se elige en la barra superior)
-  await page.goto("/");
+  // El resumen muestra las próximas del negocio activo (se elige en la barra superior)
+  await page.goto("/resumen");
   await page.getByLabel("Negocio activo").selectOption({ label: "Good Barber" });
   await expect(page.getByRole("link", { name: "Promo corte octubre" })).toBeVisible();
 

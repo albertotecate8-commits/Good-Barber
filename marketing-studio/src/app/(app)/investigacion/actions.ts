@@ -51,7 +51,9 @@ export async function createReport(_: ActionState, form: FormData): Promise<Acti
     return { message: (e as Error).message };
   }
   revalidatePath("/investigacion");
-  redirect(`/investigacion/${id}`);
+  revalidatePath("/investigar");
+  // Desde «Investigar» se vuelve ahí con las conclusiones nuevas a la vista.
+  redirect(form.get("volver") === "investigar" ? `/investigar?informe=${id}` : `/investigacion/${id}`);
 }
 
 const findingSchema = z.object({

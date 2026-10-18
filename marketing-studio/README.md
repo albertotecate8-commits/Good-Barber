@@ -6,6 +6,30 @@ citas de Good Barber (raíz del repositorio), que no se modifica.
 
 **Regla económica:** $0 MXN de gasto adicional en APIs. Ver `src/lib/providers/`.
 
+## Estudio creativo conversacional (dirección actual)
+
+La app gira alrededor de tres áreas; lo demás (calendario, campañas, distribución,
+biblioteca, analíticas, resumen…) sigue en las mismas rutas dentro de **«Más»**.
+
+| Área | Qué hace | Estado |
+| --- | --- | --- |
+| **Crear** (`/`) | Chat por negocio: adjuntar fotos/logotipo/referencias, propuestas con boceto y prompt exacto, ajustes por instrucciones («más premium y menos artificial», «conserva la composición, cambia colores y promoción», «usa el estilo que guardamos la semana pasada», «adapta a historia»), «Recuerda que…» para guardar memoria, comparar versiones, **Revisar y aprobar** | Funciona y está probado (escritorio + iPhone) |
+| **Investigar** (`/investigar`) | Investigación de mercado con fuente, enlace y fecha; anuncios de competencia (Biblioteca de Meta, asistida); análisis de un diseño; etiquetas *Verificado / Interpretación / Hipótesis / Recomendación*; «Guardar en memoria» y «Crear con esto» | Funciona y está probado |
+| **Estilos y memoria** (`/estilos`) | Identidad, logotipo, servicios y precios, estilos con nombre desde imágenes (parte **medida** con píxeles + parte **interpretada**), memoria editable/desactivable/borrable, diseños aprobados | Funciona y está probado |
+
+- **Motor del chat:** reglas y plantillas (`src/lib/studio/`), sin modelo de lenguaje de pago.
+  Usa solo precios y promociones registrados; avisa si falta el logotipo; nunca dice que «aprendió»
+  algo que no esté guardado en la memoria.
+- **Imágenes:** no hay API de imágenes gratuita (la suscripción de ChatGPT no incluye API y no se
+  automatiza su sitio). Flujo directo: «Copiar prompt y abrir ChatGPT» → generar → «Subir imagen
+  generada». Cada imagen queda como versión con su prompt, negocio, estilo y conversación.
+- **Aislamiento:** memoria, estilos, conversaciones y versiones son por negocio (RLS + guardas en la
+  base que rechazan vínculos entre marcas). Migración `20261025000000_mkt_creative_memory.sql`.
+- **Aprobación:** casillas de revisión obligatorias y cada destino (página de Facebook, Instagram
+  profesional) se elige y verifica por separado. Una fila por versión y red (reintentar no duplica).
+  «Publicar ahora» usa el mismo proceso del servidor y muestra la respuesta de Meta; si la cuenta no
+  está conectada o `MKT_PUBLISHING_ENABLED` no está activo, queda **guardada, no publicada**.
+
 ## Estado (Etapas 1 a 7)
 
 | Función | Estado |

@@ -239,5 +239,5 @@ export async function loadInitialBusinesses(): Promise<ActionState> {
   }
   revalidatePath("/", "layout");
   // El botón desaparece al existir negocios: el aviso de éxito lo muestra el panel.
-  redirect(created.length ? "/?cargados=1" : "/");
+  redirect(created.length ? "/resumen?cargados=1" : "/resumen");
 }

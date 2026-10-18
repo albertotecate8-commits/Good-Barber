@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import clsx from "clsx";
 import { Bell, ChevronDown, LogOut, Menu, Settings, X } from "lucide-react";
-import { CREATE_AD, NAV_GROUPS, NAV_ITEMS, isActive } from "./nav-items";
+import { NAV_MAIN, NAV_MORE, isActive } from "./nav-items";
 import type { ShellAlert, ShellBusiness } from "@/lib/data/shell";
 import { setActiveBusiness } from "@/app/(app)/shell-actions";
 
@@ -127,6 +127,9 @@ export function AppShell({ children, email, signOut, businesses, activeId, alert
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
   const initial = (email[0] ?? "?").toUpperCase();
+  const inMore = NAV_MORE.some((g) => g.items.some((i) => isActive(pathname, i.href)));
+  // El chat (Crear) usa todo el ancho y alto disponible.
+  const wide = pathname === "/";
 
   const signOutForm = (onDark: boolean) => (
     <form action={signOut}>
@@ -141,44 +144,79 @@ export function AppShell({ children, email, signOut, businesses, activeId, alert
     </form>
   );
 
+  const moreList = (onDark: boolean, onPick?: () => void) =>
+    NAV_MORE.map((group) => (
+      <div key={group.label} className="mb-2">
+        <p className={clsx("px-3 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-wider", onDark ? "text-nav-muted/80" : "text-faint")}>{group.label}</p>
+        <ul className={clsx(onDark ? "flex flex-col gap-0.5" : "grid grid-cols-2 gap-1")}>
+          {group.items.map(({ href, label, icon: Icon }) => {
+            const active = isActive(pathname, href);
+            return (
+              <li key={href}>
+                <Link
+                  href={href}
+                  aria-current={active ? "page" : undefined}
+                  onClick={onPick}
+                  className={clsx(
+                    "pressable flex items-center gap-3 rounded-xl px-3 text-sm",
+                    onDark
+                      ? clsx("min-h-9", active ? "bg-white/15 font-semibold text-nav-text" : "text-nav-muted hover:bg-white/10 hover:text-nav-text")
+                      : "min-h-12 text-muted hover:bg-surface-2 hover:text-ink aria-[current=page]:bg-action-soft aria-[current=page]:font-semibold aria-[current=page]:text-ink",
+                  )}
+                >
+                  <Icon className="size-4 shrink-0" aria-hidden />
+                  {label}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    ));
+
   return (
-    <div className="min-h-dvh lg:grid lg:grid-cols-[264px_1fr]">
+    <div className="min-h-dvh lg:grid lg:grid-cols-[248px_1fr]">
       <a href="#contenido" className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:rounded-lg focus:bg-action focus:px-3 focus:py-2 focus:text-on-action">
         Saltar al contenido
       </a>
 
-      {/* Barra lateral (escritorio): azul pizarra con relieve suave */}
+      {/* Barra lateral (escritorio): tres áreas principales y «Más» plegable */}
       <aside className="sticky top-0 hidden h-dvh p-3 lg:block">
         <div className="flex h-full flex-col rounded-3xl bg-gradient-to-b from-nav-2 to-nav px-3 py-5 shadow-float">
           <div className="px-2">
             <Brand onDark />
           </div>
-          <nav aria-label="Principal" className="mt-6 flex flex-1 flex-col gap-4 overflow-y-auto pr-1">
-            {NAV_GROUPS.map((group) => (
-              <div key={group.label}>
-                <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-nav-muted/80">{group.label}</p>
-                <ul className="flex flex-col gap-0.5">
-                  {group.items.map(({ href, label, icon: Icon }) => {
-                    const active = isActive(pathname, href);
-                    return (
-                      <li key={href}>
-                        <Link
-                          href={href}
-                          aria-current={active ? "page" : undefined}
-                          className={clsx(
-                            "pressable flex min-h-10 items-center gap-3 rounded-xl px-3 text-sm",
-                            active ? "bg-nav-active font-semibold text-nav-active-text shadow-raised" : "text-nav-muted hover:bg-white/10 hover:text-nav-text",
-                          )}
-                        >
-                          <Icon className="size-4 shrink-0" aria-hidden />
-                          {label}
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            ))}
+          <nav aria-label="Principal" className="mt-6 flex flex-1 flex-col gap-1 overflow-y-auto pr-1">
+            <ul className="flex flex-col gap-1">
+              {NAV_MAIN.map(({ href, label, icon: Icon, description }) => {
+                const active = isActive(pathname, href);
+                return (
+                  <li key={href}>
+                    <Link
+                      href={href}
+                      aria-current={active ? "page" : undefined}
+                      className={clsx(
+                        "pressable flex min-h-12 items-center gap-3 rounded-2xl px-3",
+                        active ? "bg-nav-active text-nav-active-text shadow-raised" : "text-nav-muted hover:bg-white/10 hover:text-nav-text",
+                      )}
+                    >
+                      <Icon className="size-5 shrink-0" aria-hidden />
+                      <span className="flex flex-col leading-tight">
+                        <span className={clsx("text-sm", active && "font-semibold")}>{label}</span>
+                        {description && <span className={clsx("text-[11px]", active ? "opacity-70" : "text-nav-muted/80")}>{description}</span>}
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+            <details className="group mt-4 border-t border-white/10 pt-3" open={inMore || undefined}>
+              <summary className="pressable flex min-h-10 cursor-pointer list-none items-center gap-3 rounded-xl px-3 text-sm text-nav-muted hover:bg-white/10 hover:text-nav-text">
+                <Menu className="size-4" aria-hidden /> Más
+                <ChevronDown className="ml-auto size-4 transition-transform group-open:rotate-180" aria-hidden />
+              </summary>
+              <div className="mt-2">{moreList(true)}</div>
+            </details>
           </nav>
           <div className="mt-3 border-t border-white/10 pt-3">
             <p className="truncate px-3 pb-2 text-xs text-nav-muted" title={email}>
@@ -190,9 +228,9 @@ export function AppShell({ children, email, signOut, businesses, activeId, alert
       </aside>
 
       <div className="flex min-w-0 flex-col">
-        {/* Barra superior: negocio activo, avisos, perfil y acción principal */}
+        {/* Barra superior: negocio activo, avisos y perfil */}
         <header className="sticky top-0 z-30 border-b border-line/60 bg-bg/85 backdrop-blur-md">
-          <div className="mx-auto flex h-16 w-full max-w-6xl items-center gap-2 px-4 sm:px-6 lg:px-8">
+          <div className={clsx("mx-auto flex h-16 w-full items-center gap-2 px-4 sm:px-6 lg:px-8", wide ? "max-w-[1400px]" : "max-w-6xl")}>
             <div className="lg:hidden">
               <Brand iconOnly />
             </div>
@@ -201,9 +239,6 @@ export function AppShell({ children, email, signOut, businesses, activeId, alert
             </div>
             <div className="flex items-center gap-2 lg:ml-auto">
               <Notifications alerts={alerts} />
-              <Link href={CREATE_AD.href} className="pressable hidden min-h-11 items-center gap-2 rounded-xl bg-action px-4 text-sm font-semibold text-on-action shadow-raised hover:bg-action-strong sm:inline-flex">
-                <CREATE_AD.icon className="size-4" aria-hidden /> {CREATE_AD.label}
-              </Link>
               <Link
                 href="/configuracion"
                 aria-label="Perfil y configuración"
@@ -216,58 +251,40 @@ export function AppShell({ children, email, signOut, businesses, activeId, alert
           </div>
         </header>
 
-        <main id="contenido" className="animate-rise mx-auto w-full max-w-6xl flex-1 px-4 pb-32 pt-5 sm:px-6 lg:px-8 lg:pb-10 lg:pt-6">
+        <main
+          id="contenido"
+          className={clsx(
+            "animate-rise mx-auto w-full flex-1 px-4 sm:px-6 lg:px-8",
+            wide ? "max-w-[1400px] pb-20 pt-3 lg:pb-6" : "max-w-6xl pb-32 pt-5 lg:pb-10 lg:pt-6",
+          )}
+        >
           {children}
         </main>
       </div>
 
-      {/* Navegación inferior (móvil) con la acción principal al centro */}
+      {/* Navegación inferior (móvil): las tres áreas y «Más» */}
       <nav aria-label="Principal" className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] shadow-float backdrop-blur-md lg:hidden">
-        <ul className="grid grid-cols-5 items-end">
-          {[NAV_ITEMS[0], NAV_ITEMS.find((i) => i.href === "/calendario")!].map(({ href, label, icon: Icon }) => (
+        <ul className="grid grid-cols-4">
+          {NAV_MAIN.map(({ href, label, icon: Icon }) => (
             <li key={href}>
               <Link
                 href={href}
                 aria-current={isActive(pathname, href) ? "page" : undefined}
+                onClick={() => setMoreOpen(false)}
                 className={clsx("flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-medium", isActive(pathname, href) ? "text-action-strong" : "text-muted")}
               >
                 <Icon className="size-5" aria-hidden />
-                {label}
+                {label === "Estilos y memoria" ? "Estilos" : label}
               </Link>
             </li>
           ))}
-          <li className="flex justify-center">
-            <Link
-              href={CREATE_AD.href}
-              aria-current={isActive(pathname, CREATE_AD.href) ? "page" : undefined}
-              className="pressable -mt-5 flex flex-col items-center gap-0.5 text-[11px] font-semibold text-action-strong"
-            >
-              <span className="grid size-14 place-items-center rounded-2xl bg-gradient-to-br from-[#3cc3be] to-[#0e7c82] text-white shadow-float ring-4 ring-surface">
-                <CREATE_AD.icon className="size-6" aria-hidden />
-              </span>
-              Crear
-            </Link>
-          </li>
-          <li>
-            <Link
-              href="/negocios"
-              aria-current={isActive(pathname, "/negocios") ? "page" : undefined}
-              className={clsx("flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-medium", isActive(pathname, "/negocios") ? "text-action-strong" : "text-muted")}
-            >
-              {(() => {
-                const I = NAV_ITEMS.find((i) => i.href === "/negocios")!.icon;
-                return <I className="size-5" aria-hidden />;
-              })()}
-              Negocios
-            </Link>
-          </li>
           <li>
             <button
               type="button"
               onClick={() => setMoreOpen((v) => !v)}
               aria-expanded={moreOpen}
               aria-controls="menu-mas"
-              className={clsx("flex min-h-14 w-full flex-col items-center justify-center gap-0.5 text-[11px] font-medium", moreOpen ? "text-action-strong" : "text-muted")}
+              className={clsx("flex min-h-14 w-full flex-col items-center justify-center gap-0.5 text-[11px] font-medium", moreOpen || inMore ? "text-action-strong" : "text-muted")}
             >
               {moreOpen ? <X className="size-5" aria-hidden /> : <Menu className="size-5" aria-hidden />}
               Más
@@ -283,30 +300,7 @@ export function AppShell({ children, email, signOut, businesses, activeId, alert
             className="animate-rise absolute inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] max-h-[75dvh] overflow-y-auto rounded-t-3xl border-t border-line bg-surface p-3 shadow-float"
             onClick={(e) => e.stopPropagation()}
           >
-            {NAV_GROUPS.map((group) => {
-              const items = group.items.filter((i) => !i.primary && i.href !== CREATE_AD.href);
-              if (!items.length) return null;
-              return (
-                <div key={group.label} className="mb-2">
-                  <p className="px-3 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-wider text-faint">{group.label}</p>
-                  <ul className="grid grid-cols-2 gap-1">
-                    {items.map(({ href, label, icon: Icon }) => (
-                      <li key={href}>
-                        <Link
-                          href={href}
-                          aria-current={isActive(pathname, href) ? "page" : undefined}
-                          onClick={() => setMoreOpen(false)}
-                          className="flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm text-muted hover:bg-surface-2 hover:text-ink aria-[current=page]:bg-action-soft aria-[current=page]:font-semibold aria-[current=page]:text-ink"
-                        >
-                          <Icon className="size-4" aria-hidden />
-                          {label}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              );
-            })}
+            {moreList(false, () => setMoreOpen(false))}
             <div className="mt-1 border-t border-line pt-2">
               <p className="flex items-center gap-2 truncate px-3 pb-1 text-xs text-faint">
                 <Settings className="size-3" aria-hidden /> {email}

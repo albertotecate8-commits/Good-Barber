@@ -29,6 +29,8 @@ export interface WorkerDeps {
   publish?: typeof publishToMeta;
   permalink?: typeof fetchPermalink;
   limit?: number;
+  /** Solo estas publicaciones (p. ej. «Publicar ahora» tras aprobar una). */
+  ids?: string[];
 }
 
 export interface WorkerResult {
@@ -45,7 +47,7 @@ export async function publishDue(deps: WorkerDeps): Promise<WorkerResult> {
   const { db } = deps;
   const out: WorkerResult = { candidates: 0, published: 0, failed: 0, skipped: 0, details: [] };
 
-  const { data: due, error } = await db
+  let query = db
     .from("mkt_content_items")
     .select("id, business_id, platform, format, caption, hashtags, asset_id, publish_attempts, publish_lock_at, planned_group_ids, approved_by")
     .eq("status", "scheduled")
@@ -55,6 +57,8 @@ export async function publishDue(deps: WorkerDeps): Promise<WorkerResult> {
     .lte("scheduled_at", now.toISOString())
     .order("scheduled_at")
     .limit(deps.limit ?? 3); // pocas por ejecución: cada 15 min hay otra
+  if (deps.ids) query = query.in("id", deps.ids);
+  const { data: due, error } = await query;
   if (error) throw new Error(`No se pudieron leer las publicaciones programadas: ${error.message}`);
   out.candidates = due?.length ?? 0;
 

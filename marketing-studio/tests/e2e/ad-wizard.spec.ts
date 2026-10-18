@@ -14,7 +14,7 @@ async function login(page: Page) {
   await page.getByLabel("Correo").fill(EMAIL);
   await page.getByLabel("Contraseña").fill("Admin12345!");
   await page.getByRole("button", { name: "Iniciar sesión" }).click();
-  await expect(page.getByRole("heading", { name: "Inicio", level: 1 })).toBeAttached();
+  await expect(page.getByRole("heading", { name: "Crear", level: 1 })).toBeAttached();
 }
 
 const tomorrow = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Mexico_City" }).format(new Date(Date.now() + 2 * 86400_000));
@@ -37,6 +37,7 @@ test("crear anuncio: pasos, vista previa, recuperación, confirmaciones y guarda
 
   await login(page);
   // Negocio activo desde la barra superior (queda en la cookie).
+  await page.goto("/resumen");
   await page.getByLabel("Negocio activo").selectOption({ label: `AA Barber ${run}` });
   await expect(page.getByRole("heading", { name: new RegExp(`Qué preparamos hoy para AA Barber ${run}`) })).toBeVisible();
 
@@ -112,8 +113,8 @@ test("crear anuncio: pasos, vista previa, recuperación, confirmaciones y guarda
   // El borrador local se limpió.
   expect(await page.evaluate(() => localStorage.getItem("mkt-anuncio-en-curso-v1"))).toBeNull();
 
-  // El inicio del negocio activo lo muestra como próxima publicación.
-  await page.goto("/");
+  // El resumen del negocio activo lo muestra como próxima publicación.
+  await page.goto("/resumen");
   await expect(page.getByText("Corte de cabello $120 en AA")).toBeVisible();
 
   // El otro negocio no tiene servicios: el asistente lo dice y permite escribir la oferta.
