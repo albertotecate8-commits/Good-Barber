@@ -1,27 +1,90 @@
 @import "tailwindcss";
 
+/*
+ * Sistema visual de Marketing AI Studio.
+ * Claro (predeterminado): fondo azul grisáceo, superficies blancas elevadas,
+ * barra lateral azul pizarra y acentos turquesa. Oscuro: se activa con la
+ * preferencia del sistema. Todos los textos cumplen contraste AA sobre su
+ * superficie; el relieve se logra con sombras suaves, no con bordes duros.
+ */
 :root {
-  --bg: #0b0b0d;
-  --surface: #141417;
-  --surface-2: #1b1b1f;
-  --surface-3: #232328;
-  --border: #2a2a30;
-  --border-strong: #3a3a42;
-  --text: #f3f1ea;
-  --muted: #a3a1a8;
-  --faint: #7d7b84;
-  --gold: #c9a227;
-  --gold-soft: rgba(201, 162, 39, 0.12);
-  --positive: #3ecf8e;
-  --positive-soft: rgba(62, 207, 142, 0.12);
-  --action: #8b7bff;
-  --action-strong: #a294ff;
-  --action-soft: rgba(139, 123, 255, 0.14);
-  --warn: #f2b84b;
-  --warn-soft: rgba(242, 184, 75, 0.12);
-  --danger: #f06a6a;
-  --danger-soft: rgba(240, 106, 106, 0.12);
-  color-scheme: dark;
+  --bg: #e6ecf2;
+  --bg-glow: #f3f6fa;
+  --surface: #ffffff;
+  --surface-2: #f2f5f9;
+  --surface-3: #e5eaf1;
+  --border: #d7dee8;
+  --border-strong: #c0cad8;
+  --text: #15202e;
+  --muted: #475467;
+  --faint: #5a6679;
+  --gold: #8a6300;
+  --gold-soft: rgba(176, 128, 10, 0.13);
+  --positive: #0f7a55;
+  --positive-soft: rgba(16, 150, 100, 0.12);
+  --action: #0e7c82;
+  --action-strong: #0a676c;
+  --action-soft: rgba(14, 124, 130, 0.12);
+  --on-action: #ffffff;
+  --warn: #8f5600;
+  --warn-soft: rgba(214, 140, 20, 0.15);
+  --danger: #b4232f;
+  --danger-soft: rgba(200, 40, 50, 0.1);
+
+  /* Barra lateral (azul pizarra en ambos modos) */
+  --nav-bg: #1e3047;
+  --nav-bg-2: #263b56;
+  --nav-text: #f1f5f9;
+  --nav-muted: #b9c6d6;
+  --nav-active: #e3f4f4;
+  --nav-active-text: #0a4f53;
+
+  /* Relieve */
+  --shadow-sm: 0 1px 2px rgba(21, 32, 46, 0.06), 0 2px 8px -2px rgba(21, 32, 46, 0.08);
+  --shadow-md: 0 1px 2px rgba(21, 32, 46, 0.05), 0 10px 24px -10px rgba(21, 32, 46, 0.22);
+  --shadow-lg: 0 2px 4px rgba(21, 32, 46, 0.05), 0 22px 44px -16px rgba(21, 32, 46, 0.3);
+  --highlight: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  --ring: 0 0 0 3px rgba(14, 124, 130, 0.28);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e1622;
+    --bg-glow: #142033;
+    --surface: #172232;
+    --surface-2: #1d2a3d;
+    --surface-3: #263549;
+    --border: #2a3a51;
+    --border-strong: #3b4e69;
+    --text: #edf2f8;
+    --muted: #aebbcc;
+    --faint: #94a3b8;
+    --gold: #e0bd55;
+    --gold-soft: rgba(224, 189, 85, 0.14);
+    --positive: #4fd1a0;
+    --positive-soft: rgba(79, 209, 160, 0.13);
+    --action: #3cc3be;
+    --action-strong: #6ad8d3;
+    --action-soft: rgba(60, 195, 190, 0.15);
+    --on-action: #052b2c;
+    --warn: #f4c063;
+    --warn-soft: rgba(244, 192, 99, 0.13);
+    --danger: #f58b8b;
+    --danger-soft: rgba(245, 139, 139, 0.13);
+    --nav-bg: #111c2b;
+    --nav-bg-2: #18263a;
+    --nav-text: #edf2f8;
+    --nav-muted: #9fb0c4;
+    --nav-active: #1f4a50;
+    --nav-active-text: #e6fbfa;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 26px -12px rgba(0, 0, 0, 0.6);
+    --shadow-lg: 0 2px 4px rgba(0, 0, 0, 0.3), 0 24px 48px -18px rgba(0, 0, 0, 0.7);
+    --highlight: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    --ring: 0 0 0 3px rgba(60, 195, 190, 0.35);
+    color-scheme: dark;
+  }
 }
 
 @theme inline {
@@ -41,10 +104,20 @@
   --color-action: var(--action);
   --color-action-strong: var(--action-strong);
   --color-action-soft: var(--action-soft);
+  --color-on-action: var(--on-action);
   --color-warn: var(--warn);
   --color-warn-soft: var(--warn-soft);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
+  --color-nav: var(--nav-bg);
+  --color-nav-2: var(--nav-bg-2);
+  --color-nav-text: var(--nav-text);
+  --color-nav-muted: var(--nav-muted);
+  --color-nav-active: var(--nav-active);
+  --color-nav-active-text: var(--nav-active-text);
+  --shadow-soft: var(--shadow-sm);
+  --shadow-raised: var(--shadow-md);
+  --shadow-float: var(--shadow-lg);
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -58,23 +131,63 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
+  background-image: radial-gradient(1200px 600px at 85% -10%, var(--bg-glow), transparent 70%);
+  background-attachment: fixed;
 }
 
 :focus-visible {
-  outline: 2px solid var(--action-strong);
+  outline: 2px solid var(--action);
   outline-offset: 2px;
+}
+
+/* Superficie elevada: relieve suave + brillo superior (estilo de la referencia, con moderación). */
+.surface-raised {
+  background: var(--surface);
+  box-shadow: var(--shadow-md), var(--highlight);
+}
+
+/* Respuesta táctil breve al pulsar (se desactiva con «reducir movimiento»). */
+.pressable {
+  transition:
+    transform 120ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+}
+.pressable:active:not(:disabled) {
+  transform: translateY(1px) scale(0.985);
+}
+
+/* Entrada suave de cada pantalla. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-rise {
+  animation: rise-in 220ms ease-out both;
 }
 
 /* Controles de formulario coherentes y con tamaño táctil >= 44px */
 .input {
   width: 100%;
   min-height: 44px;
-  border-radius: 0.75rem;
+  border-radius: 0.875rem;
   border: 1px solid var(--border);
-  background: var(--surface-2);
+  background: var(--surface);
   padding: 0.625rem 0.875rem;
   color: var(--text);
   font-size: 16px; /* evita el zoom automático de iOS */
+  box-shadow: inset 0 1px 2px rgba(21, 32, 46, 0.05);
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
 }
 .input::placeholder {
   color: var(--faint);
@@ -82,7 +195,7 @@ body {
 .input:focus {
   outline: none;
   border-color: var(--action);
-  box-shadow: 0 0 0 3px var(--action-soft);
+  box-shadow: var(--ring);
 }
 .input[aria-invalid="true"] {
   border-color: var(--danger);
@@ -98,5 +211,8 @@ textarea.input {
   *::after {
     transition: none !important;
     animation: none !important;
+  }
+  .pressable:active:not(:disabled) {
+    transform: none;
   }
 }

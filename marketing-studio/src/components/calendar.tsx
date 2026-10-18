@@ -119,7 +119,7 @@ export function MonthView({
                   aria-label={`Nueva publicación el ${formatDayLong(date)}`}
                   className={clsx(
                     "grid size-7 place-items-center rounded-full text-xs",
-                    date === today ? "bg-action font-semibold text-white" : inMonth ? "text-ink hover:bg-surface-3" : "text-faint",
+                    date === today ? "bg-action font-semibold text-on-action" : inMonth ? "text-ink hover:bg-surface-3" : "text-faint",
                   )}
                 >
                   {Number(date.slice(8))}

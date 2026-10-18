@@ -65,7 +65,7 @@ test("biblioteca y calendario: flujo completo", async ({ page, browser }, info) 
   await expect(page.getByText("La biblioteca está vacía")).toBeVisible();
 
   // Subir una imagen real
-  await page.getByLabel("Negocio").first().selectOption({ label: "Good Barber" });
+  await page.getByLabel("Negocio", { exact: true }).first().selectOption({ label: "Good Barber" });
   await page.locator("#up-file").setInputFiles({ name: "promo-corte.png", mimeType: "image/png", buffer: PNG });
   await expect(page.locator("#up-title")).toHaveValue("promo-corte");
   await page.locator("#up-tags").fill("promoción, corte");
@@ -83,7 +83,7 @@ test("biblioteca y calendario: flujo completo", async ({ page, browser }, info) 
   await page.getByRole("button", { name: "Subir archivo" }).click();
   await expect(page.getByText(/no se permite como «Imagen»/)).toBeVisible();
   // Documento PDF como «Documento» en AFORE PRO
-  await page.getByLabel("Negocio").first().selectOption({ label: "AFORE PRO" });
+  await page.getByLabel("Negocio", { exact: true }).first().selectOption({ label: "AFORE PRO" });
   await page.locator("#up-kind").selectOption("document");
   await page.locator("#up-file").setInputFiles({ name: "requisitos.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.7\n%prueba") });
   await page.getByRole("button", { name: "Subir archivo" }).click();
@@ -201,8 +201,9 @@ test("biblioteca y calendario: flujo completo", async ({ page, browser }, info) 
   await expect(page.getByRole("link", { name: /Promo corte octubre/ })).toBeVisible();
   await page.goto(`/calendario?vista=proximas&hasta=${cdmxDate(0)}`);
   await expect(page.getByText("No hay publicaciones próximas")).toBeVisible();
-  // El panel de inicio la muestra como próxima
+  // El panel de inicio muestra las próximas del negocio activo (se elige en la barra superior)
   await page.goto("/");
+  await page.getByLabel("Negocio activo").selectOption({ label: "Good Barber" });
   await expect(page.getByRole("link", { name: "Promo corte octubre" })).toBeVisible();
 
   // Duplicar y eliminar

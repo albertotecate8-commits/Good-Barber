@@ -166,7 +166,7 @@ export default async function ProjectPage({ params, searchParams }: Props) {
                       <p className="text-sm">{c.cta}</p>
                       <p className="text-xs text-muted">{c.visual_direction}</p>
                       <div className="mt-auto flex flex-wrap gap-2 pt-2">
-                        <Link href={`/estudio/${project.id}?tab=editor&desde=${v.id}`} className="rounded-xl bg-action px-3 py-2 text-sm font-medium text-white hover:bg-action-strong">
+                        <Link href={`/estudio/${project.id}?tab=editor&desde=${v.id}`} className="rounded-xl bg-action px-3 py-2 text-sm font-medium text-on-action hover:bg-action-strong">
                           Diseñar en el editor
                         </Link>
                         <Link href={`/estudio/${project.id}?tab=asistido&concepto=${v.id}`} className="rounded-xl border border-line-strong px-3 py-2 text-sm hover:bg-surface-2">
