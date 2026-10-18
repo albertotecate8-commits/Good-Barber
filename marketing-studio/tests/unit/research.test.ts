@@ -44,6 +44,19 @@ describe("OpenStreetMap", () => {
     expect(String(calls[1].init?.body)).toMatch(/shop.*hairdresser/);
     expect(calls).toHaveLength(2);
   });
+  it("si la instancia principal de Overpass falla (502, visto en producción) usa la réplica", async () => {
+    const geo = () => Response.json([{ boundingbox: ["23.9", "24.1", "-104.8", "-104.5"], display_name: "Durango" }]);
+    const { f, calls } = router({
+      "https://nominatim.openstreetmap.org/search": geo,
+      "https://overpass-api.de/api/interpreter": () => new Response("Bad Gateway", { status: 502 }),
+      "https://overpass.private.coffee/api/interpreter": () => Response.json({ elements: [{ type: "node", id: 9, tags: { name: "Barbería Réplica" } }] }),
+    });
+    const out = await osmProvider.run(q, { fetch: f, env: {}, now: NOW });
+    expect(out[1].summary).toMatch(/Barbería Réplica/);
+    expect(calls.map((c) => new URL(c.url).host)).toEqual(["nominatim.openstreetmap.org", "overpass-api.de", "overpass.private.coffee"]);
+    const down = router({ "https://nominatim.openstreetmap.org/search": geo, "https://overpass": () => new Response("x", { status: 504 }) });
+    await expect(osmProvider.run(q, { fetch: down.f, env: {}, now: NOW })).rejects.toThrow(/Overpass no respondió: overpass-api.de respondió con error HTTP 504; overpass.private.coffee respondió con error HTTP 504/);
+  });
   it("sin ciudad explica qué falta", async () => {
     await expect(osmProvider.run({ ...q, city: "" }, { fetch: fetch, env: {}, now: NOW })).rejects.toThrow(/ciudad/);
   });

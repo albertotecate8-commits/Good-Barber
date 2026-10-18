@@ -7,7 +7,9 @@ import { osmSelectors } from "../keywords";
 import { appUserAgent, clip, fetchWithTimeout } from "./http";
 
 const NOMINATIM = "https://nominatim.openstreetmap.org/search";
-const OVERPASS = "https://overpass-api.de/api/interpreter";
+// Instancia principal y una réplica pública (wiki de OSM: «Overpass API» → instancias públicas).
+// Tiempos cortos: la función del servidor en Netlify tiene un límite de 30 s en total.
+const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
 export const OSM_ATTRIBUTION = "OpenStreetMap (© colaboradores de OpenStreetMap, licencia ODbL)";
 
 interface OsmElement {
@@ -36,12 +38,22 @@ export const osmProvider: AutomaticProvider = {
     const [south, north, west, east] = geo[0].boundingbox.map(Number);
     const bbox = `${south},${west},${north},${east}`;
 
-    const query = `[out:json][timeout:20];(${sel.selectors.map((s) => `${s}(${bbox});`).join("")});out center tags 80;`;
-    const res = await fetchWithTimeout(f, OVERPASS, {
-      method: "POST",
-      headers: { ...headers, "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ data: query }).toString(),
-    }, 25000);
+    const query = `[out:json][timeout:10];(${sel.selectors.map((s) => `${s}(${bbox});`).join("")});out center tags 80;`;
+    let res: Response | null = null;
+    const failures: string[] = [];
+    for (const endpoint of OVERPASS) {
+      try {
+        res = await fetchWithTimeout(f, endpoint, {
+          method: "POST",
+          headers: { ...headers, "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({ data: query }).toString(),
+        }, 10000);
+        break;
+      } catch (e) {
+        failures.push((e as Error).name === "TimeoutError" ? `${new URL(endpoint).host} no respondió a tiempo` : (e as Error).message.replace(/\.$/, ""));
+      }
+    }
+    if (!res) throw new Error(`Overpass no respondió: ${failures.join("; ")}`);
     const data = (await res.json()) as { elements?: OsmElement[] };
     const own = norm(q.businessName);
     const places = (data.elements ?? []).filter((e) => e.tags?.name && norm(e.tags.name) !== own);
