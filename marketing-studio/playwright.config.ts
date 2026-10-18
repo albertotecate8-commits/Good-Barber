@@ -30,7 +30,15 @@ export default defineConfig({
     url: `http://localhost:${PORT}/login`,
     reuseExistingServer: true,
     // La Biblioteca usa el almacenamiento local de desarrollo en las pruebas.
-    env: { ...process.env, MKT_STORAGE_BACKEND: "local" } as Record<string, string>,
+    // Cloudflare Workers AI se sustituye por un simulador local (tests/e2e/image-generation.spec.ts): ninguna prueba llama a la API real.
+    env: {
+      ...process.env,
+      MKT_STORAGE_BACKEND: "local",
+      CLOUDFLARE_ACCOUNT_ID: "0123456789abcdef0123456789abcdef",
+      CLOUDFLARE_AI_TOKEN: "token-de-prueba-no-real-123456",
+      CLOUDFLARE_FREE_PLAN_CONFIRMED: "1",
+      CLOUDFLARE_API_BASE: "http://127.0.0.1:3199",
+    } as Record<string, string>,
     timeout: 60_000,
   },
 });

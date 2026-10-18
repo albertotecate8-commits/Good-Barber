@@ -77,7 +77,8 @@ export default async function ProjectPage({ params, searchParams }: Props) {
         : defaultDesign({
             format,
             brand,
-            concept: from?.kind === "concept" ? (from.concept as Partial<Concept>) : null,
+            // Las imágenes del chat conservan los textos de su propuesta.
+            concept: from?.kind === "concept" || from?.kind === "imported_result" ? (from.concept as Partial<Concept>) : null,
             backgroundAssetId:
               from?.kind === "imported_result" && from.asset_id && assetById.get(from.asset_id)?.mime_type.startsWith("image/")
                 ? from.asset_id

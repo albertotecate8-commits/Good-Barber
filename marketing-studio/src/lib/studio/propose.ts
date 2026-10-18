@@ -255,7 +255,7 @@ function offerChanged(offer: Proposal["offer"], src: Proposal) {
 }
 
 /** Texto de la respuesta del asistente: qué hizo y con qué datos, sin exagerar. */
-export function replyText(input: { parsed: ParsedMessage; proposals: Proposal[]; style: Style | null; memoryCount: number; businessName: string }): string {
+export function replyText(input: { parsed: ParsedMessage; proposals: Proposal[]; style: Style | null; memoryCount: number; businessName: string; canGenerate?: boolean }): string {
   const { parsed, proposals, style } = input;
   const parts: string[] = [];
   if (parsed.kind === "modify") {
@@ -268,6 +268,41 @@ export function replyText(input: { parsed: ParsedMessage; proposals: Proposal[];
   if (style) parts.push(`Usé el estilo guardado «${style.name}»${parsed.styleReason ? ` (${parsed.styleReason})` : ""}.`);
   if (parsed.styleMissing) parts.push(parsed.styleMissing);
   parts.push(input.memoryCount ? `Incluí ${input.memoryCount} dato${input.memoryCount === 1 ? "" : "s"} de la memoria de este negocio.` : "Este negocio aún no tiene memoria guardada.");
-  parts.push("Son textos y prompts, todavía no imágenes: copia el prompt en ChatGPT, genera la imagen y súbela aquí para compararla y aprobarla.");
+  parts.push(
+    input.canGenerate
+      ? "Todavía son textos y prompts, no imágenes: usa «Generar imagen» (Cloudflare, gratis) o copia el prompt en ChatGPT y pega aquí el resultado."
+      : "Son textos y prompts, todavía no imágenes: copia el prompt en ChatGPT, genera la imagen y súbela aquí para compararla y aprobarla.",
+  );
   return parts.join(" ");
+}
+
+export type ReferenceRole = "previous" | "style" | "reference";
+
+const ROLE_TEXT: Record<ReferenceRole, string> = {
+  previous: "es la versión anterior: conserva su composición, encuadre y sujeto, y aplica solo los cambios pedidos",
+  style: "es la referencia del estilo guardado: toma solo su paleta, iluminación y ambiente; no copies su contenido, personas, textos ni logotipos",
+  reference: "es una referencia que adjuntó el negocio: úsala como guía visual (lugar, producto o trabajo real), sin copiar logotipos ni textos de terceros",
+};
+
+/**
+ * Prompt para la generación directa (Cloudflare FLUX.2). Parte del prompt de la
+ * propuesta, quita lo que solo aplica a ChatGPT (adjuntar archivos) y, salvo que
+ * se pida, genera SIN texto: los textos exactos y el logotipo se ponen después
+ * con el editor para que nunca salgan deformes ni con precios inventados.
+ */
+export function generationPrompt(p: Pick<Proposal, "prompt">, roles: ReferenceRole[], includeText: boolean): string {
+  const blocks = p.prompt
+    .split("\n\n")
+    .filter((b) => !/^(Logotipo:|Referencias adjuntas)/.test(b))
+    .filter((b) => includeText || !b.startsWith("Texto EXACTO"));
+  const refs = roles.map((r, i) => `La imagen de referencia ${i} ${ROLE_TEXT[r]}.`);
+  return [
+    ...blocks,
+    ...(refs.length ? [refs.join("\n")] : []),
+    includeText
+      ? "Escribe solo el texto exacto indicado, con letras claras; no dibujes ningún logotipo."
+      : "NO incluyas texto, letras, números, precios ni logotipos en la imagen: se agregan después con el editor. Deja libre el espacio donde irá el titular según la composición.",
+  ]
+    .join("\n\n")
+    .slice(0, 3900);
 }

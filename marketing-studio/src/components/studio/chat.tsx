@@ -32,8 +32,10 @@ import {
   type StudioMessage,
   type StudioPublication,
   type StudioVersion,
+  type GenerationState,
   type StyleChip,
 } from "./types";
+import type { PlannedReference } from "./refs";
 
 const SUGGESTIONS = [
   "Haz tres anuncios diferentes",
@@ -66,6 +68,8 @@ export function StudioChat(props: {
   readiness: Readiness;
   initialStyleId: string | null;
   initialText: string;
+  generation: GenerationState;
+  projectId: string | null;
 }) {
   const { business, thread, messages, versions, publications, styles } = props;
   const router = useRouter();
@@ -98,20 +102,56 @@ export function StudioChat(props: {
       for (const p of m.payload?.proposals ?? []) map.set(p.versionId, p);
     return map;
   }, [messages]);
+  // Imágenes reales (importadas, generadas o editadas con texto exacto).
   const images = useMemo(
-    () => versions.filter((v) => v.kind === "imported_result" && v.asset_id),
+    () => versions.filter((v) => (v.kind === "imported_result" || v.kind === "code_edit") && v.asset_id),
     [versions],
   );
-  const imagesOf = (conceptId: string) =>
-    images.filter((v) => v.parent_version_id === conceptId);
-  const proposalOf = (versionId: string) =>
-    proposals.get(versionId) ??
-    (() => {
-      const v = versions.find((x) => x.id === versionId);
-      return v?.parent_version_id
-        ? (proposals.get(v.parent_version_id) ?? null)
-        : null;
-    })();
+  /** Propuesta de la que sale una versión (sube por la cadena de versiones). */
+  const conceptOf = (versionId: string): string | null => {
+    let id: string | null = versionId;
+    for (let i = 0; id && i < 12; i++) {
+      if (proposals.has(id)) return id;
+      id = versions.find((x) => x.id === id)?.parent_version_id ?? null;
+    }
+    return null;
+  };
+  const imagesOf = (conceptId: string) => images.filter((v) => conceptOf(v.id) === conceptId);
+  const proposalOf = (versionId: string) => {
+    const c = conceptOf(versionId);
+    return c ? (proposals.get(c) ?? null) : null;
+  };
+  // Referencias que adjuntó la persona en esta conversación (las más recientes primero).
+  const userRefs = useMemo(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const m of [...messages].reverse()) if (m.role === "user") for (const a of m.asset_ids)
+          if (!seen.has(a)) {
+            seen.add(a);
+            out.push(a);
+          }
+    return out;
+  }, [messages]);
+  /** Qué referencias recibe cada propuesta: versión anterior, estilo guardado y adjuntos. */
+  const plannedRefsFor = (p: Proposal): PlannedReference[] => {
+    const out: PlannedReference[] = [];
+    if (p.parentKey) {
+      const parent = [...proposals.values()].find((x) => x.key === p.parentKey);
+      const prev = parent ? imagesOf(parent.versionId).at(-1) : undefined;
+      if (prev?.asset_id) out.push({ role: "previous", assetId: prev.asset_id, label: `versión anterior v${prev.version_no}` });
+    }
+    const st = styles.find((x) => x.id === p.styleId);
+    if (st?.referenceAssetIds[0]) out.push({ role: "style", assetId: st.referenceAssetIds[0], label: `estilo «${st.name}»` });
+    for (const a of userRefs) if (out.length < 4 && !out.some((r) => r.assetId === a)) out.push({ role: "reference", assetId: a, label: "referencia adjunta" });
+    return out.slice(0, 4);
+  };
+  const attachFilesFor = (p: Proposal) => [
+    ...(props.logo ? [{ assetId: props.logo.id, label: "Logotipo" }] : []),
+    ...plannedRefsFor(p).map((r) => ({
+      assetId: r.assetId,
+      label: r.role === "previous" ? "Imagen anterior" : r.role === "style" ? "Referencia del estilo" : "Referencia",
+    })),
+  ];
   const selected = selectedId
     ? (versions.find((v) => v.id === selectedId) ?? null)
     : null;
@@ -616,6 +656,11 @@ export function StudioChat(props: {
                               index={i}
                               color={business.color}
                               threadId={thread.id}
+                              projectId={props.projectId}
+                              canGenerate={props.generation.available}
+                              generationNote={props.generation.note}
+                              plannedRefs={plannedRefsFor(p)}
+                              attachFiles={attachFilesFor(p)}
                               businessId={business.id}
                               businessName={business.name}
                               images={imagesOf(p.versionId)}

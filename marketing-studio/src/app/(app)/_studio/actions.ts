@@ -11,7 +11,10 @@ import { loadBusinessContext } from "@/lib/director/server";
 import { todayInTz, zonedToUtc } from "@/lib/tz";
 import { listMemory, listStyles } from "@/lib/data/studio";
 import { parseMessage } from "@/lib/studio/intent";
-import { CHAT_FORMATS, propose, replyText, type Proposal } from "@/lib/studio/propose";
+import { CHAT_FORMATS, generationPrompt, propose, replyText, type Proposal, type ReferenceRole } from "@/lib/studio/propose";
+import { CF_DAILY_NEURON_CAP, CF_IMAGE_MODEL, CF_IMAGE_PROVIDER, MAX_REFERENCE_IMAGES, MAX_REFERENCE_SIDE, cloudflareImageUnavailableReason, estimateNeurons, generateWithCloudflare, outputSize } from "@/lib/studio/cloudflare-image";
+import { imageSize } from "@/lib/creative/image-size";
+import { storeGeneratedAsset } from "@/lib/storage/server-store";
 import { MEMORY_LABELS, isMemoryKind, styleAttributesSchema } from "@/lib/studio/styles";
 import { MANUAL_CHECKS, claimChecks, dimensionCheck, priceCheck, qaStatus, type QaCheck } from "@/lib/creative/qa";
 import { composePostText } from "@/lib/validation/content";
@@ -123,6 +126,7 @@ export async function sendStudioMessage(input: z.input<typeof sendSchema>): Prom
     offerNames: [...ctx.offerings.map((o) => o.name), ...ctx.promotions.map((p) => p.title)],
     hasProposals: previous.length > 0,
     now: new Date(),
+    hasAttachments: assetIds.length > 0,
   });
 
   const say = async (content: string, payload: Record<string, unknown> = {}) => {
@@ -186,7 +190,7 @@ export async function sendStudioMessage(input: z.input<typeof sendSchema>): Prom
         });
         saved.push({ ...p, versionId });
       }
-      await say(replyText({ parsed, proposals, style, memoryCount: memory.filter((m) => m.active).length, businessName: ctx.business.name }), { proposals: saved });
+      await say(replyText({ parsed, proposals, style, memoryCount: memory.filter((m) => m.active).length, businessName: ctx.business.name, canGenerate: cloudflareImageUnavailableReason(process.env) === null }), { proposals: saved });
     }
   } catch (e) {
     return fail((e as Error).message);
@@ -270,6 +274,141 @@ export async function importGeneratedImage(input: { threadId: string; conceptVer
   } catch (e) {
     return fail((e as Error).message);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Generación directa (Cloudflare Workers AI, nivel gratuito)
+// ---------------------------------------------------------------------------
+const ROLES: ReferenceRole[] = ["previous", "style", "reference"];
+
+/**
+ * Genera una imagen real para una propuesta. Las referencias llegan ya reducidas
+ * (< 512 px) desde el navegador. Cada imagen queda como versión con su prompt,
+ * referencias, estilo, modelo y consumo. Nunca reintenta sola.
+ */
+export async function generateImage(form: FormData): Promise<Result<{ versionId: string }>> {
+  const user = await requireUser();
+  const threadId = String(form.get("threadId") ?? "");
+  const conceptVersionId = String(form.get("conceptVersionId") ?? "");
+  const includeText = form.get("includeText") === "1";
+  if (!UUID.test(threadId) || !UUID.test(conceptVersionId)) return fail("Datos inválidos.");
+  const reason = cloudflareImageUnavailableReason(process.env);
+  if (reason) return fail(`La generación directa no está configurada: ${reason}`);
+  const supabase = await createClient();
+  const thread = await threadOf(supabase, threadId);
+  if (!thread?.project_id) return fail("La conversación no existe o no tienes acceso.");
+  const { data: canWrite } = await supabase.rpc("mkt_can_write", { p_business: thread.business_id });
+  if (!canWrite) return fail("No puedes crear contenido para este negocio.");
+  const { data: concept } = await supabase.from("mkt_creative_versions").select("id,project_id,style_id,concept,format_key").eq("id", conceptVersionId).maybeSingle();
+  if (!concept || concept.project_id !== thread.project_id) return fail("La propuesta no pertenece a esta conversación.");
+  const proposal = (concept.concept as { proposal?: Proposal }).proposal;
+  if (!proposal) return fail("La propuesta no tiene prompt.");
+
+  // Referencias: archivo + su función + el recurso de la Biblioteca de donde salió.
+  let meta: { role: ReferenceRole; assetId: string }[] = [];
+  try {
+    meta = JSON.parse(String(form.get("refs") ?? "[]"));
+  } catch {
+    return fail("Referencias inválidas.");
+  }
+  if (!Array.isArray(meta) || meta.length > MAX_REFERENCE_IMAGES) return fail(`Máximo ${MAX_REFERENCE_IMAGES} referencias.`);
+  const references: { bytes: Uint8Array; type: string; width: number; height: number }[] = [];
+  for (let i = 0; i < meta.length; i++) {
+    const m = meta[i];
+    if (!ROLES.includes(m?.role) || !UUID.test(m?.assetId ?? "")) return fail("Referencia inválida.");
+    const f = form.get(`ref_${i}`);
+    if (!(f instanceof Blob) || !["image/jpeg", "image/png", "image/webp"].includes(f.type) || f.size > 400_000) return fail("Cada referencia debe ser JPG/PNG/WebP menor a 400 KB.");
+    const bytes = new Uint8Array(await f.arrayBuffer());
+    const dims = imageSize(bytes);
+    if (!dims || dims.width > MAX_REFERENCE_SIDE || dims.height > MAX_REFERENCE_SIDE) return fail("Las referencias deben medir menos de 512×512 px.");
+    references.push({ bytes, type: f.type, ...dims });
+  }
+  if (meta.length) {
+    const { data: owned } = await supabase.from("mkt_assets").select("id").eq("business_id", thread.business_id).in("id", meta.map((m) => m.assetId));
+    if ((owned ?? []).length !== new Set(meta.map((m) => m.assetId)).size) return fail("Las referencias deben ser archivos de este negocio.");
+  }
+
+  const size = outputSize(proposal.format);
+  const neurons = estimateNeurons(size.width, size.height, references);
+  const { data: usedToday } = await supabase.rpc("mkt_ai_units_today", { p_provider: CF_IMAGE_PROVIDER });
+  if ((usedToday ?? 0) + neurons > CF_DAILY_NEURON_CAP)
+    return fail(`Se alcanzó el tope gratuito de hoy (${usedToday ?? 0} de ${CF_DAILY_NEURON_CAP} neuronas). Se renueva a las 00:00 UTC; mientras, usa ChatGPT.`);
+
+  const prompt = generationPrompt(proposal, meta.map((m) => m.role), includeText);
+  const result = await generateWithCloudflare({ prompt, ...size, references }, { fetch, env: process.env });
+  await supabase.from("mkt_ai_usage").insert({
+    business_id: thread.business_id,
+    user_id: user.id,
+    provider: CF_IMAGE_PROVIDER,
+    purpose: "imagen del chat creativo",
+    outcome: result.ok ? "ok" : "error",
+    units: result.ok ? neurons : 0,
+  });
+  if (!result.ok) return fail(result.message);
+
+  const stored = await storeGeneratedAsset(supabase, {
+    businessId: thread.business_id,
+    data: Buffer.from(result.bytes),
+    mime: result.mime,
+    fileName: `flux2-${proposal.title}.${result.mime === "image/png" ? "png" : result.mime === "image/webp" ? "webp" : "jpg"}`,
+    kind: "image",
+    origin: "ai_generated",
+    title: `${proposal.title} · generada con FLUX.2`,
+    description: `Generada con ${CF_IMAGE_MODEL} (Cloudflare Workers AI). Propuesta «${proposal.title}».`,
+    tags: ["chat", "generada", "flux2"],
+  });
+  if (!stored.ok) return fail(stored.message);
+  const { data: asset } = await supabase.from("mkt_assets").select("width,height").eq("id", stored.id).maybeSingle();
+  const parentImage = meta.find((m) => m.role === "previous");
+  const checks: QaCheck[] = [
+    dimensionCheck({ width: asset?.width ?? null, height: asset?.height ?? null }, { width: size.width, height: size.height, label: CHAT_FORMATS[proposal.format].label }),
+    {
+      id: "ai_text",
+      label: "Texto y logotipo",
+      level: "warning",
+      detail: includeText
+        ? "Se pidió el texto dentro de la imagen: compáralo letra por letra; si algo sale mal, ponlo con el editor."
+        : "La imagen se generó sin texto ni logotipo. Agrégalos con el editor para que salgan exactos.",
+      source: "server",
+    },
+  ];
+  try {
+    const versionId = await nextVersion(supabase, {
+      business_id: thread.business_id,
+      project_id: thread.project_id,
+      kind: "imported_result",
+      title: `Generada con FLUX.2 · ${proposal.title}`.slice(0, 200),
+      concept: {
+        ...(concept.concept as object),
+        generation: { provider: CF_IMAGE_PROVIDER, model: CF_IMAGE_MODEL, prompt, references: meta, include_text: includeText, neurons, generated_at: new Date().toISOString() },
+      },
+      asset_id: stored.id,
+      parent_version_id: parentImage ? await versionOfAsset(supabase, thread.project_id, parentImage.assetId) ?? concept.id : concept.id,
+      style_id: concept.style_id,
+      tool: CF_IMAGE_PROVIDER,
+      format_key: concept.format_key,
+      qa: checks,
+      qa_status: qaStatus(checks),
+    });
+    await supabase.from("mkt_creative_messages").insert({
+      business_id: thread.business_id,
+      thread_id: thread.id,
+      role: "assistant",
+      content: `Imagen generada de verdad con FLUX.2 [klein] (Cloudflare Workers AI) para «${proposal.title}»${meta.length ? `, con ${meta.length} referencia(s)` : ""}. Quedó guardada con su prompt, referencias, estilo y versión.${includeText ? "" : " No lleva texto: agrégalo con el editor."}`,
+      payload: { imported: { versionId, parentVersionId: concept.id }, generated: { model: CF_IMAGE_MODEL, neurons } },
+      asset_ids: [stored.id],
+      version_id: versionId,
+    });
+    revalidatePath("/");
+    return { ok: true, versionId };
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
+
+async function versionOfAsset(supabase: SupabaseClient, projectId: string, assetId: string) {
+  const { data } = await supabase.from("mkt_creative_versions").select("id").eq("project_id", projectId).eq("asset_id", assetId).order("version_no", { ascending: false }).limit(1);
+  return data?.[0]?.id ?? null;
 }
 
 // ---------------------------------------------------------------------------
@@ -414,11 +553,13 @@ export async function approveAndPublish(input: z.input<typeof approveSchema>): P
       outcomes.push({ platform, contentId, state: "error", message: e instanceof MetaError ? e.message : "No se pudo aprobar.", url: null });
       continue;
     }
-    if (!pub.enabled) {
-      outcomes.push({ platform, contentId, state: "approved_waiting", message: `Aprobada para ${readiness.accountName ?? "la cuenta conectada"}, pero la publicación automática está APAGADA en el servidor: no saldrá hasta activarla.`, url: null });
-    } else if (v.mode === "now") {
+    // «Publicar ahora» es una acción manual que el dueño aprueba pieza por pieza: no depende del
+    // interruptor de la publicación automática (MKT_PUBLISHING_ENABLED), que solo gobierna el cron.
+    if (v.mode === "now") {
       toPublishNow.push(contentId!);
       outcomes.push({ platform, contentId, state: "approved_waiting", message: "Publicando…", url: null });
+    } else if (!pub.enabled) {
+      outcomes.push({ platform, contentId, state: "approved_waiting", message: `Programada y aprobada para ${readiness.accountName ?? "la cuenta conectada"}, pero la publicación automática (cron) está APAGADA en el servidor: no saldrá sola a esa hora hasta activarla.`, url: null });
     } else {
       outcomes.push({ platform, contentId, state: "approved_waiting", message: `Programada y aprobada para ${readiness.accountName ?? "la cuenta conectada"}. Aún NO está publicada.`, url: null });
     }
@@ -438,7 +579,12 @@ export async function approveAndPublish(input: z.input<typeof approveSchema>): P
       if (!r || !toPublishNow.includes(r.id)) continue;
       if (r.external_post_id) Object.assign(o, { state: "published", message: "Publicado y confirmado por Meta.", url: r.external_post_url });
       else if (r.last_error) Object.assign(o, { state: "error", message: `Meta no confirmó la publicación: ${r.last_error}` });
-      else Object.assign(o, { message: "Aprobada; Meta aún no confirma. Se reintenta en la siguiente ejecución (máx. 15 min). Aún NO está publicada." });
+      else
+        Object.assign(o, {
+          message: pub.enabled
+            ? "Aprobada; Meta aún no confirma. Se reintenta en la siguiente ejecución (máx. 15 min). Aún NO está publicada."
+            : "Aprobada; Meta aún no confirma. Aún NO está publicada: vuelve a usar «Publicar ahora» (no se duplica).",
+        });
     }
   }
   revalidatePath("/");

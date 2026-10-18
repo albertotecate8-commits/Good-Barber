@@ -14,6 +14,13 @@ export interface StyleChip {
   name: string;
   palette: string[];
   createdAt: string;
+  referenceAssetIds: string[];
+}
+
+export interface GenerationState {
+  available: boolean;
+  /** Motivo si no está disponible, o cuota restante si lo está. */
+  note: string;
 }
 
 export interface DestinationState {

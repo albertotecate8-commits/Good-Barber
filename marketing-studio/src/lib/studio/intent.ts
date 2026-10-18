@@ -53,9 +53,9 @@ export interface StyleRef {
 }
 
 /** «Usa el estilo Barbería noir» o «el estilo que guardamos la semana pasada». */
-export function findStyle(text: string, styles: StyleRef[], now: Date): { id: string | null; reason: string | null; missing: string | null } {
+export function findStyle(text: string, styles: StyleRef[], now: Date, hasAttachments = false): { id: string | null; reason: string | null; missing: string | null } {
   const t = norm(text);
-  if (!/estilo/.test(t)) return { id: null, reason: null, missing: null };
+  if (!/estilo|referencia/.test(t)) return { id: null, reason: null, missing: null };
   const byName = [...styles].sort((a, b) => b.name.length - a.name.length).find((s) => t.includes(norm(s.name)));
   if (byName) return { id: byName.id, reason: `por nombre («${byName.name}»)`, missing: null };
   const recent = [...styles].sort((a, b) => b.created_at.localeCompare(a.created_at));
@@ -65,18 +65,24 @@ export function findStyle(text: string, styles: StyleRef[], now: Date): { id: st
     if (hit) return { id: hit.id, reason: `guardado la semana pasada («${hit.name}», ${hit.created_at.slice(0, 10)})`, missing: null };
     return { id: null, reason: null, missing: "No hay un estilo guardado la semana pasada." };
   }
+  // «Usa esta referencia»: si adjuntó imágenes en este mensaje, son ellas (no cambia el estilo);
+  // si no, es la última referencia analizada y guardada como estilo (p. ej. desde Investigar).
+  if (/(esta|la ultima|esa|la) referencia|este estilo|ese estilo/.test(t) && !hasAttachments) {
+    if (recent[0]) return { id: recent[0].id, reason: `la última referencia guardada («${recent[0].name}», ${recent[0].created_at.slice(0, 10)})`, missing: null };
+    return { id: null, reason: null, missing: "No hay referencias guardadas en este negocio: adjunta la imagen o analízala en Investigar." };
+  }
   if (/(ultimo|reciente|que guardamos|que guarde|guardado)/.test(t)) {
     if (recent[0]) return { id: recent[0].id, reason: `el más reciente («${recent[0].name}», ${recent[0].created_at.slice(0, 10)})`, missing: null };
     return { id: null, reason: null, missing: "Este negocio aún no tiene estilos guardados." };
   }
   const named = t.match(/estilo ([a-z0-9ñ ]{2,40})/)?.[1]?.trim();
-  if (named && !/^(de|del|que|mas|menos|diferente|nuevo)\b/.test(named)) return { id: null, reason: null, missing: `No encontré un estilo llamado «${named}» en este negocio.` };
+  if (named && !/^(de|del|que|mas|menos|diferente|nuevo|a|al|para|con|y)\b/.test(named)) return { id: null, reason: null, missing: `No encontré un estilo llamado «${named}» en este negocio.` };
   return { id: null, reason: null, missing: null };
 }
 
 export function parseMessage(
   raw: string,
-  ctx: { styles: StyleRef[]; offerNames: string[]; hasProposals: boolean; now: Date },
+  ctx: { styles: StyleRef[]; offerNames: string[]; hasProposals: boolean; now: Date; hasAttachments?: boolean },
 ): ParsedMessage {
   const text = raw.trim();
   const t = norm(text);
@@ -98,7 +104,7 @@ export function parseMessage(
           ? "post"
           : null;
   const modifiers = (Object.keys(MODIFIERS) as ModifierKey[]).filter((k) => MODIFIERS[k].re.test(t));
-  const style = findStyle(text, ctx.styles, ctx.now);
+  const style = findStyle(text, ctx.styles, ctx.now, ctx.hasAttachments);
   const numMatch = t.match(/\b(\d|un|una|uno|dos|tres|cuatro)\s+(anuncios?|propuestas?|opciones|versiones|disenos?|ideas?|imagenes?|historias?|publicaciones?|variantes?)/);
   const count = numMatch ? Math.min(4, Math.max(1, Number(numMatch[1]) || NUMBERS[numMatch[1]] || 3)) : null;
   const ord = t.match(/\b(primera|primer|primero|segunda|segundo|tercera|tercero|cuarta|cuarto)\b/)?.[1];

@@ -10,6 +10,8 @@ import { ActionForm, FieldError } from "@/components/action-form";
 import { ButtonLink, Card, CardTitle, EmptyState, Field, PageHeader } from "@/components/ui";
 import { ReferenceAnalyzer } from "@/components/studio/reference-analyzer";
 import { FindingActions } from "@/components/studio/finding-actions";
+import { ProviderRuns } from "@/components/director/provider-runs";
+import type { ProviderRun } from "@/lib/research/types";
 import { createReport } from "../investigacion/actions";
 
 export const metadata = { title: "Investigar" };
@@ -39,7 +41,7 @@ export default async function InvestigatePage({ searchParams }: { searchParams: 
       .eq("business_id", active.id)
       .order("consulted_at", { ascending: false })
       .limit(40),
-    supabase.from("mkt_research_reports").select("id,title,created_at").eq("business_id", active.id).order("created_at", { ascending: false }).limit(5),
+    supabase.from("mkt_research_reports").select("id,title,created_at,provider_runs").eq("business_id", active.id).order("created_at", { ascending: false }).limit(5),
     supabase.from("mkt_memory").select("source_ref").eq("business_id", active.id).eq("kind", "research_insight"),
   ]);
   const savedIds = new Set((saved ?? []).map((m) => m.source_ref));
@@ -88,6 +90,15 @@ export default async function InvestigatePage({ searchParams }: { searchParams: 
               <input type="checkbox" name="automatic" defaultChecked className="size-4 accent-[var(--action)]" /> Consultar fuentes automáticas gratuitas
             </label>
           </ActionForm>
+          {reports?.[0] && (reports[0].provider_runs as ProviderRun[]).length > 0 && (
+            <div className="mt-4 rounded-2xl border border-line p-3">
+              <p className="text-sm font-semibold">Fuentes en la última investigación</p>
+              <p className="mb-1 text-xs text-muted">
+                Resultado real de cada consulta del {new Date(reports[0].created_at).toLocaleString("es-MX", { timeZone: "America/Mexico_City", dateStyle: "medium", timeStyle: "short" })}. «Sin configurar» o «Error» significa que esa fuente no aportó datos.
+              </p>
+              <ProviderRuns runs={reports[0].provider_runs as ProviderRun[]} />
+            </div>
+          )}
           <details className="mt-4 text-sm">
             <summary className="cursor-pointer font-medium">Anuncios de la competencia y fuentes para revisar a mano</summary>
             <p className="mt-2 text-xs text-muted">Se abren en tu navegador (sin extraer datos de esas páginas). Registra lo que veas con su enlace en el informe.</p>

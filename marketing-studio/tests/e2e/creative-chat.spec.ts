@@ -80,6 +80,7 @@ test("chat creativo: memoria, estilo reutilizado, ajustes, ChatGPT asistido, apr
   await page.getByRole("button", { name: "Guardar en memoria" }).click();
   await expect(page.getByText("Nunca usar color rosa")).toBeVisible();
 
+  await page.waitForLoadState("networkidle"); // el selector de archivo debe estar hidratado
   await page.locator("#estilos input[type=file]").setInputFiles(path.join(media, "referencia.png"));
   await expect(page.getByText("Medido por la app")).toBeVisible();
   await expect(page.getByText(/#101010 \d+%/)).toBeVisible();
@@ -119,7 +120,7 @@ test("chat creativo: memoria, estilo reutilizado, ajustes, ChatGPT asistido, apr
   await say(page, "Usa el estilo que guardamos la semana pasada");
   await expect(page.getByText(/Usé el estilo guardado «Barbería noir» \(guardado la semana pasada/)).toBeVisible();
   const styled = cards.last();
-  await expect(styled.getByText(/estilo «Barbería noir»/)).toBeVisible();
+  await expect(styled.getByText(/estilo «Barbería noir»/).first()).toBeVisible();
   await styled.getByRole("button", { name: "Ver prompt" }).click();
   const promptStyled = await styled.getByRole("textbox", { name: /Prompt de la propuesta/ }).inputValue();
   expect(promptStyled).toContain("Estilo guardado «Barbería noir»");

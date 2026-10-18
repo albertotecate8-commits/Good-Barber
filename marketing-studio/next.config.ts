@@ -23,6 +23,10 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/estudio/**": ["./node_modules/dictionary-es/index.aff", "./node_modules/dictionary-es/index.dic"],
   },
+  // La generación de imágenes envía hasta 4 referencias reducidas (< 512 px cada una).
+  experimental: {
+    serverActions: { bodySizeLimit: "2mb" },
+  },
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },

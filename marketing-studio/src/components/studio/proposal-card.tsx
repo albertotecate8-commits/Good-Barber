@@ -1,13 +1,15 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type ClipboardEvent, type DragEvent } from "react";
+import Link from "next/link";
 import clsx from "clsx";
-import { AlertTriangle, Check, ClipboardCopy, ExternalLink, ImageUp, Loader2, ScrollText } from "lucide-react";
+import { AlertTriangle, Check, ClipboardCopy, Download, ExternalLink, ImageUp, Loader2, PenLine, ScrollText, Share2, Wand2 } from "lucide-react";
 import type { Proposal } from "@/lib/studio/propose";
 import { CHAT_FORMATS } from "@/lib/studio/propose";
 import { MODIFIERS } from "@/lib/studio/intent";
 import { uploadToLibrary } from "@/lib/storage/client-upload";
-import { importGeneratedImage } from "@/app/(app)/_studio/actions";
+import { generateImage, importGeneratedImage } from "@/app/(app)/_studio/actions";
+import { buildReferenceForm, libraryFile, type PlannedReference } from "./refs";
 import { assetSrc, type StudioVersion } from "./types";
 
 /** Boceto de la composición: NO es la imagen final, solo muestra la jerarquía del texto. */
@@ -34,15 +36,29 @@ export function Sketch({ p, color, className }: { p: Proposal; color: string; cl
   );
 }
 
+/** Cómo se obtuvo cada imagen: siempre visible para no confundir un prompt con una imagen real. */
+export function originLabel(tool: string | null | undefined, kind: string) {
+  if (kind === "code_edit") return "Editada con texto exacto";
+  if (tool === "cloudflare-flux2") return "Generada · FLUX.2";
+  if (tool === "chatgpt") return "Importada · ChatGPT";
+  if (tool === "gemini") return "Importada · Gemini";
+  return "Importada";
+}
+
 export function ProposalCard({
   p,
   index,
   color,
   threadId,
+  projectId,
   businessId,
   businessName,
   images,
   selectedId,
+  canGenerate,
+  generationNote,
+  plannedRefs,
+  attachFiles,
   onSelect,
   onNotice,
   onImported,
@@ -51,10 +67,17 @@ export function ProposalCard({
   index: number;
   color: string;
   threadId: string;
+  projectId: string | null;
   businessId: string;
   businessName: string;
   images: StudioVersion[];
   selectedId: string | null;
+  canGenerate: boolean;
+  generationNote: string;
+  /** Referencias que se enviarán a la generación directa, con su función. */
+  plannedRefs: PlannedReference[];
+  /** Archivos para adjuntar en ChatGPT (logotipo y referencias). */
+  attachFiles: { assetId: string; label: string }[];
   onSelect: (versionId: string) => void;
   onNotice: (text: string, tone?: "ok" | "error") => void;
   onImported: (versionId: string) => void;
@@ -62,14 +85,22 @@ export function ProposalCard({
   const [copied, setCopied] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [withText, setWithText] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const file = useRef<HTMLInputElement>(null);
+  const canShareFiles = typeof navigator !== "undefined" && typeof navigator.canShare === "function";
 
   const copy = () => {
     // Se copia dentro del clic (los navegadores lo exigen); el enlace abre ChatGPT en otra pestaña.
     navigator.clipboard?.writeText(p.prompt).then(
       () => {
         setCopied(true);
-        onNotice("Prompt copiado. Pégalo en ChatGPT (y adjunta el logotipo y las referencias si las tienes). Cuando tengas la imagen, súbela con «Subir imagen generada».");
+        onNotice(
+          attachFiles.length
+            ? `Prompt copiado. En ChatGPT pégalo y adjunta: ${attachFiles.map((f) => f.label).join(", ")} (descárgalos abajo). Después pega o sube aquí la imagen.`
+            : "Prompt copiado. Pégalo en ChatGPT y, cuando tengas la imagen, pégala (Ctrl+V) o súbela aquí.",
+        );
       },
       () => {
         setShowPrompt(true);
@@ -78,14 +109,31 @@ export function ProposalCard({
     );
   };
 
+  // En el teléfono: un solo paso abre la hoja de compartir con el prompt y los archivos (elige ChatGPT).
+  const share = async () => {
+    try {
+      const files = await Promise.all(attachFiles.map((f, i) => libraryFile(f.assetId, `${i + 1}-${f.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`)));
+      const data: ShareData = { text: p.prompt, files };
+      if (!navigator.canShare(data)) throw new Error("Tu navegador no permite compartir estos archivos.");
+      await navigator.share(data);
+      onNotice("Compartido. Al tener la imagen en ChatGPT, guárdala y súbela aquí con «Subir imagen generada».");
+    } catch (e) {
+      if ((e as Error).name !== "AbortError") onNotice((e as Error).message, "error");
+    }
+  };
+
   const upload = async (f: File) => {
+    if (!/^image\/(jpeg|png|webp)$/.test(f.type)) {
+      onNotice("Usa una imagen JPG, PNG o WebP.", "error");
+      return;
+    }
     setUploading(true);
     const r = await uploadToLibrary(f, {
       business_id: businessId,
       kind: "image",
       origin: "ai_generated",
       title: `${p.title} · ${businessName}`.slice(0, 160),
-      description: `Generada a partir del prompt de la propuesta «${p.title}» (${p.angle}).`.slice(0, 2000),
+      description: `Generada en ChatGPT a partir del prompt de la propuesta «${p.title}» (${p.angle}).`.slice(0, 2000),
       tags: "chat, chatgpt",
       license_note: "",
       asset_date: "",
@@ -105,8 +153,49 @@ export function ProposalCard({
     }
   };
 
+  const generate = async () => {
+    setGenerating(true);
+    try {
+      const form = await buildReferenceForm(plannedRefs, { threadId, conceptVersionId: p.versionId, includeText: withText ? "1" : "0" });
+      const r = await generateImage(form);
+      if (!r.ok) onNotice(r.message, "error");
+      else {
+        onNotice("Imagen generada y guardada como nueva versión.");
+        onImported(r.versionId);
+      }
+    } catch (e) {
+      onNotice((e as Error).message, "error");
+    }
+    setGenerating(false);
+  };
+
+  const onPaste = (e: ClipboardEvent) => {
+    const item = Array.from(e.clipboardData.files).find((f) => f.type.startsWith("image/"));
+    if (item) {
+      e.preventDefault();
+      void upload(item);
+    }
+  };
+  const onDrop = (e: DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    const f = Array.from(e.dataTransfer.files).find((x) => x.type.startsWith("image/"));
+    if (f) void upload(f);
+  };
+
+  const busy = uploading || generating;
   return (
-    <article className="@container surface-raised flex flex-col gap-3 rounded-2xl border border-line/70 p-3" aria-label={`Propuesta ${index + 1}: ${p.title}`}>
+    <article
+      className={clsx("@container surface-raised flex flex-col gap-3 rounded-2xl border p-3", dragging ? "border-action ring-2 ring-action" : "border-line/70")}
+      aria-label={`Propuesta ${index + 1}: ${p.title}`}
+      onPaste={onPaste}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDragging(true);
+      }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={onDrop}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-action-strong">
@@ -118,25 +207,34 @@ export function ProposalCard({
             {p.styleName ? ` · estilo «${p.styleName}»` : ""}
           </p>
         </div>
+        <span className={clsx("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold", images.length ? "bg-positive-soft text-positive" : "bg-surface-3 text-muted")}>
+          {images.length ? `${images.length} imagen(es)` : "Solo prompt"}
+        </span>
       </div>
 
       {images.length > 0 ? (
         <div className={clsx("grid gap-2", images.length > 1 && "grid-cols-2")}>
           {images.map((v) => (
-            <button
-              key={v.id}
-              type="button"
-              onClick={() => onSelect(v.id)}
-              aria-pressed={selectedId === v.id}
-              className={clsx("pressable relative overflow-hidden rounded-xl ring-2", selectedId === v.id ? "ring-action" : "ring-transparent")}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element -- archivo privado servido por ruta autenticada */}
-              <img src={assetSrc(v.asset_id!)} alt={`Imagen importada v${v.version_no} de «${p.title}»`} className="w-full object-cover" style={{ aspectRatio: CHAT_FORMATS[p.format].ratio }} />
-              <span className="absolute bottom-1 left-1 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                v{v.version_no}
-                {v.is_final ? " · aprobada" : ""}
-              </span>
-            </button>
+            <div key={v.id} className="flex flex-col gap-1">
+              <button
+                type="button"
+                onClick={() => onSelect(v.id)}
+                aria-pressed={selectedId === v.id}
+                className={clsx("pressable relative overflow-hidden rounded-xl ring-2", selectedId === v.id ? "ring-action" : "ring-transparent")}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element -- archivo privado servido por ruta autenticada */}
+                <img src={assetSrc(v.asset_id!)} alt={`Imagen v${v.version_no} de «${p.title}» (${originLabel(v.tool, v.kind)})`} className="w-full object-cover" style={{ aspectRatio: CHAT_FORMATS[p.format].ratio }} />
+                <span className="absolute bottom-1 left-1 rounded-md bg-black/65 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                  v{v.version_no} · {originLabel(v.tool, v.kind)}
+                  {v.is_final ? " · aprobada" : ""}
+                </span>
+              </button>
+              {projectId && v.kind !== "code_edit" && (
+                <Link href={`/estudio/${projectId}?tab=editor&desde=${v.id}`} className="inline-flex items-center gap-1 text-[11px] font-medium text-action-strong underline">
+                  <PenLine className="size-3" aria-hidden /> Poner texto y logotipo exactos
+                </Link>
+              )}
+            </div>
           ))}
         </div>
       ) : (
@@ -161,13 +259,40 @@ export function ProposalCard({
         </p>
       ))}
 
+      {canGenerate ? (
+        <div className="flex flex-col gap-1.5 rounded-xl bg-surface-2 p-2">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={generate}
+            className="pressable inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-action px-3 text-sm font-semibold text-on-action shadow-raised hover:bg-action-strong disabled:opacity-60"
+          >
+            {generating ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Wand2 className="size-4" aria-hidden />}
+            {generating ? "Generando imagen…" : images.length ? "Generar otra versión" : "Generar imagen"}
+          </button>
+          <p className="text-[11px] text-muted">
+            {plannedRefs.length ? `Usará: ${plannedRefs.map((r) => r.label).join(", ")}. ` : ""}
+            {generationNote}
+          </p>
+          <label className="inline-flex items-center gap-1.5 text-[11px] text-muted">
+            <input type="checkbox" className="size-3.5 accent-[var(--action)]" checked={withText} onChange={(e) => setWithText(e.target.checked)} />
+            Intentar el texto dentro de la imagen (lo seguro es ponerlo con el editor)
+          </label>
+        </div>
+      ) : (
+        <p className="rounded-xl bg-surface-2 p-2 text-[11px] text-muted">{generationNote}</p>
+      )}
+
       <div className="grid grid-cols-1 gap-2 @md:grid-cols-2">
         <a
           href="https://chatgpt.com/"
           target="_blank"
           rel="noopener noreferrer"
           onClick={copy}
-          className="pressable inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-action px-3 text-sm font-semibold text-on-action shadow-raised hover:bg-action-strong"
+          className={clsx(
+            "pressable inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold",
+            canGenerate ? "border border-line bg-surface text-ink shadow-soft hover:bg-surface-2" : "bg-action text-on-action shadow-raised hover:bg-action-strong",
+          )}
         >
           {copied ? <Check className="size-4" aria-hidden /> : <ClipboardCopy className="size-4" aria-hidden />}
           Copiar prompt y abrir ChatGPT
@@ -175,7 +300,7 @@ export function ProposalCard({
         </a>
         <button
           type="button"
-          disabled={uploading}
+          disabled={busy}
           onClick={() => file.current?.click()}
           className="pressable inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-line bg-surface px-3 text-sm font-semibold text-ink shadow-soft hover:bg-surface-2 disabled:opacity-60"
         >
@@ -196,6 +321,21 @@ export function ProposalCard({
           }}
         />
       </div>
+      <p className="-mt-1 text-[11px] text-faint">También puedes pegar (Ctrl+V) o arrastrar aquí la imagen que te dio ChatGPT.</p>
+      {(attachFiles.length > 0 || canShareFiles) && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+          {canShareFiles && (
+            <button type="button" onClick={share} className="inline-flex items-center gap-1 font-medium text-action-strong underline">
+              <Share2 className="size-3" aria-hidden /> Compartir prompt y archivos con ChatGPT
+            </button>
+          )}
+          {attachFiles.map((f) => (
+            <a key={f.assetId} href={`${assetSrc(f.assetId)}?descargar=1`} className="inline-flex items-center gap-1 text-muted underline">
+              <Download className="size-3" aria-hidden /> {f.label}
+            </a>
+          ))}
+        </div>
+      )}
       <button type="button" onClick={() => setShowPrompt((v) => !v)} aria-expanded={showPrompt} className="inline-flex items-center gap-1.5 self-start text-xs font-medium text-muted hover:text-ink">
         <ScrollText className="size-3.5" aria-hidden /> {showPrompt ? "Ocultar prompt" : "Ver prompt"}
       </button>

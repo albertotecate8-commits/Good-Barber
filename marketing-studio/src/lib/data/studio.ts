@@ -26,6 +26,7 @@ export interface StudioVersion {
   qa_status: string;
   is_final: boolean;
   version_no: number;
+  tool: string | null;
   created_at: string;
 }
 
@@ -89,7 +90,7 @@ export async function getStudio(businessId: string, threadId: string | null) {
       thread.project_id
         ? supabase
             .from("mkt_creative_versions")
-            .select("id,kind,asset_id,parent_version_id,style_id,qa_status,is_final,version_no,created_at")
+            .select("id,kind,asset_id,parent_version_id,style_id,qa_status,is_final,version_no,tool,created_at")
             .eq("project_id", thread.project_id)
             .order("version_no")
         : Promise.resolve({ data: [] }),

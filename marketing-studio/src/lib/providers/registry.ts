@@ -53,6 +53,23 @@ export const PROVIDERS: Provider[] = [
     verifiedOn: "2026-10-15",
   },
   {
+    id: "cloudflare-flux2",
+    name: "Cloudflare Workers AI · FLUX.2 [klein] 4B (generación de imágenes)",
+    category: "imagen",
+    access: "free_api",
+    envVars: ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_AI_TOKEN", "CLOUDFLARE_FREE_PLAN_CONFIRMED"],
+    usedFor: "Crear: generar imágenes reales desde el chat, con hasta 4 referencias (estilo guardado, referencia adjunta o versión anterior para modificarla).",
+    limitations: [
+      "Plan gratuito Workers Free: 10,000 neuronas al día; al pasarse, Cloudflare rechaza la petición (no cobra). La app se detiene antes, en 9,000.",
+      "Una imagen de 1024×1280 consume ~160 neuronas (+5 por referencia): ~50 imágenes al día.",
+      "Las referencias deben medir menos de 512×512 (la app las reduce en el navegador).",
+      "Se genera sin texto por defecto: los textos exactos y el logotipo se ponen con el editor.",
+      "CLOUDFLARE_FREE_PLAN_CONFIRMED=1 es tu confirmación de que la cuenta no tiene Workers Paid activo.",
+    ],
+    link: "https://developers.cloudflare.com/workers-ai/platform/pricing/",
+    verifiedOn: "2026-10-18",
+  },
+  {
     id: "gemini-image-api",
     name: "Gemini / Imagen por API (generación de imágenes)",
     category: "imagen",

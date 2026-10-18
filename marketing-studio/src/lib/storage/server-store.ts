@@ -20,7 +20,7 @@ export async function storeGeneratedAsset(
     mime: string;
     fileName: string;
     kind: "image" | "video";
-    origin: "code_edited";
+    origin: "code_edited" | "ai_generated";
     title: string;
     description: string;
     tags: string[];
