@@ -36,7 +36,7 @@ export default async function CreatePage({ searchParams }: { searchParams: Promi
   const perImage = estimateNeurons(outputSize("post").width, outputSize("post").height, [{ width: 511, height: 511 }]);
   const left = Math.max(0, Math.floor((CF_DAILY_NEURON_CAP - (unitsToday ?? 0)) / perImage));
   const generation = genReason
-    ? { available: false, note: `Generación directa no configurada (${genReason.replace(/^Falta /, "falta ")}). Usa ChatGPT: copia el prompt y sube o pega aquí la imagen.` }
+    ? { available: false, note: `Generación directa no configurada (${genReason.replace(/^Falta /, "falta ").replace(/\.$/, "")}). Usa ChatGPT: copia el prompt y sube o pega aquí la imagen.` }
     : { available: left > 0, note: left > 0 ? `Cloudflare Workers AI, nivel gratuito: quedan ~${left} imágenes hoy.` : "Se agotó la cuota gratuita de hoy (se renueva a las 00:00 UTC). Usa ChatGPT mientras." };
   const thread = fresh ? null : studio.thread;
   return (

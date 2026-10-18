@@ -147,10 +147,9 @@ test("producción: referencia → estilo, reutilización, versiones, aislamiento
   await say(page, "Haz un anuncio de Corte de cabello");
   const card1 = page.getByRole("article", { name: /^Propuesta 1/ }).last();
   await expect(card1.getByText("Solo prompt")).toBeVisible();
-  report.generationNote = await card1
-    .locator("p.rounded-xl, div.rounded-xl p")
-    .first()
-    .innerText();
+  // Sin credenciales de Cloudflare la tarjeta lo dice y no ofrece «Generar imagen».
+  report.generationNote = await card1.getByText(/Generación directa no configurada|quedan ~\d+ imágenes hoy/).innerText();
+  report.generateButton = await card1.getByRole("button", { name: /Generar imagen/ }).count();
   await card1.getByRole("button", { name: "Ver prompt" }).click();
   const prompt1 = await card1
     .getByLabel("Prompt de la propuesta 1")
