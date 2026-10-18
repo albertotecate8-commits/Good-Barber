@@ -46,6 +46,9 @@ test("flujo completo: cargar negocios, editar Good Barber y revisar estado hones
 
   resetBusinesses();
   await login(page);
+  // Sin negocios, Crear lleva a darlos de alta; el resumen conserva la carga inicial.
+  await expect(page.getByText("Primero agrega un negocio")).toBeVisible();
+  await page.goto("/resumen");
   await expect(page.getByText("Todavía no hay negocios")).toBeVisible();
   await shot("01-inicio-vacio");
 

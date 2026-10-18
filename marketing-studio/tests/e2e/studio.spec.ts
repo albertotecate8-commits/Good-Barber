@@ -55,6 +55,7 @@ test("estudio creativo: de concepto a material revisado en el calendario", async
 
   psql(`delete from mkt_businesses where created_by = (select id from auth.users where email = '${EMAIL}')`);
   await login(page);
+  await page.goto("/resumen");
   await page.getByRole("button", { name: /Cargar Good Barber/ }).click();
   await expect(page.getByText("Negocios cargados")).toBeVisible();
 
