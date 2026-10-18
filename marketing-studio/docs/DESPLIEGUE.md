@@ -92,7 +92,26 @@ de alta sola: nadie más necesita conocer tu contraseña.
 
 ---
 
-## 3. Hosting: Netlify (PREPARADO, falta tu inicio de sesión)
+## 3. Hosting: Netlify (DESPLEGADO)
+
+**En producción:** https://marketing-ai-studio-7c75.netlify.app (proyecto `marketing-ai-studio-7c75`, equipo
+Free de albertotecate8, sin facturación). Verificado el 18-oct-2026 en la URL real: `/api/salud` →
+`{"ok":true,"database":"ok","commit":"101f905"}`, páginas públicas 200, páginas privadas → `/login`,
+inicio de sesión contra Supabase, los 12 módulos cargan, cabeceras de seguridad presentes, sin secretos en
+el JavaScript publicado y la ruta de publicación programada responde «apagada» (401 con clave falsa).
+
+**Cómo se despliega:** el conector de Netlify sube una copia limpia del commit (`git archive`) y Netlify
+construye. Escribe el commit en `.deploy-commit` dentro de esa copia para que `/api/salud` lo informe.
+Lecciones del primer despliegue: el adaptador `@netlify/plugin-nextjs` debe declararse en `netlify.toml`
+(en sitios creados por API no se activa solo) y las variables **secretas** deben guardarse con contexto
+`production` (con contexto «all» Netlify no las guardó). Cada cambio de variables requiere volver a
+desplegar. Netlify marca como «herramienta» a los navegadores automatizados y puede responder 403 a ráfagas
+de pruebas: no es un error de la app.
+
+**Variables ya configuradas en Netlify:** `MKT_APP_URL`, `MKT_TOKEN_KEY` (secreta), `MKT_CRON_SECRET`
+(secreta). Faltan solo las de Meta y `SUPABASE_SERVICE_ROLE_KEY`. `MKT_PUBLISHING_ENABLED` NO está definida.
+
+### Notas de la preparación original
 
 **Opción más rápida (recomendada):** en claude.ai → *Configuración → Conectores* conecta el conector oficial
 **Netlify** y dímelo: con él puedo crear el sitio, configurar las variables públicas, desplegar y verificar la

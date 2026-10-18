@@ -43,7 +43,7 @@ citas de Good Barber (raíz del repositorio), que no se modifica.
 | Analíticas con datos reales (publicaciones, prospectos, ventas, costo por cliente solo con gasto real) | Funciona y está probado |
 | Alcance e interacciones desde Meta | **Pendiente**: requiere permisos de estadísticas y cuenta conectada |
 | Alternativas de campaña con «por qué probarla» e ideas separadas de campañas en ejecución | Funciona y está probado |
-| Hosting en Netlify Free (uso comercial permitido) | Preparado (`netlify.toml`); **no desplegado**: requiere tu inicio de sesión en Netlify |
+| Hosting en Netlify Free (uso comercial permitido) | **Desplegado** en https://marketing-ai-studio-7c75.netlify.app y verificado en la URL real (salud, login, 12 módulos, sin secretos expuestos) |
 | Conexión oficial con Meta (vincular la página existente, solo lectura) | Implementada y probada con respuestas simuladas; **sin probar contra Meta** (no hay app de Meta); ninguna red está conectada |
 | Publicación automática en Facebook/Instagram (aprobación del dueño, programación, sin duplicados, reintentos) | Implementada y probada con la Graph API **simulada**; **apagada** (`MKT_PUBLISHING_ENABLED`) y sin probar contra Meta: no hay app de Meta ni cuenta conectada |
 | Enlace real de cada publicación (`permalink_url` / `permalink` de Meta) guardado con id, destino, texto y fecha | Implementado y probado con la Graph API **simulada**; sin probar contra Meta |
