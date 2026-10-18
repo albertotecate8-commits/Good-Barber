@@ -48,3 +48,4 @@ next-env.d.ts
 
 # Almacenamiento local de desarrollo de la Biblioteca
 /.local-storage
+.deploy-commit
