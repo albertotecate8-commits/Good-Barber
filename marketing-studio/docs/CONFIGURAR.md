@@ -57,8 +57,10 @@ mueve el secreto a la base de datos y crea un camino privilegiado más difícil 
 necesidad de un acceso de servidor. La clave nunca llega al navegador: `npm run check:secrets` lo
 comprueba en cada despliegue (módulos `server-only`).
 
-Dónde obtenerla: Supabase → proyecto `marketing-ai-studio` → *Project Settings → API Keys* → clave
-**secret** (o `service_role`). Pégala en Netlify como `SUPABASE_SERVICE_ROLE_KEY` (**secret**).
+Cómo llega a Netlify sin copiarla: la extensión oficial **Supabase** ya está instalada en el equipo de
+Netlify. Solo falta autorizarla una vez (Netlify → proyecto → *Supabase* → *Connect* → elegir el proyecto
+`marketing-ai-studio`). La extensión guarda `SUPABASE_SERVICE_ROLE_KEY` por su cuenta, como variable de
+servidor.
 
 ### 2.2 Crear la app de Meta (con la cuenta que administra la página de Good Barber)
 
@@ -84,7 +86,7 @@ Dónde obtenerla: Supabase → proyecto `marketing-ai-studio` → *Project Setti
    - Copia el **App ID** (no es secreto) y el **App Secret** (secreto).
 6. Deja la app en **modo desarrollo**. Como eres administrador de la app y de la página, funciona con tus
    propias cuentas sin App Review.
-7. En Netlify crea `META_APP_SECRET` (**secret**) y `SUPABASE_SERVICE_ROLE_KEY` (**secret**).
+7. En Netlify crea `META_APP_SECRET` (**secret**). `SUPABASE_SERVICE_ROLE_KEY` la pone la extensión de Supabase.
 8. Mándame por el chat **solo** el App ID y los dos IDs de configuración (no son secretos). Yo los cargo
    como `META_APP_ID`, `META_LOGIN_CONFIG_ID` y `META_PUBLISH_CONFIG_ID` y redespliego.
 

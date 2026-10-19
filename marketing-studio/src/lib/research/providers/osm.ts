@@ -22,6 +22,28 @@ function norm(s: string) {
   return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
+/** Lugares por nombre dentro del área de la ciudad (máx. 2 consultas, 1 por segundo como pide Nominatim). */
+async function nominatimPlaces(f: typeof fetch, headers: Record<string, string>, terms: string[], box: string[]): Promise<OsmElement[]> {
+  const [south, north, west, east] = box;
+  const out = new Map<string, OsmElement>();
+  for (const [i, term] of terms.slice(0, 2).entries()) {
+    if (i > 0) await new Promise((r) => setTimeout(r, 1100));
+    const url = `${NOMINATIM}?${new URLSearchParams({ q: term, format: "jsonv2", limit: "40", countrycodes: "mx", viewbox: `${west},${north},${east},${south}`, bounded: "1", addressdetails: "1", layer: "poi" })}`;
+    const rows = (await (await fetchWithTimeout(f, url, { headers }, 6000)).json()) as {
+      osm_type?: string;
+      osm_id?: number;
+      name?: string;
+      address?: Record<string, string>;
+    }[];
+    for (const r of rows) {
+      if (!r.name || !r.osm_id || !r.osm_type) continue;
+      const type = (r.osm_type === "W" || r.osm_type === "way" ? "way" : r.osm_type === "R" || r.osm_type === "relation" ? "relation" : "node") as OsmElement["type"];
+      out.set(`${type}/${r.osm_id}`, { type, id: r.osm_id, tags: { name: r.name, ...(r.address?.road ? { "addr:street": r.address.road } : {}), ...(r.address?.house_number ? { "addr:housenumber": r.address.house_number } : {}), ...(r.address?.suburb ? { "addr:suburb": r.address.suburb } : {}) } });
+    }
+  }
+  return [...out.values()];
+}
+
 export const osmProvider: AutomaticProvider = {
   id: "osm",
   name: "OpenStreetMap (negocios similares en la ciudad)",
@@ -39,22 +61,33 @@ export const osmProvider: AutomaticProvider = {
     const bbox = `${south},${west},${north},${east}`;
 
     const query = `[out:json][timeout:10];(${sel.selectors.map((s) => `${s}(${bbox});`).join("")});out center tags 80;`;
-    let res: Response | null = null;
+    let elements: OsmElement[] | null = null;
+    let via = "Overpass";
     const failures: string[] = [];
     for (const endpoint of OVERPASS) {
       try {
-        res = await fetchWithTimeout(f, endpoint, {
+        const res = await fetchWithTimeout(f, endpoint, {
           method: "POST",
           headers: { ...headers, "Content-Type": "application/x-www-form-urlencoded" },
           body: new URLSearchParams({ data: query }).toString(),
-        }, 10000);
+        }, 8000);
+        elements = ((await res.json()) as { elements?: OsmElement[] }).elements ?? [];
         break;
       } catch (e) {
         failures.push((e as Error).name === "TimeoutError" ? `${new URL(endpoint).host} no respondió a tiempo` : (e as Error).message.replace(/\.$/, ""));
       }
     }
-    if (!res) throw new Error(`Overpass no respondió: ${failures.join("; ")}`);
-    const data = (await res.json()) as { elements?: OsmElement[] };
+    // Plan B (visto en producción: Overpass con 502/504): búsqueda de lugares en Nominatim,
+    // también de OpenStreetMap. Es por nombre, así que puede quedar incompleta.
+    if (!elements) {
+      try {
+        elements = await nominatimPlaces(f, headers, sel.terms, geo[0].boundingbox);
+        via = "Nominatim (búsqueda por nombre; Overpass no respondió)";
+      } catch (e) {
+        throw new Error(`Overpass no respondió (${failures.join("; ")}) y Nominatim tampoco: ${(e as Error).message}`);
+      }
+    }
+    const data = { elements };
     const own = norm(q.businessName);
     const places = (data.elements ?? []).filter((e) => e.tags?.name && norm(e.tags.name) !== own);
     const consulted_at = now.toISOString();
@@ -67,11 +100,11 @@ export const osmProvider: AutomaticProvider = {
       url: `https://www.openstreetmap.org/search?query=${encodeURIComponent(`${sel.label} ${q.city}`)}`,
       consulted_at,
       summary: `${places.length} ${sel.label} con nombre aparecen mapeados en OpenStreetMap en ${geo[0].display_name ?? q.city}.`,
-      evidence: `Ejemplos: ${named.slice(0, 8).map((p) => p.tags!.name).join(", ")}. OSM es colaborativo: no es un censo completo; sirve para identificar competidores, no para medir el mercado.`,
+      evidence: `Ejemplos: ${named.slice(0, 8).map((p) => p.tags!.name).join(", ")}. Consultado vía ${via}. OSM es colaborativo: no es un censo completo; sirve para identificar competidores, no para medir el mercado.`,
       evidence_level: "observation",
       confidence: "medium",
       capture_method: "automatic",
-      raw: { count: places.length, bbox },
+      raw: { count: places.length, bbox, via },
     };
     const each: FindingDraft[] = named.map((p) => {
       const t = p.tags!;

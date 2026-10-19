@@ -10,11 +10,11 @@ export function defaultKeywords(sector: string): string[] {
 }
 
 /** Etiquetas de OpenStreetMap para buscar negocios similares, por sector. */
-export function osmSelectors(sector: string): { selectors: string[]; label: string } | null {
+export function osmSelectors(sector: string): { selectors: string[]; label: string; terms: string[] } | null {
   const s = slugify(sector);
-  if (/barber|peluquer/.test(s)) return { selectors: ['nwr["shop"="hairdresser"]'], label: "barberías y peluquerías" };
-  if (/una|nail|manicur|belleza|beauty/.test(s)) return { selectors: ['nwr["shop"="beauty"]'], label: "salones de belleza y uñas" };
+  if (/barber|peluquer/.test(s)) return { selectors: ['nwr["shop"="hairdresser"]'], label: "barberías y peluquerías", terms: ["barbería", "peluquería"] };
+  if (/una|nail|manicur|belleza|beauty/.test(s)) return { selectors: ['nwr["shop"="beauty"]'], label: "salones de belleza y uñas", terms: ["salón de belleza", "uñas"] };
   if (/afore|retiro|pension|financ/.test(s))
-    return { selectors: ['nwr["office"="financial_advisor"]', 'nwr["office"="financial"]'], label: "asesores financieros" };
+    return { selectors: ['nwr["office"="financial_advisor"]', 'nwr["office"="financial"]'], label: "asesores financieros", terms: ["afore", "asesor financiero"] };
   return null;
 }

@@ -54,8 +54,35 @@ describe("OpenStreetMap", () => {
     const out = await osmProvider.run(q, { fetch: f, env: {}, now: NOW });
     expect(out[1].summary).toMatch(/Barbería Réplica/);
     expect(calls.map((c) => new URL(c.url).host)).toEqual(["nominatim.openstreetmap.org", "overpass-api.de", "overpass.private.coffee"]);
-    const down = router({ "https://nominatim.openstreetmap.org/search": geo, "https://overpass": () => new Response("x", { status: 504 }) });
-    await expect(osmProvider.run(q, { fetch: down.f, env: {}, now: NOW })).rejects.toThrow(/Overpass no respondió: overpass-api.de respondió con error HTTP 504; overpass.private.coffee respondió con error HTTP 504/);
+  });
+  it("si Overpass no responde, busca los lugares en Nominatim dentro de la ciudad", async () => {
+    const calls: string[] = [];
+    const f = (async (url: string) => {
+      calls.push(url);
+      if (url.includes("overpass")) return new Response("x", { status: 504 });
+      const u = new URL(url);
+      if (!u.searchParams.get("layer")) return Response.json([{ boundingbox: ["23.9", "24.1", "-104.8", "-104.5"], display_name: "Durango" }]);
+      return Response.json(
+        u.searchParams.get("q") === "barbería"
+          ? [{ osm_type: "node", osm_id: 7, name: "Barbería Centro", address: { road: "Juárez", house_number: "10" } }, { osm_type: "node", osm_id: 8, name: "Good Barber" }]
+          : [{ osm_type: "way", osm_id: 9, name: "Peluquería Lupita" }, { osm_type: "node", osm_id: 7, name: "Barbería Centro" }],
+      );
+    }) as unknown as typeof fetch;
+    const out = await osmProvider.run(q, { fetch: f, env: {}, now: NOW });
+    expect(out[0].summary).toMatch(/^2 barberías/);
+    expect(out[0].evidence).toMatch(/vía Nominatim/);
+    expect(out.map((x) => x.url)).toContain("https://www.openstreetmap.org/way/9");
+    expect(out.some((x) => x.summary.includes("Good Barber"))).toBe(false);
+    const search = new URL(calls.find((c) => c.includes("layer=poi"))!);
+    expect(search.searchParams.get("bounded")).toBe("1");
+    expect(search.searchParams.get("viewbox")).toBe("-104.8,24.1,-104.5,23.9");
+  });
+  it("si tampoco responde Nominatim, el error dice qué falló", async () => {
+    const f = (async (url: string) => {
+      if (url.includes("overpass") || url.includes("layer=poi")) return new Response("x", { status: 504 });
+      return Response.json([{ boundingbox: ["23.9", "24.1", "-104.8", "-104.5"], display_name: "Durango" }]);
+    }) as unknown as typeof fetch;
+    await expect(osmProvider.run(q, { fetch: f, env: {}, now: NOW })).rejects.toThrow(/Overpass no respondió \(overpass-api.de respondió con error HTTP 504; overpass.private.coffee respondió con error HTTP 504\) y Nominatim tampoco/);
   });
   it("sin ciudad explica qué falta", async () => {
     await expect(osmProvider.run({ ...q, city: "" }, { fetch: fetch, env: {}, now: NOW })).rejects.toThrow(/ciudad/);
