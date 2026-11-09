@@ -6,9 +6,12 @@ app de barbería** que vive en la raíz.
 
 ## Lo esencial
 
-- **Sin base de datos, sin servidor, sin cuentas.** Todo se guarda en el celular
-  con **IndexedDB**. No hay Supabase, ni Firebase, ni API externas, ni login.
-- **Funciona sin internet** una vez abierta (service worker).
+- **Sin base de datos propia, sin cuentas.** Los datos se guardan en un
+  proyecto de **Supabase** dedicado solo a esta app (separado por completo del
+  de la barbería) a través de `supabase-config.js`. No requiere iniciar sesión
+  — decisión consciente a cambio de simplicidad; ver "Seguridad" abajo.
+- **Necesita conexión a internet** para leer y guardar datos — ya no funciona
+  sin conexión (antes vivía en IndexedDB, 100% local).
 - **Se instala en el celular** como app (PWA): "Agregar a pantalla de inicio".
 - Sin frameworks ni paso de compilación: HTML, CSS y JavaScript con módulos ES.
 
@@ -30,6 +33,22 @@ python3 -m http.server 8000
 En el celular: abre esa dirección en el navegador y usa
 **Compartir → Agregar a pantalla de inicio** (iPhone) o
 **⋮ → Instalar aplicación** (Android).
+
+## Configurar Supabase (solo si cambias de proyecto)
+
+Ya está configurado y funcionando contra un proyecto dedicado. Si alguna vez
+necesitas apuntar a otro (otra cuenta, otro entorno):
+
+1. Crea un proyecto en [supabase.com](https://supabase.com) (o usa uno nuevo).
+2. En **SQL Editor**, pega y corre todo [`supabase/schema.sql`](supabase/schema.sql)
+   — crea las seis tablas, activa Row Level Security y sus políticas. Es
+   seguro volver a correrlo (usa `if not exists`); si ya existían las
+   políticas, bórralas primero con `drop policy "acceso completo sin login"
+   on public.<tabla>;`.
+3. En **Project Settings → API**, copia el **Project URL** y la clave
+   **publishable** (nunca la `service_role`).
+4. Pégalos en `supabase-config.js` (raíz de `finanzas/`), en `SUPABASE_URL` y
+   `SUPABASE_KEY`.
 
 ## Regla de cálculo
 
@@ -78,23 +97,25 @@ parcial": si lo pagado no cubre el total, el vencimiento sigue pendiente por la
 diferencia y se puede seguir abonando después, sin perder el registro de cada
 abono.
 
-## Corte semanal (domingo a sábado)
+## Corte semanal (sábado a viernes, configurable)
 
 Barbería y Uñas son ingresos semanales **sin un día fijo inventado**: no se les
-asigna un vencimiento fechado, sino que pertenecen a un corte de domingo a
-sábado (`Corte semanal`, accesible desde Ingresos o Más) — el sábado es el día
-de "hacer cuentas": cierra la semana, y el domingo siguiente ya es un corte
-nuevo. Cada corte muestra lo esperado, lo recibido y lo faltante, y se puede
-**cerrar** cuando termina la semana — el cierre guarda una fotografía en el
-historial de cortes y no borra ningún ingreso ya registrado. El corte activo
-siempre es el que contiene la fecha de hoy (o el siguiente, si el actual ya se
-cerró antes de tiempo).
+asigna un vencimiento fechado, sino que pertenecen a un corte semanal
+(`Corte semanal`, accesible desde Ingresos o Más) — por defecto cierra los
+viernes, así que cada corte empieza en sábado y el sábado siguiente ya es un
+corte nuevo; el día de cierre es editable desde la misma pantalla. Cada corte
+muestra lo esperado, lo recibido y lo faltante, y se puede **cerrar** cuando
+termina la semana — el cierre guarda una fotografía en el historial de cortes
+y no borra ningún ingreso ya registrado. El corte activo siempre es el que
+contiene la fecha de hoy (o el siguiente, si el actual ya se cerró antes de
+tiempo).
 
 ## Próximos 7 días vs. vencidos
 
-"Próximos 7 días" va del día de **mañana** al séptimo día — nunca incluye lo
-que ya venció. Lo vencido (con fecha de hoy o anterior) aparece aparte, en su
-propia sección roja, para no mezclarse nunca con lo próximo.
+"Próximos 7 días" va de **hoy** al sexto día siguiente (7 días de calendario)
+— los pagos de hoy o de antes son "vencidos" y nunca entran aquí, para no
+mezclarse nunca con lo próximo; los ingresos esperados sí pueden incluir los
+de hoy, ya que no existe un "ingreso vencido".
 
 ## Categorías y filtro universal
 
@@ -111,13 +132,15 @@ ambos sentidos).
 finanzas/
   index.html          Shell de la app
   manifest.json       PWA instalable
-  sw.js               Service worker (funcionamiento sin conexión)
+  sw.js               Service worker (cachea el shell de la app)
+  supabase-config.js  Cliente de Supabase (URL + clave pública)
   icons/              Iconos de la app
   css/app.css         Sistema de diseño completo
   js/
+    vendor/supabase.js  @supabase/supabase-js vendorizado localmente
     app.js            Arranque, navegación y acciones globales
     store.js          Estado + lógica de negocio (pagos, recurrencias, respaldo)
-    db.js             IndexedDB (abrir, leer, escribir, reemplazar)
+    db.js             Capa de datos sobre Supabase (leer, escribir, reemplazar)
     model.js          Definición de los registros y categorías
     seed.js           Datos iniciales
     finance.js        Cálculos: disponible, pendiente, próximos 7 días, resúmenes
@@ -156,19 +179,37 @@ Las fechas mensuales conservan el **día ancla**: un pago del 31 de agosto cada
 
 ## Respaldo
 
-Como los datos viven solo en el dispositivo, en **Más → Respaldo**:
+Aunque los datos ya viven en Supabase (no solo en el dispositivo), sigue
+siendo útil tener un respaldo propio — en **Más → Respaldo**:
 
 - **Exportar datos** — descarga un `.json` con absolutamente todo.
 - **Copiar respaldo** — al portapapeles, por si el navegador bloquea descargas.
 - **Importar datos** — restaura desde un archivo o pegando el contenido. Pide
-  confirmación porque reemplaza todo.
-- **Información de almacenamiento** — espacio usado y si el navegador garantiza
-  la permanencia de los datos.
+  confirmación porque reemplaza todo lo que haya en Supabase en ese momento.
+- **Información de almacenamiento** — cuántos registros hay y si la app logró
+  conectarse al servidor.
 - **Restaurar datos iniciales** / **Restablecer aplicación** — ambas piden
-  confirmación (la segunda, dos veces).
+  confirmación (la segunda, dos veces) y afectan directamente al proyecto de
+  Supabase, no solo a este dispositivo.
 
-Conviene exportar de vez en cuando: si se borran los datos del sitio o se
-desinstala la app, la información se pierde.
+Conviene exportar de vez en cuando por si acaso (borrado accidental, cambio de
+proyecto de Supabase, etc.).
+
+## Seguridad
+
+- **No hay login.** Es una decisión consciente a cambio de simplicidad: la app
+  usa la clave pública (`anon`) de Supabase, visible en `supabase-config.js` y
+  en cualquier petición de red — cualquiera que la tenga puede leer y escribir
+  estos datos financieros. No es apta para datos que deban quedar privados
+  frente a quien conozca esa URL/clave.
+- **Proyecto propio y separado** del de la app de la barbería — nunca
+  comparten base de datos ni credenciales.
+- Row Level Security está **activado** en las seis tablas, con una política
+  que permite todo a la clave pública — así, si en el futuro se agrega login,
+  basta con cambiar esas políticas para exigir `auth.uid()` en vez de abrirlo
+  a cualquiera; no hace falta rehacer el esquema.
+- La `service_role key` de este proyecto **nunca** se usa en el frontend — de
+  hecho, esta app no la necesita en absoluto (no hay Edge Functions).
 
 ## Datos iniciales
 

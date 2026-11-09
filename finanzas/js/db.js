@@ -1,198 +1,162 @@
-// Capa de IndexedDB. Sin servidor, sin cuentas: todo vive en el dispositivo.
-// Si IndexedDB no está disponible (modo privado antiguo, permisos), la app
-// sigue funcionando en memoria y avisa que los datos no se guardarán.
-
-const DB_NAME = "mis-finanzas";
-const DB_VERSION = 2; // v2: agrega el store "cuts" (cortes semanales cerrados)
+// Capa de persistencia de Mis Finanzas — antes IndexedDB (en el dispositivo),
+// ahora Supabase (proyecto remoto dedicado solo a Finanzas, separado del de
+// la barbería). La API pública es EXACTAMENTE la misma que antes (init,
+// getAll, put, remove, clearAll, replaceAll, storageEstimate,
+// requestPersistence, isUnavailable) a propósito: store.js y el resto de la
+// app no necesitan saber de dónde vienen los datos.
+//
+// Sin login: el cliente usa la clave pública (anon) de supabase-config.js.
+// Las políticas RLS del proyecto permiten acceso completo con esa clave.
 
 export const STORES = ["items", "occurrences", "movements", "categories", "meta", "cuts"];
 
-let dbPromise = null;
+const PRIMARY_KEY = {
+  items: "id",
+  occurrences: "id",
+  movements: "id",
+  categories: "id",
+  cuts: "id",
+  meta: "key",
+};
+
+// Solo se listan los campos cuyo nombre cambia entre JS (camelCase) y la
+// columna SQL (snake_case). Los que se llaman igual no necesitan entrada.
+const FIELD_MAPS = {
+  items: {
+    startDate: "start_date", anchorDay: "anchor_day", cutBased: "cut_based",
+    statusNote: "status_note", canceledAt: "canceled_at",
+    createdAt: "created_at", updatedAt: "updated_at",
+  },
+  occurrences: {
+    itemId: "item_id", dueDate: "due_date", paidAmount: "paid_amount",
+    paidDate: "paid_date", movementId: "movement_id", createdAt: "created_at",
+  },
+  movements: {
+    itemId: "item_id", occurrenceId: "occurrence_id",
+    balanceBefore: "balance_before", balanceAfter: "balance_after",
+    createdAt: "created_at",
+  },
+  categories: {},
+  cuts: { startDate: "start_date", endDate: "end_date", closedAt: "closed_at" },
+};
+
+// Columnas "numeric" de Postgres: postgrest las devuelve como texto para no
+// perder precisión — hay que convertirlas a Number aquí (la app ya redondea
+// con round2() en todos lados, igual que hacía con los floats de IndexedDB).
+const NUMERIC_FIELDS = {
+  items: ["amount", "balance"],
+  occurrences: ["amount", "paidAmount"],
+  movements: ["amount", "balanceBefore", "balanceAfter"],
+  cuts: ["expected", "received", "difference"],
+  categories: [],
+};
+
+function toRow(store, record) {
+  if (store === "meta") return { key: record.key, value: record.value };
+  const map = FIELD_MAPS[store] || {};
+  const row = {};
+  Object.entries(record).forEach(([key, value]) => {
+    row[map[key] || key] = value === undefined ? null : value;
+  });
+  return row;
+}
+
+function fromRow(store, row) {
+  if (store === "meta") return { key: row.key, value: row.value };
+  const map = FIELD_MAPS[store] || {};
+  const invert = {};
+  Object.entries(map).forEach(([camel, snake]) => { invert[snake] = camel; });
+
+  const record = {};
+  Object.entries(row).forEach(([col, value]) => {
+    record[invert[col] || col] = value;
+  });
+
+  (NUMERIC_FIELDS[store] || []).forEach((field) => {
+    if (record[field] != null) record[field] = Number(record[field]);
+  });
+
+  return record;
+}
+
 let unavailableReason = null;
 
 export function isUnavailable() {
   return unavailableReason;
 }
 
-function openDB() {
-  if (dbPromise) return dbPromise;
-
-  dbPromise = new Promise((resolve, reject) => {
-    if (typeof indexedDB === "undefined" || !indexedDB) {
-      reject(new Error("Este navegador no permite guardar datos localmente."));
-      return;
-    }
-
-    let request;
-    try {
-      request = indexedDB.open(DB_NAME, DB_VERSION);
-    } catch (err) {
-      reject(err);
-      return;
-    }
-
-    request.onupgradeneeded = (event) => {
-      const db = request.result;
-
-      if (!db.objectStoreNames.contains("items")) {
-        const items = db.createObjectStore("items", { keyPath: "id" });
-        items.createIndex("kind", "kind", { unique: false });
-      }
-
-      if (!db.objectStoreNames.contains("occurrences")) {
-        const occ = db.createObjectStore("occurrences", { keyPath: "id" });
-        occ.createIndex("itemId", "itemId", { unique: false });
-        occ.createIndex("dueDate", "dueDate", { unique: false });
-        occ.createIndex("status", "status", { unique: false });
-        occ.createIndex("itemDue", ["itemId", "dueDate"], { unique: false });
-      }
-
-      if (!db.objectStoreNames.contains("movements")) {
-        const mov = db.createObjectStore("movements", { keyPath: "id" });
-        mov.createIndex("date", "date", { unique: false });
-        mov.createIndex("itemId", "itemId", { unique: false });
-        mov.createIndex("occurrenceId", "occurrenceId", { unique: false });
-      }
-
-      if (!db.objectStoreNames.contains("categories")) {
-        db.createObjectStore("categories", { keyPath: "id" });
-      }
-
-      if (!db.objectStoreNames.contains("meta")) {
-        db.createObjectStore("meta", { keyPath: "key" });
-      }
-
-      if (!db.objectStoreNames.contains("cuts")) {
-        const cuts = db.createObjectStore("cuts", { keyPath: "id" });
-        cuts.createIndex("startDate", "startDate", { unique: false });
-      }
-
-      void event;
-    };
-
-    request.onsuccess = () => {
-      const db = request.result;
-      db.onversionchange = () => db.close();
-      resolve(db);
-    };
-
-    request.onerror = () => reject(request.error || new Error("No se pudo abrir la base local."));
-    request.onblocked = () => reject(new Error("Hay otra pestaña de la app abierta. Ciérrala y recarga."));
-  }).catch((err) => {
-    unavailableReason = err.message || "No se pudo abrir el almacenamiento local.";
-    dbPromise = null;
-    throw err;
-  });
-
-  return dbPromise;
+function client() {
+  if (typeof window !== "undefined" && window.supabaseClient) return window.supabaseClient;
+  throw new Error("No se pudo conectar con Supabase: el cliente no está inicializado.");
 }
 
-/** Intenta abrir la base. Devuelve true si quedó disponible. */
+/** Intenta conectar. Devuelve true si el servidor respondió correctamente. */
 export async function init() {
   try {
-    await openDB();
+    const { error } = await client().from("meta").select("key").limit(1);
+    if (error) throw error;
     unavailableReason = null;
     return true;
   } catch (err) {
+    unavailableReason = err.message || "No se pudo conectar con el servidor.";
     return false;
   }
 }
 
-/** Lee todos los registros de un store. */
+/** Lee todos los registros de una tabla. */
 export async function getAll(store) {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const t = db.transaction(store, "readonly");
-    const req = t.objectStore(store).getAll();
-    req.onsuccess = () => resolve(req.result || []);
-    req.onerror = () => reject(req.error);
-  });
+  const { data, error } = await client().from(store).select("*");
+  if (error) throw error;
+  return (data || []).map((row) => fromRow(store, row));
 }
 
 /** Guarda (crea o reemplaza) uno o varios registros. */
 export async function put(store, records) {
   const list = Array.isArray(records) ? records : [records];
   if (!list.length) return;
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const t = db.transaction(store, "readwrite");
-    const os = t.objectStore(store);
-    list.forEach((record) => os.put(record));
-    t.oncomplete = () => resolve();
-    t.onerror = () => reject(t.error);
-    t.onabort = () => reject(t.error);
-  });
+  const rows = list.map((r) => toRow(store, r));
+  const { error } = await client().from(store).upsert(rows, { onConflict: PRIMARY_KEY[store] });
+  if (error) throw error;
 }
 
-/** Borra registros por id. */
+/** Borra registros por id (o por "key" en meta). */
 export async function remove(store, ids) {
   const list = Array.isArray(ids) ? ids : [ids];
   if (!list.length) return;
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const t = db.transaction(store, "readwrite");
-    const os = t.objectStore(store);
-    list.forEach((id) => os.delete(id));
-    t.oncomplete = () => resolve();
-    t.onerror = () => reject(t.error);
-    t.onabort = () => reject(t.error);
-  });
+  const { error } = await client().from(store).delete().in(PRIMARY_KEY[store], list);
+  if (error) throw error;
 }
 
-/** Vacía varios stores en una sola transacción. */
+/** Vacía una o varias tablas. */
 export async function clearAll(storeNames) {
   const names = storeNames || STORES;
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const t = db.transaction(names, "readwrite");
-    names.forEach((name) => t.objectStore(name).clear());
-    t.oncomplete = () => resolve();
-    t.onerror = () => reject(t.error);
-    t.onabort = () => reject(t.error);
-  });
+  for (const name of names) {
+    const { error } = await client().from(name).delete().not(PRIMARY_KEY[name], "is", null);
+    if (error) throw error;
+  }
 }
 
 /**
- * Reemplaza el contenido completo de la base en UNA sola transacción.
- * Se usa al importar un respaldo: o entra todo, o no entra nada.
+ * Reemplaza el contenido completo de la base. Se usa al importar un
+ * respaldo. Supabase no ofrece transacciones multi-tabla desde el cliente
+ * (a diferencia de la IndexedDB original), así que esto vacía y vuelve a
+ * llenar tabla por tabla — no es 100% atómico, pero es una acción explícita
+ * y poco frecuente del usuario (importar un .json), nunca automática.
  */
 export async function replaceAll(data) {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const t = db.transaction(STORES, "readwrite");
-    STORES.forEach((name) => {
-      const os = t.objectStore(name);
-      os.clear();
-      const records = data[name] || [];
-      records.forEach((record) => os.put(record));
-    });
-    t.oncomplete = () => resolve();
-    t.onerror = () => reject(t.error);
-    t.onabort = () => reject(t.error);
-  });
+  await clearAll();
+  for (const name of STORES) {
+    const records = data[name] || [];
+    if (records.length) await put(name, records);
+  }
 }
 
-/** Espacio usado/disponible aproximado, si el navegador lo reporta. */
+/** No aplica con un backend remoto (ya no hay cuota de almacenamiento local que medir). */
 export async function storageEstimate() {
-  try {
-    if (navigator.storage && navigator.storage.estimate) {
-      return await navigator.storage.estimate();
-    }
-  } catch (err) {
-    /* ignorado */
-  }
   return null;
 }
 
-/** Pide al navegador que no borre los datos por falta de espacio. */
+/** Los datos ya viven en un servidor, no en el navegador — nada que persistir aquí. */
 export async function requestPersistence() {
-  try {
-    if (navigator.storage && navigator.storage.persist) {
-      if (await navigator.storage.persisted()) return true;
-      return await navigator.storage.persist();
-    }
-  } catch (err) {
-    /* ignorado */
-  }
-  return false;
+  return true;
 }
