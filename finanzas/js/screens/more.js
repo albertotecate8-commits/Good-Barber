@@ -2,7 +2,6 @@
 
 import * as Store from "../store.js";
 import * as Finance from "../finance.js";
-import * as db from "../db.js";
 import { KIND } from "../model.js";
 import { money, esc } from "../format.js";
 import { todayISO, formatLong, WEEKDAYS_PLURAL } from "../dates.js";
@@ -128,8 +127,6 @@ function importFlow(onDone) {
 }
 
 async function storageFlow() {
-  const estimate = await db.storageEstimate();
-  const persisted = await db.requestPersistence();
   const data = Store.exportData();
   const size = new Blob([JSON.stringify(data)]).size;
 
@@ -142,7 +139,7 @@ async function storageFlow() {
 
   sheet({
     title: "Almacenamiento",
-    subtitle: "Todo vive en este dispositivo",
+    subtitle: "Tus datos viven en Supabase, no en este dispositivo",
     body: `
       <div class="card">
         <div class="kv"><span class="k">Conceptos</span><span class="v num">${data.counts.items}</span></div>
@@ -150,14 +147,12 @@ async function storageFlow() {
         <div class="kv"><span class="k">Movimientos</span><span class="v num">${data.counts.movements}</span></div>
         <div class="kv"><span class="k">Categorías</span><span class="v num">${data.counts.categories}</span></div>
         <div class="kv"><span class="k">Tamaño de los datos</span><span class="v num">${fmt(size)}</span></div>
-        <div class="kv"><span class="k">Usado por la app</span><span class="v num">${fmt(estimate && estimate.usage)}</span></div>
-        <div class="kv"><span class="k">Disponible</span><span class="v num">${fmt(estimate && estimate.quota)}</span></div>
-        <div class="kv"><span class="k">Guardado permanente</span><span class="v">${persisted ? "Sí" : "No garantizado"}</span></div>
-        <div class="kv"><span class="k">Base de datos</span><span class="v">${Store.isPersistent() ? "IndexedDB activa" : "Solo memoria"}</span></div>
+        <div class="kv"><span class="k">Conexión</span><span class="v">${Store.isPersistent() ? "Conectada a Supabase" : "Sin conexión — solo en memoria"}</span></div>
       </div>
       <p class="tiny muted mt-14">
-        Los datos se guardan únicamente en este navegador. Si borras los datos del sitio o
-        desinstalas la app, se pierden: exporta un respaldo de vez en cuando.
+        ${Store.isPersistent()
+          ? "Los datos se guardan en un servidor de Supabase dedicado a esta app — necesitas conexión a internet para leerlos o guardarlos. Exporta un respaldo de vez en cuando por si acaso."
+          : "No se pudo conectar con el servidor. Lo que veas ahora es temporal y no se está guardando — revisa tu conexión a internet y recarga la app."}
       </p>`,
   });
 }
@@ -181,8 +176,8 @@ export default {
           <div class="flex" style="align-items:flex-start;gap:10px">
             <span class="neg">${icon("alert", 20)}</span>
             <div>
-              <div class="row-title neg">No se puede guardar en este navegador</div>
-              <div class="tiny muted mt-8">Los cambios se perderán al cerrar. Prueba a salir del modo privado o usa otro navegador.</div>
+              <div class="row-title neg">No se pudo conectar con el servidor</div>
+              <div class="tiny muted mt-8">Revisa tu conexión a internet y recarga la app. Mientras tanto, nada de lo que hagas se está guardando.</div>
             </div>
           </div>
         </div>` : ""}
@@ -220,7 +215,7 @@ export default {
         <h2 class="section-title">Respaldo</h2>
       </div>
       <p class="tiny muted" style="margin:-4px 2px 10px">
-        Como no hay servidor, tus datos viven solo en este dispositivo. Exporta de vez en cuando.
+        Tus datos viven en Supabase, no en este dispositivo. Aun así, conviene exportar un respaldo de vez en cuando.
       </p>
       <div class="list">
         ${tile("export", "download", "Exportar datos", "Descarga un archivo .json")}
@@ -238,7 +233,7 @@ export default {
       </div>
 
       <p class="tiny muted center mt-20" style="padding-bottom:8px">
-        Mis Finanzas · sin cuentas, sin servidor, sin internet.<br>
+        Mis Finanzas · sin cuentas, con tus datos en la nube.<br>
         ${seededAt ? `Datos iniciales cargados el ${esc(formatLong(String(seededAt).slice(0, 10)))}.` : ""}
       </p>`;
   },

@@ -1,6 +1,7 @@
 // Estado de la aplicación y toda la lógica de negocio.
-// Los datos viven en IndexedDB; aquí se mantiene una copia en memoria para que
-// la interfaz pueda leerlos de forma síncrona (el volumen es pequeño).
+// Los datos viven en Supabase (proyecto remoto dedicado a Finanzas); aquí se
+// mantiene una copia en memoria para que la interfaz pueda leerlos de forma
+// síncrona (el volumen es pequeño).
 
 import * as db from "./db.js";
 import { KIND, STATUS, DEFAULT_CATEGORIES, makeItem, makeOccurrence, makeMovement, signedAmount } from "./model.js";
@@ -16,7 +17,7 @@ const state = {
   meta: new Map(),
   cuts: new Map(),
   ready: false,
-  persistent: true, // false = IndexedDB no disponible, se trabaja solo en memoria
+  persistent: true, // false = no hay conexión con Supabase, se trabaja solo en memoria
 };
 
 const listeners = new Set();
@@ -48,7 +49,7 @@ function uid(prefix) {
   return `${prefix}_${rand}`;
 }
 
-/** Guarda en IndexedDB sin romper la app si falla (los datos siguen en memoria). */
+/** Guarda en Supabase sin romper la app si falla (los datos siguen en memoria). */
 async function persist(store, records) {
   if (!state.persistent) return;
   try {

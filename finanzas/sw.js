@@ -1,10 +1,12 @@
 // Service worker de Mis Finanzas.
 //
-// Estrategia: "stale-while-revalidate" para el shell. Se sirve al instante
-// desde la caché (la app abre sin internet) y en paralelo se busca una versión
-// nueva para la próxima vez. Nunca toca los datos: todo vive en IndexedDB.
+// Estrategia: "stale-while-revalidate" para el shell estático (HTML/CSS/JS).
+// Los datos ya NO viven en IndexedDB: viven en Supabase (proyecto remoto
+// dedicado a Finanzas), así que la app necesita conexión a internet para
+// leer/guardar información — este service worker solo acelera la carga del
+// código de la app y permite que abra (sin datos) si no hay conexión.
 
-const CACHE = "finanzas-v6"; // v6: "Registrar ingreso" distingue fecha de cobro futura (esperado) de recibido — corrige que un ingreso con fecha futura se contara como disponible de inmediato
+const CACHE = "finanzas-v7"; // v7: migración de IndexedDB a Supabase (proyecto remoto dedicado a Finanzas)
 
 // Carpeta donde vive la app. Se deduce de la ubicación del propio service
 // worker, así funciona igual si la app está en la raíz del dominio o en una
@@ -15,6 +17,8 @@ const SHELL = [
   "./",
   "./index.html",
   "./manifest.json",
+  "./supabase-config.js",
+  "./js/vendor/supabase.js",
   "./css/app.css",
   "./js/app.js",
   "./js/store.js",
