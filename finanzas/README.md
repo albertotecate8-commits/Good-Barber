@@ -1,17 +1,25 @@
 # Mis Finanzas
 
-Aplicación web para llevar el control de **ingresos, gastos, deudas y pagos**.
-Es una app aparte, dentro de este mismo repositorio: **no toca ni depende de la
+Administrador simple de **3 negocios** (Barbería, Uñas, Afores) y lo personal:
+ingresos, gastos, ganancia y deudas, compartido en tiempo casi real entre dos
+personas (Administrador y Colaborador), cada una desde su propio teléfono. Es
+una app aparte, dentro de este mismo repositorio: **no toca ni depende de la
 app de barbería** que vive en la raíz.
 
 ## Lo esencial
 
-- **Sin base de datos propia, sin cuentas.** Los datos se guardan en un
-  proyecto de **Supabase** dedicado solo a esta app (separado por completo del
-  de la barbería) a través de `supabase-config.js`. No requiere iniciar sesión
-  — decisión consciente a cambio de simplicidad; ver "Seguridad" abajo.
-- **Necesita conexión a internet** para leer y guardar datos — ya no funciona
-  sin conexión (antes vivía en IndexedDB, 100% local).
+- **Requiere iniciar sesión** (correo y contraseña, Supabase Auth). El primer
+  correo que se registra queda como **Administrador** automáticamente; los
+  siguientes, **Colaborador**. Ambos ven y editan exactamente los mismos
+  datos, cada quien desde su teléfono.
+- Los datos se guardan en un proyecto de **Supabase** dedicado solo a esta app
+  (separado por completo del de la barbería) a través de `supabase-config.js`.
+- **Sincronización casi en tiempo real:** mientras la app está abierta y
+  visible, se refresca sola cada 30 segundos, y también al volver a ponerla en
+  primer plano — así lo que registra un teléfono aparece en el otro sin tener
+  que cerrar y volver a abrir la app.
+- **Necesita conexión a internet** para leer y guardar datos — no funciona sin
+  conexión (antes vivía en IndexedDB, 100% local).
 - **Se instala en el celular** como app (PWA): "Agregar a pantalla de inicio".
 - Sin frameworks ni paso de compilación: HTML, CSS y JavaScript con módulos ES.
 
@@ -34,6 +42,33 @@ En el celular: abre esa dirección en el navegador y usa
 **Compartir → Agregar a pantalla de inicio** (iPhone) o
 **⋮ → Instalar aplicación** (Android).
 
+## Negocios
+
+Tres espacios independientes — **Barbería, Uñas, Afores** —, cada uno con sus
+propios ingresos, gastos, categorías y ganancia. Nunca se mezclan entre sí: la
+ganancia de un negocio es siempre `ingresos recibidos − gastos pagados` de
+**ese** negocio, y el resumen general de Inicio suma los tres sin duplicar
+ningún movimiento. Lo que no pertenece claramente a ninguno (gastos
+personales, la mayoría de los registros que ya existían antes de que hubiera
+negocios) queda como **general/personal** — nunca se le inventa un negocio.
+
+Los negocios viven en una tabla editable (`businesses`), igual que las
+categorías — no están escritos a mano en el código.
+
+## Navegación
+
+Cinco pestañas: **Inicio** (resumen general + los 3 negocios + periodo
+hoy/semana/mes/personalizado), **Negocios** (una tarjeta por negocio →
+detalle con ingreso/gasto/ganancia de la semana y del mes, historial y
+estadísticas propias), **Movimientos** (pestaña central: ingresos y gastos
+juntos, con los dos botones grandes de registro rápido arriba), **Deudas**
+(periódicas y fuertes, filtrables por negocio) y **Más** (sesión, categorías,
+respaldo, ajustes).
+
+Registrar algo siempre es: abrir la app → tocar Ingreso o Gasto → elegir el
+negocio (3 botones grandes, nunca hay que escribirlo) → escribir el monto →
+guardar.
+
 ## Configurar Supabase (solo si cambias de proyecto)
 
 Ya está configurado y funcionando contra un proyecto dedicado. Si alguna vez
@@ -41,14 +76,18 @@ necesitas apuntar a otro (otra cuenta, otro entorno):
 
 1. Crea un proyecto en [supabase.com](https://supabase.com) (o usa uno nuevo).
 2. En **SQL Editor**, pega y corre todo [`supabase/schema.sql`](supabase/schema.sql)
-   — crea las seis tablas, activa Row Level Security y sus políticas. Es
-   seguro volver a correrlo (usa `if not exists`); si ya existían las
-   políticas, bórralas primero con `drop policy "acceso completo sin login"
-   on public.<tabla>;`.
-3. En **Project Settings → API**, copia el **Project URL** y la clave
+   — crea las tablas (incluye `businesses` y `profiles`), los triggers de
+   autenticación, activa Row Level Security y sus políticas. Es seguro
+   volver a correrlo en un proyecto nuevo (usa `if not exists` en todo lo
+   que lo admite).
+3. En **Authentication → Providers → Email**, confirma que el registro por
+   correo y contraseña esté activado (es lo que usa `screens/login.js`).
+4. En **Project Settings → API**, copia el **Project URL** y la clave
    **publishable** (nunca la `service_role`).
-4. Pégalos en `supabase-config.js` (raíz de `finanzas/`), en `SUPABASE_URL` y
+5. Pégalos en `supabase-config.js` (raíz de `finanzas/`), en `SUPABASE_URL` y
    `SUPABASE_KEY`.
+6. Abre la app, crea la primera cuenta (queda como Administrador) y luego la
+   segunda, para el Colaborador.
 
 ## Regla de cálculo
 
@@ -101,7 +140,7 @@ abono.
 
 Barbería y Uñas son ingresos semanales **sin un día fijo inventado**: no se les
 asigna un vencimiento fechado, sino que pertenecen a un corte semanal
-(`Corte semanal`, accesible desde Ingresos o Más) — por defecto cierra los
+(`Corte semanal`, accesible desde Movimientos o Más) — por defecto cierra los
 viernes, así que cada corte empieza en sábado y el sábado siguiente ya es un
 corte nuevo; el día de cierre es editable desde la misma pantalla. Cada corte
 muestra lo esperado, lo recibido y lo faltante, y se puede **cerrar** cuando
@@ -120,11 +159,13 @@ de hoy, ya que no existe un "ingreso vencido".
 ## Categorías y filtro universal
 
 **Más → Categorías** muestra cuánto hay comprometido por categoría (gastos y
-deudas por un lado, ingresos esperados por otro) y permite crear o eliminar
-categorías. El botón de embudo (**Filtrar**) en Gastos, Historial y Buscar abre
-el mismo panel de filtro en todas partes: categoría, tipo, estado, periodo
-(incluye un rango de fechas personalizado) y orden (fecha, monto o nombre, en
-ambos sentidos).
+deudas por un lado, ingresos esperados por otro) y permite crear categorías
+generales o de un negocio específico. El botón de embudo (**Filtrar**) en
+Movimientos, Deudas, Historial y Buscar abre el mismo panel de filtro en
+todas partes: **negocio**, categoría, tipo, estado, periodo (incluye un rango
+de fechas personalizado) y orden (fecha, monto o nombre, en ambos sentidos).
+"No quiero filtros complicados" — por eso es un único panel reutilizado en
+toda la app, no uno distinto por pantalla.
 
 ## Estructura
 
@@ -138,29 +179,38 @@ finanzas/
   css/app.css         Sistema de diseño completo
   js/
     vendor/supabase.js  @supabase/supabase-js vendorizado localmente
-    app.js            Arranque, navegación y acciones globales
-    store.js          Estado + lógica de negocio (pagos, recurrencias, respaldo)
+    app.js            Arranque, sesión, navegación y acciones globales
+    store.js          Estado + lógica de negocio (auth, pagos, recurrencias, respaldo)
     db.js             Capa de datos sobre Supabase (leer, escribir, reemplazar)
-    model.js          Definición de los registros y categorías
+    model.js          Definición de los registros, negocios y categorías
     seed.js           Datos iniciales
-    finance.js        Cálculos: disponible, pendiente, próximos 7 días, resúmenes
-    forms.js          Flujos de captura (ingreso, gasto, pago, edición)
+    finance.js        Cálculos: disponible, pendiente, resúmenes por negocio
+    filters.js         Filtro universal (negocio, categoría, tipo, estado, periodo, orden)
+    forms.js          Flujos de captura (ingreso, gasto, pago, edición, selector de negocio)
     ui.js             Iconos, hojas modales, avisos, animaciones
-    components.js     Piezas visuales compartidas (filas, gráficas)
+    components.js     Piezas visuales compartidas (filas, gráficas, etiqueta de negocio)
     dates.js          Fechas y periodicidades
     format.js         Formato de dinero (MXN)
-    screens/          Una pantalla por archivo
+    screens/          Una pantalla por archivo (login, negocios, negocio, movements, …)
 ```
 
 ## Modelo de datos
 
-| Store | Qué guarda |
+| Tabla | Qué guarda |
 |---|---|
 | `items` | Los conceptos: gastos fijos, deudas, deudas fuertes, fuentes de ingreso |
 | `occurrences` | Cada vencimiento concreto (fecha + monto esperado + estado) |
 | `movements` | El historial: dinero que realmente entró o salió |
-| `categories` | Categorías de gastos e ingresos |
+| `categories` | Categorías de gastos e ingresos (generales o de un negocio) |
+| `businesses` | Barbería, Uñas, Afores — editable, no hardcodeado |
+| `profiles` | Un perfil por usuario (nombre, correo, rol admin/colaborador) |
 | `meta` | Preferencias y banderas internas |
+
+`items`, `occurrences`, `movements` y `categories` tienen una columna
+`business_id` opcional (NULL = general/personal). `items` y `movements`
+además guardan `created_by` — quién lo registró —, para mostrar
+discretamente "Registrado por…" sin que eso afecte los totales, que siempre
+son compartidos entre ambos usuarios.
 
 El id de cada vencimiento se deriva de `(concepto, fecha)`, así que es imposible
 duplicar el mismo vencimiento aunque la app se abra muchas veces.
@@ -197,19 +247,28 @@ proyecto de Supabase, etc.).
 
 ## Seguridad
 
-- **No hay login.** Es una decisión consciente a cambio de simplicidad: la app
-  usa la clave pública (`anon`) de Supabase, visible en `supabase-config.js` y
-  en cualquier petición de red — cualquiera que la tenga puede leer y escribir
-  estos datos financieros. No es apta para datos que deban quedar privados
-  frente a quien conozca esa URL/clave.
+- **Login con correo y contraseña** (Supabase Auth). Row Level Security está
+  **activado** en las ocho tablas y todas las políticas exigen `authenticated`
+  — ya no hay acceso anónimo. Sin sesión, la app solo muestra la pantalla de
+  entrar/crear cuenta.
+- **Primer usuario = Administrador, el resto = Colaborador**, decidido por un
+  trigger en la base (`handle_new_user`), no por el cliente — no se puede
+  falsear enviando otro rol desde el frontend. Un trigger aparte
+  (`prevent_role_escalation`) bloquea que alguien cambie su propio rol.
+  Ambas funciones están revocadas como endpoint RPC público: solo pueden
+  dispararse como trigger.
+- **Datos compartidos, no privados entre sí:** cualquier usuario autenticado
+  de este proyecto ve y edita todo (es la base de "ambos ven exactamente lo
+  mismo"). Lo que protege RLS es la base completa frente a quien **no** tiene
+  sesión — no hay aislamiento por fila entre el Administrador y el
+  Colaborador, porque el objetivo es justo que compartan los datos.
 - **Proyecto propio y separado** del de la app de la barbería — nunca
   comparten base de datos ni credenciales.
-- Row Level Security está **activado** en las seis tablas, con una política
-  que permite todo a la clave pública — así, si en el futuro se agrega login,
-  basta con cambiar esas políticas para exigir `auth.uid()` en vez de abrirlo
-  a cualquiera; no hace falta rehacer el esquema.
 - La `service_role key` de este proyecto **nunca** se usa en el frontend — de
-  hecho, esta app no la necesita en absoluto (no hay Edge Functions).
+  hecho, esta app no la necesita en absoluto (no hay Edge Functions). Solo se
+  usa la clave **publishable**, visible en `supabase-config.js` como siempre
+  en una app cliente de Supabase; sin una sesión válida, esa clave por sí
+  sola no permite leer ni escribir nada (RLS lo impide).
 
 ## Datos iniciales
 
