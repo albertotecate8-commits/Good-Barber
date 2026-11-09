@@ -42,7 +42,7 @@ const FIELD_MAPS = {
   categories: { businessId: "business_id" },
   cuts: { startDate: "start_date", endDate: "end_date", closedAt: "closed_at" },
   businesses: {},
-  profiles: { createdAt: "created_at" },
+  profiles: { createdAt: "created_at", isTest: "is_test" },
 };
 
 // Columnas "numeric" de Postgres: postgrest las devuelve como texto para no
