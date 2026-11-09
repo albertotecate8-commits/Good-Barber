@@ -312,13 +312,21 @@ async function showApp() {
       if (Store.currentUser()) navigate();
     });
 
-    // Al volver a la app tras un rato, se recalculan los vencimientos por si
-    // cambió el día.
+    // Al volver a la app tras un rato: trae lo que haya registrado el otro
+    // teléfono y recalcula los vencimientos por si cambió el día.
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible" && Store.currentUser()) {
-        Store.ensureOccurrences().catch(() => {});
+        Store.refresh().then(() => Store.ensureOccurrences()).catch(() => {});
       }
     });
+
+    // Sincronización casi en tiempo real entre los dos teléfonos: mientras la
+    // app está abierta y visible, se refresca sola cada 30 segundos.
+    setInterval(() => {
+      if (document.visibilityState === "visible" && Store.currentUser()) {
+        Store.refresh().catch(() => {});
+      }
+    }, 30000);
   }
 
   if (!location.hash) location.hash = "#/inicio";

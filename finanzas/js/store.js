@@ -237,6 +237,38 @@ export async function init() {
   return state.persistent;
 }
 
+/**
+ * Vuelve a traer todo desde Supabase y reemplaza el estado en memoria —
+ * así es como un teléfono se entera de lo que registró el otro sin tener
+ * que cerrar y volver a abrir la app. Se llama periódicamente y al volver
+ * a poner la app en primer plano (ver app.js).
+ */
+export async function refresh() {
+  if (!state.session || !state.persistent) return;
+  try {
+    const [items, occurrences, movements, categories, meta, cuts, businesses] = await Promise.all([
+      db.getAll("items"),
+      db.getAll("occurrences"),
+      db.getAll("movements"),
+      db.getAll("categories"),
+      db.getAll("meta"),
+      db.getAll("cuts"),
+      db.getAll("businesses"),
+    ]);
+    state.items = new Map(items.map((r) => [r.id, r]));
+    state.occurrences = new Map(occurrences.map((r) => [r.id, r]));
+    state.movements = new Map(movements.map((r) => [r.id, r]));
+    state.categories = new Map(categories.map((r) => [r.id, r]));
+    state.meta = new Map(meta.map((r) => [r.key, r.value]));
+    state.cuts = new Map(cuts.map((r) => [r.id, r]));
+    state.businesses = new Map(businesses.map((r) => [r.id, r]));
+    await loadProfiles();
+    emit();
+  } catch (err) {
+    console.error("No se pudo actualizar desde el servidor:", err);
+  }
+}
+
 /** Vuelve al estado "sin sesión": limpia todo lo cargado en memoria. */
 export function resetInMemoryState() {
   state.items.clear();
