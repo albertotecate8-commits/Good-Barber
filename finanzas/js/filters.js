@@ -10,6 +10,7 @@ import { sheet, icon } from "./ui.js";
 import { todayISO, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isValidISO } from "./dates.js";
 
 export const DEFAULT_FILTER = {
+  business: "all", // all | none | <businessId>
   category: "all",
   type: "all",     // all | income | expense | debt
   status: "all",   // all | pending | overdue | paid | received
@@ -30,7 +31,7 @@ export function normalizeOccurrence(occ) {
   const isPartial = status === "pending" && Finance.occurrenceProgress(occ).paid > 0;
   return {
     raw: occ, kind: "occurrence",
-    id: occ.id, name: occ.name, category: occ.category,
+    id: occ.id, name: occ.name, category: occ.category, business: occ.businessId || null,
     recordKind: occ.kind, amount: occ.amount, date: occ.dueDate,
     status: isPartial ? "partial" : status,
   };
@@ -39,7 +40,7 @@ export function normalizeOccurrence(occ) {
 export function normalizeMovement(m) {
   return {
     raw: m, kind: "movement",
-    id: m.id, name: m.concept, category: m.category,
+    id: m.id, name: m.concept, category: m.category, business: m.businessId || null,
     recordKind: m.kind || (m.type === "income" ? "income" : "expense"),
     amount: m.amount, date: m.date,
     status: m.partial ? "pending" : (m.type === "income" ? "received" : "paid"),
@@ -49,7 +50,7 @@ export function normalizeMovement(m) {
 export function normalizeItem(item) {
   return {
     raw: item, kind: "item",
-    id: item.id, name: item.name, category: item.category,
+    id: item.id, name: item.name, category: item.category, business: item.businessId || null,
     recordKind: item.kind, amount: item.kind === "heavy" ? item.balance || 0 : item.amount,
     date: item.startDate || "",
     status: "all",
@@ -86,7 +87,7 @@ export function normalizeDebtItem(item) {
 
   return {
     raw: item, kind: "item",
-    id: item.id, name: item.name, category: item.category,
+    id: item.id, name: item.name, category: item.category, business: item.businessId || null,
     recordKind: item.kind, amount, date, status,
   };
 }
@@ -114,6 +115,12 @@ function matchesType(record, type) {
   return true;
 }
 
+function matchesBusiness(record, business) {
+  if (business === "all") return true;
+  if (business === "none") return !record.business;
+  return record.business === business;
+}
+
 function matchesStatus(record, status) {
   if (status === "all") return true;
   // Los conceptos genéricos (normalizeItem) no tienen un estado real: status
@@ -127,6 +134,7 @@ function matchesStatus(record, status) {
 export function applyFilter(records, state) {
   const range = periodRange(state);
   return records.filter((r) => {
+    if (!matchesBusiness(r, state.business || "all")) return false;
     if (state.category !== "all" && r.category !== state.category) return false;
     if (!matchesType(r, state.type)) return false;
     if (!matchesStatus(r, state.status)) return false;
@@ -211,11 +219,21 @@ function chipsRow(name, options, current) {
 export function openFilterSheet({ state, categoryType, onApply }) {
   const working = { ...DEFAULT_FILTER, ...state };
   const categories = Store.categories().filter((c) => !categoryType || c.type === categoryType);
+  const businessOptions = [
+    { id: "all", label: "Todos" },
+    ...Store.businesses().filter((b) => b.active !== false).map((b) => ({ id: b.id, label: b.name })),
+    { id: "none", label: "Generales" },
+  ];
 
   sheet({
     title: "Filtrar",
-    subtitle: "Combina categoría, tipo, estado, periodo y orden",
+    subtitle: "Combina negocio, categoría, tipo, estado, periodo y orden",
     body: `
+      <div class="field">
+        <label>Negocio</label>
+        ${chipsRow("business", businessOptions, working.business)}
+      </div>
+
       <div class="field">
         <label>Categoría</label>
         <select class="select" data-field="category">

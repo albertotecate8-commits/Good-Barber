@@ -18,10 +18,15 @@ const FILTERS = [
 ];
 
 export default {
-  render() {
+  render(params) {
+    const businessId = params && params.id ? params.id : null;
+    const business = businessId ? Store.getBusiness(businessId) : null;
+    const title = business ? `Historial · ${business.name}` : "Historial";
+
     let rows = Store.movements().sort((a, b) =>
       a.date === b.date ? (a.createdAt < b.createdAt ? 1 : -1) : a.date < b.date ? 1 : -1
     );
+    if (business) rows = rows.filter((m) => m.businessId === business.id);
 
     if (filter === "income") rows = rows.filter((m) => m.type === "income");
     if (filter === "expense") rows = rows.filter((m) => m.type === "expense" && m.kind !== "debt" && m.kind !== "heavy");
@@ -32,7 +37,7 @@ export default {
     if (isAdvanced) {
       const flat = Filters.applyAll(rows.map(Filters.normalizeMovement), advanced).map((r) => r.raw);
       return `
-        ${backHeader("Historial", `${flat.length} movimiento${flat.length === 1 ? "" : "s"}`)}
+        ${backHeader(title, `${flat.length} movimiento${flat.length === 1 ? "" : "s"}`)}
         ${filterBar(isAdvanced)}
         ${flat.length
           ? `<div class="list mt-14">${flat.map(movementRow).join("")}</div>`
@@ -60,7 +65,7 @@ export default {
     }).join("");
 
     return `
-      ${backHeader("Historial", `${rows.length} movimiento${rows.length === 1 ? "" : "s"}`)}
+      ${backHeader(title, `${rows.length} movimiento${rows.length === 1 ? "" : "s"}`)}
       ${filterBar(isAdvanced)}
       ${rows.length ? groups : `<div class="card">${empty("Sin movimientos", "Aquí queda registrado cada ingreso y cada pago.", "history")}</div>`}`;
   },

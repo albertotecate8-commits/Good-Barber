@@ -1,4 +1,7 @@
-// Pantalla GASTOS: pagos pendientes, vencidos y pagados + conceptos fijos.
+// Sección GASTOS (dentro de Movimientos): pagos pendientes, vencidos y
+// pagados + conceptos fijos. Exporta body()/mountBody() para incrustarse en
+// screens/movements.js; el export default sigue sirviendo por si algo
+// navega directo a #/gastos.
 
 import * as Store from "../store.js";
 import * as Finance from "../finance.js";
@@ -11,6 +14,7 @@ import { occurrenceRow, itemRow, groupedByDate } from "../components.js";
 
 let filter = "pending";
 let query = "";
+let business = "all"; // all | none | <businessId>
 let advanced = { ...Filters.DEFAULT_FILTER };
 
 const FILTERS = [
@@ -20,9 +24,27 @@ const FILTERS = [
   { id: "all", label: "Todos" },
 ];
 
+function matchesBusiness(record) {
+  if (business === "all") return true;
+  const id = record.businessId || null;
+  if (business === "none") return !id;
+  return id === business;
+}
+
+function businessFilterBar() {
+  const list = Store.businesses().filter((b) => b.active !== false);
+  const opt = (id, label) => `<button data-business="${esc(id)}" class="filter ${id === business ? "is-on" : ""}">${esc(label)}</button>`;
+  return `
+    <div class="filters mt-14">
+      ${opt("all", "Todos")}
+      ${opt("none", "Personales")}
+      ${list.map((b) => opt(b.id, b.name)).join("")}
+    </div>`;
+}
+
 function listFor() {
   const today = todayISO();
-  const all = Store.occurrences().filter((o) => Finance.isExpenseKind(o.kind));
+  const all = Store.occurrences().filter((o) => Finance.isExpenseKind(o.kind)).filter(matchesBusiness);
   const q = query.trim().toLocaleLowerCase("es");
   const match = (o) => !q || o.name.toLocaleLowerCase("es").includes(q) ||
     Store.categoryName(o.category).toLocaleLowerCase("es").includes(q);
@@ -83,7 +105,7 @@ function totalsCard() {
 function unscheduledSection() {
   const list = Store.items().filter(
     (i) => i.active && Finance.isExpenseKind(i.kind) && !i.startDate
-  );
+  ).filter(matchesBusiness);
   if (!list.length) return "";
 
   return `
@@ -100,6 +122,7 @@ function conceptsSection() {
   const byCategory = new Map();
   Store.items()
     .filter((i) => i.active && Finance.isExpenseKind(i.kind) && i.startDate)
+    .filter(matchesBusiness)
     .forEach((item) => {
       if (!byCategory.has(item.category)) byCategory.set(item.category, []);
       byCategory.get(item.category).push(item);
@@ -118,79 +141,93 @@ function conceptsSection() {
   }).join("");
 }
 
+/** Cuerpo de la sección, sin encabezado propio — para incrustarse en Movimientos. */
+export function body() {
+  const rows = listFor();
+  const isAdvanced = !Filters.isDefaultFilter(advanced);
+
+  return `
+    ${totalsCard()}
+
+    <div class="flex mt-14" style="gap:8px">
+      <div class="search grow" style="margin:0">
+        <span class="mag">${icon("search", 16, 2.2)}</span>
+        <input type="text" placeholder="Buscar gasto…" data-search value="${esc(query)}">
+      </div>
+      <button class="icon-btn ${isAdvanced ? "is-dark" : "is-outline"}" data-action="open-filters" aria-label="Filtrar">${icon("filter", 18, 2.2)}</button>
+    </div>
+
+    ${businessFilterBar()}
+
+    <div class="filters mt-14">
+      ${FILTERS.map((f) => `<button class="filter ${f.id === filter ? "is-on" : ""}" data-filter="${f.id}">${esc(f.label)}</button>`).join("")}
+    </div>
+
+    ${rows.length
+      ? (isAdvanced || filter === "paid" || filter === "all"
+          ? `<div class="list">${rows.map((o) => occurrenceRow(o)).join("")}</div>`
+          : groupedByDate(rows, (o) => occurrenceRow(o, { hideDate: true })))
+      : `<div class="card">${empty("Nada por aquí", query ? "Prueba con otra búsqueda." : "No hay gastos con ese filtro.", "wallet")}</div>`}
+
+    ${unscheduledSection()}
+    ${conceptsSection()}`;
+}
+
+export function mountBody(root, ctx) {
+  root.querySelectorAll("[data-filter]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      filter = btn.dataset.filter;
+      ctx.rerender();
+    });
+  });
+
+  root.querySelectorAll("[data-business]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      business = btn.dataset.business;
+      ctx.rerender();
+    });
+  });
+
+  const filterBtn = root.querySelector('[data-action="open-filters"]');
+  if (filterBtn) {
+    filterBtn.addEventListener("click", () => {
+      Filters.openFilterSheet({
+        state: advanced,
+        categoryType: "expense",
+        onApply: (next) => { advanced = next; ctx.rerender(); },
+      });
+    });
+  }
+
+  const search = root.querySelector("[data-search]");
+  if (search) {
+    let timer = null;
+    search.addEventListener("input", () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        query = search.value;
+        ctx.rerender(() => {
+          const next = document.querySelector("[data-search]");
+          if (next) {
+            next.focus();
+            next.setSelectionRange(next.value.length, next.value.length);
+          }
+        });
+      }, 220);
+    });
+  }
+}
+
 export default {
   render() {
-    const rows = listFor();
-    const isAdvanced = !Filters.isDefaultFilter(advanced);
-
     return `
       <header class="head">
         <div class="head-titles">
           <div class="head-title"><b>Gastos</b></div>
-          <div class="head-sub">${rows.length} registro${rows.length === 1 ? "" : "s"}</div>
         </div>
         <button class="icon-btn is-lime" data-action="new-expense" aria-label="Nuevo gasto">${icon("plus", 20, 2.4)}</button>
       </header>
-
-      ${totalsCard()}
-
-      <div class="flex mt-14" style="gap:8px">
-        <div class="search grow" style="margin:0">
-          <span class="mag">${icon("search", 16, 2.2)}</span>
-          <input type="text" placeholder="Buscar gasto…" data-search value="${esc(query)}">
-        </div>
-        <button class="icon-btn ${isAdvanced ? "is-dark" : "is-outline"}" data-action="open-filters" aria-label="Filtrar">${icon("filter", 18, 2.2)}</button>
-      </div>
-
-      <div class="filters mt-14">
-        ${FILTERS.map((f) => `<button class="filter ${f.id === filter ? "is-on" : ""}" data-filter="${f.id}">${esc(f.label)}</button>`).join("")}
-      </div>
-
-      ${rows.length
-        ? (isAdvanced || filter === "paid" || filter === "all"
-            ? `<div class="list">${rows.map((o) => occurrenceRow(o)).join("")}</div>`
-            : groupedByDate(rows, (o) => occurrenceRow(o, { hideDate: true })))
-        : `<div class="card">${empty("Nada por aquí", query ? "Prueba con otra búsqueda." : "No hay gastos con ese filtro.", "wallet")}</div>`}
-
-      ${unscheduledSection()}
-      ${conceptsSection()}`;
+      ${body()}`;
   },
-
-  mount(root, ctx) {
-    root.querySelectorAll("[data-filter]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        filter = btn.dataset.filter;
-        ctx.rerender();
-      });
-    });
-
-    const filterBtn = root.querySelector('[data-action="open-filters"]');
-    if (filterBtn) {
-      filterBtn.addEventListener("click", () => {
-        Filters.openFilterSheet({
-          state: advanced,
-          categoryType: "expense",
-          onApply: (next) => { advanced = next; ctx.rerender(); },
-        });
-      });
-    }
-
-    const search = root.querySelector("[data-search]");
-    if (search) {
-      let timer = null;
-      search.addEventListener("input", () => {
-        clearTimeout(timer);
-        timer = setTimeout(() => {
-          query = search.value;
-          ctx.rerender(() => {
-            const next = document.querySelector("[data-search]");
-            if (next) {
-              next.focus();
-              next.setSelectionRange(next.value.length, next.value.length);
-            }
-          });
-        }, 220);
-      });
-    }
-  },
+  mount: mountBody,
 };

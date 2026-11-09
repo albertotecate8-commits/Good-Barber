@@ -96,9 +96,7 @@ export function profileName(userId) {
 async function loadProfiles() {
   try {
     const rows = await db.getAll("profiles");
-    state.profiles = new Map(
-      rows.filter((r) => !r.isTest).map((r) => [r.id, makeProfile(r)])
-    );
+    state.profiles = new Map(rows.map((r) => [r.id, makeProfile(r)]));
   } catch (err) {
     console.error("No se pudieron leer los perfiles:", err);
   }

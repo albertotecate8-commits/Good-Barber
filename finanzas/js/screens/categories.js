@@ -5,7 +5,7 @@ import * as Store from "../store.js";
 import * as Finance from "../finance.js";
 import { money, esc } from "../format.js";
 import { icon, empty, sheet, toast, confirmSheet } from "../ui.js";
-import { backHeader, itemRow, heavyCard } from "../components.js";
+import { backHeader, itemRow, heavyCard, businessChip } from "../components.js";
 
 function categoryRow(r) {
   return `
@@ -13,7 +13,10 @@ function categoryRow(r) {
       <span class="row-ico" style="background:${esc(r.color)}22;color:${esc(r.color)}">${icon("tag", 18)}</span>
       <span class="row-body">
         <span class="row-title">${esc(r.name)}</span>
-        <span class="row-sub"><span class="chip neutral">${r.count} registro${r.count === 1 ? "" : "s"}</span></span>
+        <span class="row-sub">
+          <span class="chip neutral">${r.count} registro${r.count === 1 ? "" : "s"}</span>
+          ${businessChip(r.businessId)}
+        </span>
       </span>
       <span class="row-end"><span class="row-amount num">${esc(money(r.total))}</span></span>
     </button>`;
@@ -80,6 +83,7 @@ function detailScreen(id) {
 }
 
 function newCategorySheet(onDone) {
+  const businesses = Store.businesses().filter((b) => b.active !== false);
   sheet({
     title: "Nueva categoría",
     body: `
@@ -94,6 +98,13 @@ function newCategorySheet(onDone) {
           <option value="income">Ingresos</option>
         </select>
       </div>
+      <div class="field">
+        <label for="f-catbiz">Negocio (opcional)</label>
+        <select id="f-catbiz" class="select" data-business>
+          <option value="">General / personal</option>
+          ${businesses.map((b) => `<option value="${esc(b.id)}">${esc(b.name)}</option>`).join("")}
+        </select>
+      </div>
       <div class="field-error" data-error hidden></div>
       <div class="sheet-actions">
         <button class="btn btn-ink" data-submit>Crear categoría</button>
@@ -106,6 +117,7 @@ function newCategorySheet(onDone) {
           await Store.saveCategory({
             name: panel.querySelector("[data-name]").value,
             type: panel.querySelector("[data-type]").value,
+            businessId: panel.querySelector("[data-business]").value || null,
           });
           close();
           toast("Categoría creada", "ok");

@@ -10,6 +10,9 @@ import { icon, toast, sheet, closeSheet, confirmSheet } from "./ui.js";
 
 import login from "./screens/login.js";
 import home from "./screens/home.js";
+import negocios from "./screens/negocios.js";
+import negocio from "./screens/negocio.js";
+import movements from "./screens/movements.js";
 import expenses from "./screens/expenses.js";
 import income from "./screens/income.js";
 import debts from "./screens/debts.js";
@@ -24,7 +27,10 @@ import categoriesScreen from "./screens/categories.js";
 
 const SCREENS = {
   inicio: home,
-  gastos: expenses,
+  negocios,
+  negocio,
+  movimientos: movements,
+  gastos: expenses,   // enlaces antiguos — ya no hay pestaña, pero siguen funcionando
   ingresos: income,
   deudas: debts,
   mas: moreScreen,
@@ -39,19 +45,22 @@ const SCREENS = {
 
 const TABS = [
   { id: "inicio", label: "Inicio", glyph: "home" },
-  { id: "gastos", label: "Gastos", glyph: "expense" },
-  { id: "ingresos", label: "Ingresos", glyph: "income", center: true },
+  { id: "negocios", label: "Negocios", glyph: "wallet" },
+  { id: "movimientos", label: "Movimientos", glyph: "expense", center: true },
   { id: "deudas", label: "Deudas", glyph: "debt" },
   { id: "mas", label: "Más", glyph: "more" },
 ];
 
 const TAB_FOR_ROUTE = {
   detalle: null,
+  negocio: "negocios",
+  gastos: "movimientos",
+  ingresos: "movimientos",
   calendario: "mas",
   historial: "mas",
   mensual: "mas",
   buscar: null,
-  corte: "ingresos",
+  corte: "movimientos",
   categorias: "mas",
 };
 
@@ -230,6 +239,9 @@ const ACTIONS = {
   "new-debt": () => Forms.editItem(null, KIND.DEBT),
   "new-heavy": () => Forms.editItem(null, KIND.HEAVY),
   "new-income-source": () => Forms.editItem(null, KIND.INCOME),
+
+  "negocio-ingreso": (data) => Forms.newIncome({ businessId: data.business || null }),
+  "negocio-gasto": (data) => Forms.newExpense({ businessId: data.business || null }),
 
   "sign-out": async () => {
     const ok = await confirmSheet({

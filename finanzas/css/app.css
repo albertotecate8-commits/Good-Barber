@@ -251,6 +251,7 @@ ul { margin: 0; padding: 0; list-style: none; }
 .tiny { font-size: 12.5px; }
 .pos { color: var(--success); }
 .neg { color: var(--danger); }
+.strong { font-weight: 700; }
 
 /* -------------------------------------------------- Tarjeta hero negra --- */
 
@@ -399,6 +400,21 @@ ul { margin: 0; padding: 0; list-style: none; }
 .mini .v { font-size: clamp(13px, 4vw, 16px); font-weight: 700; letter-spacing: -0.025em; margin-top: 2px; white-space: nowrap; }
 .mini .v.lime { color: var(--lime); }
 .mini .v.warn { color: #ffc46b; }
+
+/* Tarjetas compactas de negocio dentro del resumen de Inicio. */
+.mini-biz-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+.mini-biz {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  background: var(--bg);
+  border-radius: var(--r-md);
+  padding: 10px 12px;
+  min-width: 0;
+}
+.mini-biz-name { font-size: 12.5px; font-weight: 700; margin-bottom: 2px; }
+.mini-biz-row { display: flex; justify-content: space-between; gap: 8px; }
 
 /* --------------------------------------------------------------- Cards --- */
 

@@ -264,9 +264,9 @@ export function upcomingPayments(limit) {
 }
 
 /** Gastos pagados agrupados por categoría en un rango. */
-export function categoryBreakdown(from, to) {
+export function categoryBreakdown(from, to, businessId) {
   const totals = new Map();
-  movementsBetween(from, to).forEach((m) => {
+  movementsBetween(from, to, businessId).forEach((m) => {
     if (m.type !== "expense") return;
     totals.set(m.category, round2((totals.get(m.category) || 0) + m.amount));
   });
@@ -307,6 +307,7 @@ export function categoryCommitment() {
       name: c.name,
       color: c.color,
       type: c.type,
+      businessId: c.businessId || null,
       total: totals.get(c.id) || 0,
       count: counts.get(c.id) || 0,
     }))
@@ -315,9 +316,9 @@ export function categoryCommitment() {
 }
 
 /** Ingresos recibidos agrupados por categoría en un rango. */
-export function incomeBreakdown(from, to) {
+export function incomeBreakdown(from, to, businessId) {
   const totals = new Map();
-  movementsBetween(from, to).forEach((m) => {
+  movementsBetween(from, to, businessId).forEach((m) => {
     if (m.type !== "income") return;
     totals.set(m.category, round2((totals.get(m.category) || 0) + m.amount));
   });

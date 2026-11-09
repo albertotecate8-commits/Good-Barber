@@ -1,4 +1,7 @@
-// Pantalla INGRESOS: semanales, mensuales, extraordinarios y recibidos.
+// Sección INGRESOS (dentro de Movimientos): semanales, mensuales,
+// extraordinarios y recibidos. Exporta body()/mountBody() para incrustarse
+// en screens/movements.js; el export default sigue sirviendo por si algo
+// navega directo a #/ingresos.
 
 import * as Store from "../store.js";
 import * as Finance from "../finance.js";
@@ -6,12 +9,33 @@ import { KIND, STATUS } from "../model.js";
 import { money, esc } from "../format.js";
 import { todayISO, endOfMonth, addDays, formatMedium, formatCutRange, recurrenceShort } from "../dates.js";
 import { icon, empty } from "../ui.js";
-import { occurrenceRow, movementRow } from "../components.js";
+import { occurrenceRow, movementRow, businessChip } from "../components.js";
+
+let business = "all"; // all | none | <businessId>
+
+function matchesBusiness(record) {
+  if (business === "all") return true;
+  const id = record.businessId || null;
+  if (business === "none") return !id;
+  return id === business;
+}
+
+function businessFilterBar() {
+  const list = Store.businesses().filter((b) => b.active !== false);
+  const opt = (id, label) => `<button data-business="${esc(id)}" class="filter ${id === business ? "is-on" : ""}">${esc(label)}</button>`;
+  return `
+    <div class="filters mt-14">
+      ${opt("all", "Todos")}
+      ${opt("none", "Personales")}
+      ${list.map((b) => opt(b.id, b.name)).join("")}
+    </div>`;
+}
 
 function summaryCard() {
   const today = todayISO();
-  const summary = Finance.monthSummary(today);
+  const summary = Finance.monthSummary(today, business === "all" ? undefined : (business === "none" ? null : business));
   const expected = Finance.pendingIncomes({ until: endOfMonth(today) })
+    .filter(matchesBusiness)
     .reduce((s, o) => s + o.amount, 0);
   const cut = Finance.cutBreakdown(Finance.activeCutRange());
 
@@ -81,6 +105,7 @@ function expectedRow(occ) {
         <span class="row-title">${esc(occ.name)}</span>
         <span class="row-sub">
           <span class="chip ${overdue ? "lime" : "pending"}">${overdue ? "Listo para cobrar" : "Esperado"}</span>
+          ${businessChip(occ.businessId)}
           <span>${esc(formatMedium(occ.dueDate))}</span>
         </span>
       </button>
@@ -95,7 +120,9 @@ function expectedRow(occ) {
 function extraordinarySection() {
   // Ingreso extraordinario de verdad: sin fecha Y sin pertenecer al corte
   // semanal (Afores). Barbería/Uñas son del corte, no "extraordinarios".
-  const list = Store.items().filter((i) => i.active && i.kind === KIND.INCOME && !i.startDate && !i.cutBased);
+  const list = Store.items()
+    .filter((i) => i.active && i.kind === KIND.INCOME && !i.startDate && !i.cutBased)
+    .filter(matchesBusiness);
   if (!list.length) return "";
 
   return `
@@ -110,6 +137,7 @@ function extraordinarySection() {
             <span class="row-title">${esc(item.name)}</span>
             <span class="row-sub">
               <span class="chip pending">${esc(item.statusNote || "Pendiente")}</span>
+              ${businessChip(item.businessId)}
             </span>
           </button>
           <span class="row-end"><span class="row-amount num pos">+${esc(money(item.amount))}</span></span>
@@ -124,6 +152,7 @@ function extraordinarySection() {
 function sourcesSection() {
   const list = Store.items()
     .filter((i) => i.active && i.kind === KIND.INCOME)
+    .filter(matchesBusiness)
     .sort((a, b) => a.name.localeCompare(b.name, "es"));
 
   if (!list.length) return "";
@@ -141,6 +170,7 @@ function sourcesSection() {
             <span class="row-sub">
               <span class="chip neutral">${item.cutBased ? "Corte semanal" : esc(recurrenceShort(item.recurrence))}</span>
               ${item.variable ? '<span class="chip neutral">Editable</span>' : ""}
+              ${businessChip(item.businessId)}
             </span>
           </span>
           <span class="row-end">
@@ -151,15 +181,58 @@ function sourcesSection() {
     </div>`;
 }
 
+/** Cuerpo de la sección, sin encabezado propio — para incrustarse en Movimientos. */
+export function body() {
+  const today = todayISO();
+  const expected = Finance.pendingIncomes({ until: addDays(today, 45) }).filter(matchesBusiness);
+  const received = Store.movements()
+    .filter((m) => m.type === "income")
+    .filter(matchesBusiness)
+    .sort((a, b) => (a.date === b.date ? (a.createdAt < b.createdAt ? 1 : -1) : a.date < b.date ? 1 : -1))
+    .slice(0, 8);
+
+  return `
+    ${summaryCard()}
+
+    <div class="btn-row mt-14">
+      <button class="btn btn-lime" data-action="quick-income">${icon("plus", 18, 2.4)} Ingreso</button>
+      <button class="btn btn-outline" data-action="nav" data-to="#/historial">${icon("history", 17)} Historial</button>
+    </div>
+
+    ${businessFilterBar()}
+
+    ${cutCard()}
+
+    <div class="section-head">
+      <h2 class="section-title">Por recibir</h2>
+    </div>
+    ${expected.length
+      ? `<div class="list">${expected.slice(0, 12).map(expectedRow).join("")}</div>`
+      : `<div class="card">${empty("Nada por recibir", "Cuando venza un ingreso aparecerá aquí.", "income")}</div>`}
+
+    ${extraordinarySection()}
+    ${sourcesSection()}
+
+    <div class="section-head">
+      <h2 class="section-title">Recibidos</h2>
+      <button class="section-link" data-action="nav" data-to="#/historial">Ver todo ${icon("chevron", 13, 2.4)}</button>
+    </div>
+    ${received.length
+      ? `<div class="list">${received.map(movementRow).join("")}</div>`
+      : `<div class="card">${empty("Sin ingresos registrados", "Usa “Ingreso rápido” para registrar el primero.", "income")}</div>`}`;
+}
+
+export function mountBody(root, ctx) {
+  root.querySelectorAll("[data-business]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      business = btn.dataset.business;
+      ctx.rerender();
+    });
+  });
+}
+
 export default {
   render() {
-    const today = todayISO();
-    const expected = Finance.pendingIncomes({ until: addDays(today, 45) });
-    const received = Store.movements()
-      .filter((m) => m.type === "income")
-      .sort((a, b) => (a.date === b.date ? (a.createdAt < b.createdAt ? 1 : -1) : a.date < b.date ? 1 : -1))
-      .slice(0, 8);
-
     return `
       <header class="head">
         <div class="head-titles">
@@ -168,34 +241,7 @@ export default {
         </div>
         <button class="icon-btn is-lime" data-action="new-income-source" aria-label="Nueva fuente de ingreso">${icon("plus", 20, 2.4)}</button>
       </header>
-
-      ${summaryCard()}
-
-      <div class="btn-row mt-14">
-        <button class="btn btn-lime" data-action="quick-income">${icon("plus", 18, 2.4)} Ingreso</button>
-        <button class="btn btn-outline" data-action="nav" data-to="#/historial">${icon("history", 17)} Historial</button>
-      </div>
-
-      ${cutCard()}
-
-      <div class="section-head">
-        <h2 class="section-title">Por recibir</h2>
-      </div>
-      ${expected.length
-        ? `<div class="list">${expected.slice(0, 12).map(expectedRow).join("")}</div>`
-        : `<div class="card">${empty("Nada por recibir", "Cuando venza un ingreso aparecerá aquí.", "income")}</div>`}
-
-      ${extraordinarySection()}
-      ${sourcesSection()}
-
-      <div class="section-head">
-        <h2 class="section-title">Recibidos</h2>
-        <button class="section-link" data-action="nav" data-to="#/historial">Ver todo ${icon("chevron", 13, 2.4)}</button>
-      </div>
-      ${received.length
-        ? `<div class="list">${received.map(movementRow).join("")}</div>`
-        : `<div class="card">${empty("Sin ingresos registrados", "Usa “Ingreso rápido” para registrar el primero.", "income")}</div>`}`;
+      ${body()}`;
   },
-
-  mount() {},
+  mount: mountBody,
 };
