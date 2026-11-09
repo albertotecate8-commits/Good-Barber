@@ -121,13 +121,13 @@ export function buildSeed(todayOverride) {
   // -------------------------------------------------------------- INGRESOS --
   // Barbería y Uñas son ingresos del corte semanal (domingo a sábado): no
   // tienen un día fijo inventado, se registran dentro de la semana que caiga.
-  add({ id: "ing-barberia", kind: KIND.INCOME, name: "Barbería", category: "barberia",
+  add({ id: "ing-barberia", kind: KIND.INCOME, name: "Barbería", category: "barberia", businessId: "barberia",
         amount: 300, recurrence: "weekly", startDate: null, variable: true, cutBased: true });
-  add({ id: "ing-unas", kind: KIND.INCOME, name: "Uñas", category: "unas",
+  add({ id: "ing-unas", kind: KIND.INCOME, name: "Uñas", category: "unas", businessId: "unas",
         amount: 5400, recurrence: "weekly", startDate: null, variable: true, cutBased: true });
   add({ id: "ing-rentas", kind: KIND.INCOME, name: "Rentas", category: "rentas",
         amount: 5000, recurrence: "monthly", startDate: nextMonthDayFrom(today, 1), anchorDay: 1 });
-  add({ id: "ing-afores", kind: KIND.INCOME, name: "Afores", category: "afores",
+  add({ id: "ing-afores", kind: KIND.INCOME, name: "Afores", category: "afores", businessId: "afores",
         amount: 26051, recurrence: "once", startDate: null,
         statusNote: "Cobrar en septiembre" });
 

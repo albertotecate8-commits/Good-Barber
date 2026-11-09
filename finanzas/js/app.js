@@ -8,6 +8,7 @@ import { money, esc } from "./format.js";
 import { formatLong } from "./dates.js";
 import { icon, toast, sheet, closeSheet, confirmSheet } from "./ui.js";
 
+import login from "./screens/login.js";
 import home from "./screens/home.js";
 import expenses from "./screens/expenses.js";
 import income from "./screens/income.js";
@@ -55,6 +56,7 @@ const TAB_FOR_ROUTE = {
 };
 
 let current = { name: "inicio", params: {} };
+let appStarted = false;
 
 /* ============================================================== Rutas === */
 
@@ -228,6 +230,17 @@ const ACTIONS = {
   "new-debt": () => Forms.editItem(null, KIND.DEBT),
   "new-heavy": () => Forms.editItem(null, KIND.HEAVY),
   "new-income-source": () => Forms.editItem(null, KIND.INCOME),
+
+  "sign-out": async () => {
+    const ok = await confirmSheet({
+      title: "¿Cerrar sesión?",
+      message: "Tendrás que volver a entrar con tu correo y contraseña.",
+      confirmText: "Sí, cerrar sesión",
+      danger: true,
+    });
+    if (!ok) return;
+    await Store.signOut();
+  },
 };
 
 function bindGlobalActions() {
@@ -256,9 +269,17 @@ function bindGlobalActions() {
 
 /* ================================================================ Boot === */
 
-async function boot() {
-  bindGlobalActions();
+function paintCurrentIfLoggedIn() {
+  if (!Store.currentUser()) return;
+  const root = document.getElementById("screen");
+  if (!root) return;
+  const scroll = window.scrollY;
+  paint(root, false);
+  window.scrollTo(0, scroll);
+  renderTabs();
+}
 
+async function showApp() {
   try {
     const persistent = await Store.init();
     if (!persistent) {
@@ -269,31 +290,55 @@ async function boot() {
     toast("Hubo un problema al iniciar la app.", "err");
   }
 
-  // Cada cambio de datos repinta la pantalla actual.
-  Store.subscribe(() => {
-    const root = document.getElementById("screen");
-    if (!root) return;
-    const scroll = window.scrollY;
-    paint(root, false);
-    window.scrollTo(0, scroll);
-    renderTabs();
-  });
+  if (!appStarted) {
+    appStarted = true;
 
-  window.addEventListener("hashchange", navigate);
+    // Cada cambio de datos repinta la pantalla actual.
+    Store.subscribe(paintCurrentIfLoggedIn);
 
-  // Al volver a la app tras un rato, se recalculan los vencimientos por si
-  // cambió el día.
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") {
-      Store.ensureOccurrences().catch(() => {});
-    }
-  });
+    window.addEventListener("hashchange", () => {
+      if (Store.currentUser()) navigate();
+    });
+
+    // Al volver a la app tras un rato, se recalculan los vencimientos por si
+    // cambió el día.
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible" && Store.currentUser()) {
+        Store.ensureOccurrences().catch(() => {});
+      }
+    });
+  }
 
   if (!location.hash) location.hash = "#/inicio";
   navigate();
 
-  document.getElementById("app").hidden = false;
   document.getElementById("tabbar").hidden = false;
+}
+
+function showLogin() {
+  closeSheet(true);
+  const root = document.getElementById("screen");
+  root.innerHTML = login.render();
+  login.mount(root, { rerender: showLogin });
+  document.getElementById("tabbar").hidden = true;
+}
+
+async function boot() {
+  bindGlobalActions();
+
+  const session = await Store.initAuth((nextSession, had) => {
+    if (nextSession && !had) {
+      showApp();
+    } else if (!nextSession && had) {
+      Store.resetInMemoryState();
+      showLogin();
+    }
+  });
+
+  if (session) await showApp();
+  else showLogin();
+
+  document.getElementById("app").hidden = false;
   const bootEl = document.getElementById("boot");
   bootEl.classList.add("is-out");
   setTimeout(() => bootEl.remove(), 320);

@@ -37,20 +37,22 @@ export function statusLabel(key) {
 }
 
 /** Vencimientos pendientes de pago (gastos y deudas), ordenados por fecha. */
-export function pendingPayments({ until, from } = {}) {
+export function pendingPayments({ until, from, businessId } = {}) {
   return Store.occurrences()
     .filter((o) => o.status === STATUS.PENDING && isExpenseKind(o.kind))
     .filter((o) => (until ? o.dueDate <= until : true))
     .filter((o) => (from ? o.dueDate >= from : true))
+    .filter((o) => (businessId !== undefined ? o.businessId === businessId : true))
     .sort((a, b) => (a.dueDate === b.dueDate ? a.name.localeCompare(b.name, "es") : a.dueDate < b.dueDate ? -1 : 1));
 }
 
 /** Ingresos esperados todavía no recibidos. */
-export function pendingIncomes({ until, from } = {}) {
+export function pendingIncomes({ until, from, businessId } = {}) {
   return Store.occurrences()
     .filter((o) => o.status === STATUS.PENDING && o.kind === KIND.INCOME)
     .filter((o) => (until ? o.dueDate <= until : true))
     .filter((o) => (from ? o.dueDate >= from : true))
+    .filter((o) => (businessId !== undefined ? o.businessId === businessId : true))
     .sort((a, b) => (a.dueDate < b.dueDate ? -1 : 1));
 }
 
@@ -72,25 +74,31 @@ export function occurrenceProgress(occ) {
   return { paid, remaining: round2(Math.max(0, occ.amount - paid)) };
 }
 
-/** Movimientos dentro de un rango de fechas (inclusive). */
-export function movementsBetween(from, to) {
+/** Movimientos dentro de un rango de fechas (inclusive). Por su fecha real, no la de creación. */
+export function movementsBetween(from, to, businessId) {
   return Store.movements()
     .filter((m) => m.date >= from && m.date <= to)
+    .filter((m) => (businessId !== undefined ? m.businessId === businessId : true))
     .sort((a, b) => (a.date === b.date ? (a.createdAt < b.createdAt ? 1 : -1) : a.date < b.date ? 1 : -1));
 }
 
-/** Resumen de un periodo: recibido, pagado, comprometido y saldo del periodo. */
-export function summaryBetween(from, to) {
+/**
+ * Resumen de un periodo: recibido, pagado, comprometido y saldo del periodo.
+ * Con `businessId` filtra a un solo negocio; sin él, es de TODO (incluye lo
+ * personal/general). FLUJO DE EFECTIVO, no utilidad contable: no incluye
+ * inventarios, depreciación ni otros costos no registrados.
+ */
+export function summaryBetween(from, to, businessId) {
   let income = 0;
   let paid = 0;
 
-  movementsBetween(from, to).forEach((m) => {
+  movementsBetween(from, to, businessId).forEach((m) => {
     if (m.type === "income") income += m.amount;
     else paid += m.amount;
   });
 
-  const pending = pendingPayments({ from, until: to }).reduce((sum, o) => sum + o.amount, 0);
-  const expectedIncome = pendingIncomes({ from, until: to }).reduce((sum, o) => sum + o.amount, 0);
+  const pending = pendingPayments({ from, until: to, businessId }).reduce((sum, o) => sum + o.amount, 0);
+  const expectedIncome = pendingIncomes({ from, until: to, businessId }).reduce((sum, o) => sum + o.amount, 0);
 
   return {
     from,
@@ -99,18 +107,54 @@ export function summaryBetween(from, to) {
     paid: round2(paid),
     pending: round2(pending),
     expectedIncome: round2(expectedIncome),
-    net: round2(income - paid),
+    net: round2(income - paid), // "ganancia" del periodo = flujo neto (ingresos recibidos - gastos pagados)
   };
 }
 
-export function weekSummary(iso) {
+export function weekSummary(iso, businessId) {
   const ref = iso || todayISO();
-  return summaryBetween(startOfWeek(ref), endOfWeek(ref));
+  return summaryBetween(startOfWeek(ref), endOfWeek(ref), businessId);
 }
 
-export function monthSummary(iso) {
+export function monthSummary(iso, businessId) {
   const ref = iso || todayISO();
-  return summaryBetween(startOfMonth(ref), endOfMonth(ref));
+  return summaryBetween(startOfMonth(ref), endOfMonth(ref), businessId);
+}
+
+/** Resumen de UN negocio en un periodo — ingresos, gastos, ganancia (flujo neto). */
+export function businessSummary(businessId, from, to) {
+  return summaryBetween(from, to, businessId);
+}
+
+/**
+ * Resumen combinado de los tres negocios (nunca incluye lo personal/general).
+ * Suma cada negocio por separado para no contar dos veces ningún movimiento.
+ */
+export function allBusinessesSummary(from, to) {
+  const list = Store.businesses().filter((b) => b.active !== false);
+  let income = 0, paid = 0, pending = 0, expectedIncome = 0;
+  const byBusiness = list.map((b) => {
+    const s = businessSummary(b.id, from, to);
+    income += s.income; paid += s.paid; pending += s.pending; expectedIncome += s.expectedIncome;
+    return { business: b, summary: s };
+  });
+  return {
+    from, to,
+    income: round2(income),
+    paid: round2(paid),
+    pending: round2(pending),
+    expectedIncome: round2(expectedIncome),
+    net: round2(income - paid),
+    byBusiness,
+  };
+}
+
+/** Semana sábado→viernes (o el día de cierre configurado) que contiene `iso`. */
+export function weekRangeFor(iso) {
+  const ref = iso || todayISO();
+  const closingDay = cutClosingDay();
+  const start = startOfCut(ref, closingDay);
+  return { start, end: endOfCut(start, closingDay) };
 }
 
 /**

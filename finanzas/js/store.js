@@ -4,7 +4,10 @@
 // síncrona (el volumen es pequeño).
 
 import * as db from "./db.js";
-import { KIND, STATUS, DEFAULT_CATEGORIES, makeItem, makeOccurrence, makeMovement, signedAmount } from "./model.js";
+import {
+  KIND, STATUS, DEFAULT_CATEGORIES, DEFAULT_BUSINESSES,
+  makeItem, makeOccurrence, makeMovement, makeProfile, signedAmount,
+} from "./model.js";
 import { buildSeed, CUT_BASED_ITEM_IDS } from "./seed.js";
 import { todayISO, addDays, addMonths, isValidISO, RECURRENCES } from "./dates.js";
 import { round2 } from "./format.js";
@@ -14,8 +17,11 @@ const state = {
   occurrences: new Map(),
   movements: new Map(),
   categories: new Map(),
+  businesses: new Map(),
+  profiles: new Map(),
   meta: new Map(),
   cuts: new Map(),
+  session: null, // sesión de Supabase Auth (null = no hay login)
   ready: false,
   persistent: true, // false = no hay conexión con Supabase, se trabaja solo en memoria
 };
@@ -49,6 +55,101 @@ function uid(prefix) {
   return `${prefix}_${rand}`;
 }
 
+/* ====================================================== Autenticación ==== */
+// Dos perfiles: Administrador y Colaborador (p. ej. tú y tu pareja), cada
+// quien entra desde su propio teléfono con su correo. El primero que se
+// registra queda como admin automáticamente (lo hace un trigger en la base);
+// el resto, colaborador. Ambos ven exactamente los mismos datos.
+
+function sb() {
+  if (typeof window !== "undefined" && window.supabaseClient) return window.supabaseClient;
+  throw new Error("No se pudo conectar con Supabase.");
+}
+
+function currentUserId() {
+  return state.session ? state.session.user.id : null;
+}
+
+export function currentUser() {
+  return state.session ? state.session.user : null;
+}
+
+export function currentProfile() {
+  const id = currentUserId();
+  return id ? state.profiles.get(id) || null : null;
+}
+
+export function isAdmin() {
+  const p = currentProfile();
+  return !!p && p.role === "admin";
+}
+
+/** Nombre a mostrar de quién registró algo ("Registrado por…"). */
+export function profileName(userId) {
+  if (!userId) return "";
+  const p = state.profiles.get(userId);
+  if (p && p.name) return p.name;
+  if (p && p.email) return p.email;
+  return "Alguien";
+}
+
+async function loadProfiles() {
+  try {
+    const rows = await db.getAll("profiles");
+    state.profiles = new Map(rows.map((r) => [r.id, makeProfile(r)]));
+  } catch (err) {
+    console.error("No se pudieron leer los perfiles:", err);
+  }
+}
+
+/**
+ * Arranca la escucha de sesión. Se llama SIEMPRE al abrir la app, antes de
+ * decidir si se muestra el login o la app — por eso vive aparte de init().
+ */
+export async function initAuth(onChange) {
+  const { data } = await sb().auth.getSession();
+  state.session = data.session || null;
+
+  sb().auth.onAuthStateChange((_event, session) => {
+    const had = !!state.session;
+    state.session = session || null;
+    if (onChange) onChange(state.session, had);
+    emit();
+  });
+
+  return state.session;
+}
+
+export async function signUp({ email, password, name }) {
+  const { error } = await sb().auth.signUp({
+    email: String(email || "").trim(),
+    password,
+    options: { data: { name: String(name || "").trim() } },
+  });
+  if (error) throw new Error(traducirErrorAuth(error));
+}
+
+export async function signIn({ email, password }) {
+  const { error } = await sb().auth.signInWithPassword({
+    email: String(email || "").trim(),
+    password,
+  });
+  if (error) throw new Error(traducirErrorAuth(error));
+}
+
+export async function signOut() {
+  await sb().auth.signOut();
+}
+
+function traducirErrorAuth(error) {
+  const msg = String(error && error.message || "");
+  if (/invalid login credentials/i.test(msg)) return "Correo o contraseña incorrectos.";
+  if (/already registered|already exists/i.test(msg)) return "Ya existe una cuenta con ese correo.";
+  if (/password.*(least|short|6 characters)/i.test(msg)) return "La contraseña debe tener al menos 6 caracteres.";
+  if (/rate limit/i.test(msg)) return "Demasiados intentos. Espera un momento.";
+  return msg || "No se pudo completar la operación.";
+}
+
 /** Guarda en Supabase sin romper la app si falla (los datos siguen en memoria). */
 async function persist(store, records) {
   if (!state.persistent) return;
@@ -73,18 +174,30 @@ async function persistRemove(store, ids) {
 
 /* ============================================================ Arranque === */
 
+/**
+ * Carga los datos financieros. Requiere una sesión ya iniciada (initAuth()
+ * primero) — sin login, las políticas de la base no dejan leer nada, así
+ * que ni se intenta.
+ */
 export async function init() {
+  if (!state.session) {
+    state.ready = true;
+    emit();
+    return false;
+  }
+
   state.persistent = await db.init();
 
   if (state.persistent) {
     try {
-      const [items, occurrences, movements, categories, meta, cuts] = await Promise.all([
+      const [items, occurrences, movements, categories, meta, cuts, businesses] = await Promise.all([
         db.getAll("items"),
         db.getAll("occurrences"),
         db.getAll("movements"),
         db.getAll("categories"),
         db.getAll("meta"),
         db.getAll("cuts"),
+        db.getAll("businesses"),
       ]);
       items.forEach((r) => state.items.set(r.id, r));
       occurrences.forEach((r) => state.occurrences.set(r.id, r));
@@ -92,6 +205,8 @@ export async function init() {
       categories.forEach((r) => state.categories.set(r.id, r));
       meta.forEach((r) => state.meta.set(r.key, r.value));
       cuts.forEach((r) => state.cuts.set(r.id, r));
+      businesses.forEach((r) => state.businesses.set(r.id, r));
+      await loadProfiles();
     } catch (err) {
       console.error("No se pudieron leer los datos locales:", err);
       state.persistent = false;
@@ -101,6 +216,11 @@ export async function init() {
   if (!state.categories.size) {
     DEFAULT_CATEGORIES.forEach((c) => state.categories.set(c.id, c));
     await persist("categories", DEFAULT_CATEGORIES).catch(() => {});
+  }
+
+  if (!state.businesses.size) {
+    DEFAULT_BUSINESSES.forEach((b) => state.businesses.set(b.id, b));
+    await persist("businesses", DEFAULT_BUSINESSES).catch(() => {});
   }
 
   // Solo se siembran los datos iniciales la primera vez.
@@ -115,6 +235,20 @@ export async function init() {
   state.ready = true;
   emit();
   return state.persistent;
+}
+
+/** Vuelve al estado "sin sesión": limpia todo lo cargado en memoria. */
+export function resetInMemoryState() {
+  state.items.clear();
+  state.occurrences.clear();
+  state.movements.clear();
+  state.categories.clear();
+  state.businesses.clear();
+  state.profiles.clear();
+  state.meta.clear();
+  state.cuts.clear();
+  state.ready = false;
+  emit();
 }
 
 /**
@@ -181,6 +315,27 @@ export function categoryColor(id) {
   return c ? c.color : "#8a8f94";
 }
 
+/** Categorías utilizables en un negocio: las suyas propias + las generales. */
+export function categoriesForBusiness(businessId, type) {
+  return categories().filter((c) => {
+    if (type && c.type !== type) return false;
+    return !c.businessId || c.businessId === businessId;
+  });
+}
+
+export const businesses = () => [...state.businesses.values()].sort((a, b) => (a.order || 99) - (b.order || 99));
+export const getBusiness = (id) => state.businesses.get(id) || null;
+
+export function businessName(id) {
+  const b = state.businesses.get(id);
+  return b ? b.name : "General";
+}
+
+export function businessColor(id) {
+  const b = state.businesses.get(id);
+  return b ? b.color : "#8a8f94";
+}
+
 /** Vencimientos de un item, del más reciente al más antiguo. */
 export function occurrencesOf(itemId) {
   return occurrences()
@@ -234,7 +389,7 @@ export async function ensureOccurrences() {
       const id = occurrenceId(item.id, item.startDate);
       const occ = makeOccurrence({
         id, itemId: item.id, kind: item.kind, name: item.name,
-        category: item.category, dueDate: item.startDate, amount: item.amount,
+        category: item.category, businessId: item.businessId, dueDate: item.startDate, amount: item.amount,
       });
       state.occurrences.set(id, occ);
       created.push(occ);
@@ -262,7 +417,7 @@ export async function ensureOccurrences() {
     if (!state.occurrences.has(id)) {
       const occ = makeOccurrence({
         id, itemId: item.id, kind: item.kind, name: item.name,
-        category: item.category, dueDate: next, amount: item.amount,
+        category: item.category, businessId: item.businessId, dueDate: next, amount: item.amount,
       });
       state.occurrences.set(id, occ);
       created.push(occ);
@@ -385,6 +540,7 @@ async function syncPendingOccurrences(item, previous) {
     }
     occ.name = item.name;
     occ.category = item.category;
+    occ.businessId = item.businessId;
     occ.amount = item.amount;
     touched.push(occ);
   });
@@ -455,7 +611,10 @@ function buildMovement(data) {
   const before = availableMoney();
   const amount = round2(data.amount);
   const after = round2(data.type === "income" ? before + amount : before - amount);
-  return makeMovement({ ...data, id: uid("mv"), amount, balanceBefore: before, balanceAfter: after });
+  return makeMovement({
+    ...data, id: uid("mv"), amount, balanceBefore: before, balanceAfter: after,
+    createdBy: data.createdBy || currentUserId(),
+  });
 }
 
 function validatePayload({ amount, date }) {
@@ -502,6 +661,7 @@ export async function payOccurrence(occId, { amount, date, note, partial } = {})
     type: isIncome ? "income" : "expense",
     concept: occ.name,
     category: occ.category,
+    businessId: occ.businessId,
     kind: occ.kind,
     amount: payload.amount,
     date: payload.date,
@@ -559,6 +719,7 @@ export async function payItemDirect(itemId, { amount, date, note } = {}) {
     type: isIncome ? "income" : "expense",
     concept: item.name,
     category: item.category,
+    businessId: item.businessId,
     kind: item.kind,
     amount: payload.amount,
     date: payload.date,
@@ -586,7 +747,7 @@ export async function payItemDirect(itemId, { amount, date, note } = {}) {
 }
 
 /** Ingreso o gasto suelto, sin item asociado (acciones rápidas). */
-export async function addQuickMovement({ type, concept, amount, date, category, note }) {
+export async function addQuickMovement({ type, concept, amount, date, category, note, businessId }) {
   const payload = { amount: round2(amount), date: date || todayISO() };
   validatePayload(payload);
   const name = String(concept || "").trim();
@@ -596,6 +757,7 @@ export async function addQuickMovement({ type, concept, amount, date, category, 
     type: type === "income" ? "income" : "expense",
     concept: name,
     category: category || (type === "income" ? "otros-ingresos" : "otros"),
+    businessId: businessId || null,
     kind: type === "income" ? KIND.INCOME : KIND.EXPENSE,
     amount: payload.amount,
     date: payload.date,
@@ -691,7 +853,7 @@ export async function closeCut({ start, end, expected, received }) {
 
 /* ======================================================== Categorías ===== */
 
-export async function saveCategory({ id, name, type, color }) {
+export async function saveCategory({ id, name, type, color, businessId }) {
   const clean = String(name || "").trim();
   if (!clean) throw new Error("Escribe un nombre de categoría.");
   const slug =
@@ -710,6 +872,7 @@ export async function saveCategory({ id, name, type, color }) {
     type: type || "expense",
     color: color || "#8a8f94",
     order: state.categories.size + 1,
+    businessId: businessId || null,
   };
   state.categories.set(slug, category);
   await persist("categories", category);
@@ -730,19 +893,21 @@ export async function deleteCategory(id) {
 export function exportData() {
   return {
     app: "mis-finanzas",
-    version: 2,
+    version: 3,
     exportedAt: new Date().toISOString(),
     counts: {
       items: state.items.size,
       occurrences: state.occurrences.size,
       movements: state.movements.size,
       categories: state.categories.size,
+      businesses: state.businesses.size,
       cuts: state.cuts.size,
     },
     items: items(),
     occurrences: occurrences(),
     movements: movements(),
     categories: categories(),
+    businesses: businesses(),
     cuts: closedCuts(),
     meta: [...state.meta.entries()].map(([key, value]) => ({ key, value })),
   };
@@ -751,7 +916,7 @@ export function exportData() {
 function validateBackup(data) {
   if (!data || typeof data !== "object") throw new Error("El archivo no es un respaldo válido.");
   if (data.app && data.app !== "mis-finanzas") throw new Error("Ese respaldo es de otra aplicación.");
-  ["items", "occurrences", "movements", "categories", "cuts"].forEach((key) => {
+  ["items", "occurrences", "movements", "categories", "businesses", "cuts"].forEach((key) => {
     if (data[key] != null && !Array.isArray(data[key])) throw new Error(`El campo "${key}" está dañado.`);
   });
   if (!Array.isArray(data.items) && !Array.isArray(data.movements)) {
@@ -767,7 +932,7 @@ function validateBackup(data) {
   });
 }
 
-/** Reemplaza TODO el contenido con el de un respaldo. */
+/** Reemplaza TODO el contenido con el de un respaldo. Nunca toca los perfiles de usuario. */
 export async function importData(raw) {
   const data = typeof raw === "string" ? JSON.parse(raw) : raw;
   validateBackup(data);
@@ -777,6 +942,7 @@ export async function importData(raw) {
     occurrences: (data.occurrences || []).map(makeOccurrence),
     movements: (data.movements || []).map(makeMovement),
     categories: (data.categories || []).length ? data.categories : DEFAULT_CATEGORIES,
+    businesses: (data.businesses || []).length ? data.businesses : DEFAULT_BUSINESSES,
     cuts: data.cuts || [],
     meta: data.meta || [{ key: "seeded", value: new Date().toISOString() }],
   };
@@ -787,6 +953,7 @@ export async function importData(raw) {
   state.occurrences = new Map(payload.occurrences.map((r) => [r.id, r]));
   state.movements = new Map(payload.movements.map((r) => [r.id, r]));
   state.categories = new Map(payload.categories.map((r) => [r.id, r]));
+  state.businesses = new Map(payload.businesses.map((r) => [r.id, r]));
   state.cuts = new Map(payload.cuts.map((r) => [r.id, r]));
   state.meta = new Map(payload.meta.map((r) => [r.key, r.value]));
 
@@ -796,7 +963,7 @@ export async function importData(raw) {
   return { items: state.items.size, movements: state.movements.size };
 }
 
-/** Borra todo. Si `reseed` es true vuelve a cargar los datos iniciales. */
+/** Borra todo. Si `reseed` es true vuelve a cargar los datos iniciales. Nunca toca los perfiles de usuario. */
 export async function resetAll(reseed) {
   if (state.persistent) await db.clearAll();
   state.items.clear();
@@ -806,6 +973,8 @@ export async function resetAll(reseed) {
   state.cuts.clear();
   state.categories = new Map(DEFAULT_CATEGORIES.map((c) => [c.id, c]));
   await persist("categories", DEFAULT_CATEGORIES).catch(() => {});
+  state.businesses = new Map(DEFAULT_BUSINESSES.map((b) => [b.id, b]));
+  await persist("businesses", DEFAULT_BUSINESSES).catch(() => {});
 
   if (reseed) {
     buildSeed().forEach((item) => state.items.set(item.id, item));
