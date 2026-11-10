@@ -9,12 +9,17 @@
 -- una tabla "profiles" ligada a auth.users para saber quién es admin y
 -- quién colaborador, y quién registró cada movimiento (created_by).
 --
--- Seguridad: con login real, todas las políticas exigen "authenticated"
--- (ya no hay acceso anónimo). El primer correo que se registra queda como
--- Administrador automáticamente (lo decide el trigger handle_new_user);
--- el resto, Colaborador. Un usuario no puede cambiar su propio rol
--- (prevent_role_escalation). No hay claves secretas en el frontend: la
--- clave publicable (anon/publishable) es la única que usa la app.
+-- Seguridad: no basta con exigir "authenticated" — las políticas exigen
+-- además que exista un perfil propio marcado is_test = false
+-- (is_authorized_user()), así que una cuenta de prueba nunca ve datos
+-- reales aunque tenga sesión válida. Además, un trigger (restrict_signups)
+-- bloquea cualquier registro real una vez que ya existen 2 (Administrador +
+-- Colaborador) — un desconocido no puede registrarse y entrar. El primer
+-- correo real que se registra queda como Administrador automáticamente (lo
+-- decide el trigger handle_new_user); el segundo, Colaborador. Un usuario
+-- no puede cambiar su propio rol (prevent_role_escalation). No hay claves
+-- secretas en el frontend: la clave publicable (anon/publishable) es la
+-- única que usa la app.
 --
 -- Es seguro volver a correr este script completo en un proyecto nuevo: usa
 -- "if not exists" en todo lo que lo admite. Si ya tienes datos y vienes de
@@ -188,10 +193,35 @@ create or replace trigger profiles_prevent_role_escalation
   before update on public.profiles
   for each row execute function public.prevent_role_escalation();
 
+-- Tope de exactamente 2 cuentas reales (Administrador + Colaborador): una
+-- vez que existen, un desconocido ya no puede registrarse. Las cuentas
+-- marcadas is_test no cuentan para el tope — sirven solo para pruebas de
+-- desarrollo y nunca ven datos reales (ver is_authorized_user() más abajo).
+create or replace function public.restrict_signups()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  real_count integer;
+begin
+  select count(*) into real_count from public.profiles where is_test is not true;
+  if real_count >= 2 then
+    raise exception 'Registro no permitido: ya existen las 2 cuentas autorizadas (Administrador y Colaborador).';
+  end if;
+  return new;
+end;
+$$;
+
+create or replace trigger before_auth_user_created_restrict_signups
+  before insert on auth.users
+  for each row execute function public.restrict_signups();
+
 -- Las funciones de arriba solo deben dispararse como triggers, nunca
 -- llamarse directamente como endpoint RPC público.
 revoke execute on function public.handle_new_user() from public, anon, authenticated;
 revoke execute on function public.prevent_role_escalation() from public, anon, authenticated;
+revoke execute on function public.restrict_signups() from public, anon, authenticated;
 
 -- ------------------------------------------------------- Row Level Security --
 
@@ -204,35 +234,59 @@ alter table public.meta enable row level security;
 alter table public.cuts enable row level security;
 alter table public.profiles enable row level security;
 
--- Cualquier usuario con sesión ve y edita todo — los datos son compartidos
--- entre el Administrador y el Colaborador por diseño (sección 13 del
--- rediseño: "ambos deben ver exactamente los mismos datos").
+-- "authenticated" no basta por sí solo: hace falta además tener un perfil
+-- propio con is_test = false. Se evalúa a través de una función security
+-- definer (no inline) a propósito: una subconsulta directa a profiles
+-- dentro de la propia política de profiles causa "recursión infinita en
+-- la política" (evaluar la política requeriría evaluarla de nuevo). La
+-- función, al ser security definer, lee profiles sin volver a disparar su
+-- propia política de RLS.
+create or replace function public.is_authorized_user()
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid() and p.is_test is not true
+  );
+$$;
+
+revoke execute on function public.is_authorized_user() from public, anon;
+grant execute on function public.is_authorized_user() to authenticated;
+
+-- Entre los dos usuarios autorizados (Administrador y Colaborador) los
+-- datos son compartidos por diseño (sección 13 del rediseño: "ambos deben
+-- ver exactamente los mismos datos") — pero nadie más, ni una cuenta de
+-- prueba, puede leerlos ni escribirlos.
 create policy "acceso completo sin login" on public.categories
-  for all to authenticated using (true) with check (true);
+  for all to authenticated using (is_authorized_user()) with check (is_authorized_user());
 
 create policy "acceso para usuarios con sesión" on public.businesses
-  for all to authenticated using (true) with check (true);
+  for all to authenticated using (is_authorized_user()) with check (is_authorized_user());
 
 create policy "acceso completo sin login" on public.items
-  for all to authenticated using (true) with check (true);
+  for all to authenticated using (is_authorized_user()) with check (is_authorized_user());
 
 create policy "acceso completo sin login" on public.occurrences
-  for all to authenticated using (true) with check (true);
+  for all to authenticated using (is_authorized_user()) with check (is_authorized_user());
 
 create policy "acceso completo sin login" on public.movements
-  for all to authenticated using (true) with check (true);
+  for all to authenticated using (is_authorized_user()) with check (is_authorized_user());
 
 create policy "acceso completo sin login" on public.meta
-  for all to authenticated using (true) with check (true);
+  for all to authenticated using (is_authorized_user()) with check (is_authorized_user());
 
 create policy "acceso completo sin login" on public.cuts
-  for all to authenticated using (true) with check (true);
+  for all to authenticated using (is_authorized_user()) with check (is_authorized_user());
 
--- Perfiles: todos ven todos los perfiles (para mostrar "Registrado por…"),
--- pero cada quien solo puede actualizar el suyo (y nunca su propio rol,
--- por el trigger de arriba).
+-- Perfiles: los usuarios autorizados ven todos los perfiles (para mostrar
+-- "Registrado por…"), pero cada quien solo puede actualizar el suyo (y
+-- nunca su propio rol, por el trigger de arriba).
 create policy "ver todos los perfiles" on public.profiles
-  for select to authenticated using (true);
+  for select to authenticated using (is_authorized_user());
 
 create policy "actualizar mi propio perfil" on public.profiles
   for update to authenticated using (auth.uid() = id) with check (auth.uid() = id);
@@ -242,8 +296,8 @@ create policy "actualizar mi propio perfil" on public.profiles
 -- el esquema anterior (sin negocios ni perfiles, con acceso anon), el
 -- camino seguro no es volver a correr este archivo tal cual — es aplicar
 -- ALTER TABLE ... ADD COLUMN IF NOT EXISTS para las columnas nuevas y
--- ALTER POLICY ... TO authenticated (en vez de DROP + CREATE) para retirar
--- el acceso anónimo, igual que se hizo en este proyecto real. Un DROP
--- POLICY/TRIGGER o un DELETE directo contra la base, ejecutados a través de
--- la herramienta MCP de Supabase, se quedan esperando una confirmación que
--- nunca llega — por eso todo en este archivo evita DROP.
+-- ALTER POLICY ... USING (...) WITH CHECK (...) (en vez de DROP + CREATE)
+-- para endurecer el acceso, igual que se hizo en este proyecto real. Un
+-- DROP POLICY/TRIGGER o un DELETE directo contra la base, ejecutados a
+-- través de la herramienta MCP de Supabase, se quedan esperando una
+-- confirmación que nunca llega — por eso todo en este archivo evita DROP.

@@ -248,20 +248,25 @@ proyecto de Supabase, etc.).
 ## Seguridad
 
 - **Login con correo y contraseña** (Supabase Auth). Row Level Security está
-  **activado** en las ocho tablas y todas las políticas exigen `authenticated`
-  — ya no hay acceso anónimo. Sin sesión, la app solo muestra la pantalla de
-  entrar/crear cuenta.
-- **Primer usuario = Administrador, el resto = Colaborador**, decidido por un
-  trigger en la base (`handle_new_user`), no por el cliente — no se puede
-  falsear enviando otro rol desde el frontend. Un trigger aparte
-  (`prevent_role_escalation`) bloquea que alguien cambie su propio rol.
-  Ambas funciones están revocadas como endpoint RPC público: solo pueden
+  **activado** en las ocho tablas. `authenticated` no basta por sí solo: cada
+  política exige además `is_authorized_user()` — que quien pregunta tenga un
+  perfil propio y no esté marcado como cuenta de prueba (`is_test`). Sin
+  sesión, la app solo muestra la pantalla de entrar/crear cuenta.
+- **Tope de exactamente 2 cuentas reales** (Administrador + Colaborador): un
+  trigger (`restrict_signups`) rechaza cualquier registro una vez que ya
+  existen esas 2 — un desconocido no puede crear una cuenta y entrar, ni
+  aunque encuentre la URL pública de la app.
+- **Primer usuario real = Administrador, el segundo = Colaborador**, decidido
+  por un trigger en la base (`handle_new_user`), no por el cliente — no se
+  puede falsear enviando otro rol desde el frontend. Un trigger aparte
+  (`prevent_role_escalation`) bloquea que alguien cambie su propio rol. Las
+  tres funciones están revocadas como endpoint RPC público: solo pueden
   dispararse como trigger.
-- **Datos compartidos, no privados entre sí:** cualquier usuario autenticado
-  de este proyecto ve y edita todo (es la base de "ambos ven exactamente lo
-  mismo"). Lo que protege RLS es la base completa frente a quien **no** tiene
-  sesión — no hay aislamiento por fila entre el Administrador y el
-  Colaborador, porque el objetivo es justo que compartan los datos.
+- **Datos compartidos, no privados entre sí, entre los dos usuarios
+  autorizados:** el Administrador y el Colaborador ven y editan exactamente
+  lo mismo (es la base de "ambos ven exactamente lo mismo") — pero nadie más
+  puede leerlo ni escribirlo, ni con una cuenta autenticada válida, si no es
+  una de esas 2.
 - **Proyecto propio y separado** del de la app de la barbería — nunca
   comparten base de datos ni credenciales.
 - La `service_role key` de este proyecto **nunca** se usa en el frontend — de
