@@ -8,7 +8,7 @@
 // Sin login: el cliente usa la clave pública (anon) de supabase-config.js.
 // Las políticas RLS del proyecto permiten acceso completo con esa clave.
 
-export const STORES = ["items", "occurrences", "movements", "categories", "meta", "cuts"];
+export const STORES = ["items", "occurrences", "movements", "categories", "meta", "cuts", "businesses"];
 
 const PRIMARY_KEY = {
   items: "id",
@@ -17,6 +17,8 @@ const PRIMARY_KEY = {
   categories: "id",
   cuts: "id",
   meta: "key",
+  businesses: "id",
+  profiles: "id",
 };
 
 // Solo se listan los campos cuyo nombre cambia entre JS (camelCase) y la
@@ -24,20 +26,23 @@ const PRIMARY_KEY = {
 const FIELD_MAPS = {
   items: {
     startDate: "start_date", anchorDay: "anchor_day", cutBased: "cut_based",
-    statusNote: "status_note", canceledAt: "canceled_at",
-    createdAt: "created_at", updatedAt: "updated_at",
+    statusNote: "status_note", canceledAt: "canceled_at", businessId: "business_id",
+    createdBy: "created_by", createdAt: "created_at", updatedAt: "updated_at",
   },
   occurrences: {
     itemId: "item_id", dueDate: "due_date", paidAmount: "paid_amount",
-    paidDate: "paid_date", movementId: "movement_id", createdAt: "created_at",
-  },
-  movements: {
-    itemId: "item_id", occurrenceId: "occurrence_id",
-    balanceBefore: "balance_before", balanceAfter: "balance_after",
+    paidDate: "paid_date", movementId: "movement_id", businessId: "business_id",
     createdAt: "created_at",
   },
-  categories: {},
+  movements: {
+    itemId: "item_id", occurrenceId: "occurrence_id", businessId: "business_id",
+    balanceBefore: "balance_before", balanceAfter: "balance_after",
+    createdBy: "created_by", createdAt: "created_at",
+  },
+  categories: { businessId: "business_id" },
   cuts: { startDate: "start_date", endDate: "end_date", closedAt: "closed_at" },
+  businesses: {},
+  profiles: { createdAt: "created_at", isTest: "is_test" },
 };
 
 // Columnas "numeric" de Postgres: postgrest las devuelve como texto para no

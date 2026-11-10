@@ -7,9 +7,10 @@ import { KIND, STATUS } from "../model.js";
 import { money, esc } from "../format.js";
 import { todayISO, formatMedium } from "../dates.js";
 import { icon, empty } from "../ui.js";
-import { heavyCard } from "../components.js";
+import { heavyCard, businessChip } from "../components.js";
 
 let query = "";
+let business = "all"; // all | none | <businessId>
 let advanced = { ...Filters.DEFAULT_FILTER };
 
 /** Tarjeta de deuda periódica con su próximo pago y botón de pago directo. */
@@ -31,6 +32,7 @@ function debtCard(item) {
         <span class="row-title">${esc(item.name)}</span>
         <span class="row-sub">
           ${canceled ? `<span class="chip cancel">Cancelada</span>` : ""}
+          ${businessChip(item.businessId)}
           ${next
             ? `<span class="chip ${overdue ? "overdue" : "pending"}">${overdue ? "Vencido" : "Próximo pago"}</span>
                ${hasPartial ? `<span class="chip lime">Abonado ${esc(money(progress.paid))}</span>` : ""}
@@ -64,6 +66,24 @@ function matchesQuery(item, q) {
 
 function allDebtItems() {
   return Store.items().filter((i) => i.kind === KIND.DEBT || i.kind === KIND.HEAVY);
+}
+
+function matchesBusiness(item) {
+  if (business === "all") return true;
+  if (business === "none") return !item.businessId;
+  return item.businessId === business;
+}
+
+/** Selector rápido: Todas · Personales · Barbería · Uñas · Afores. */
+function businessFilterBar() {
+  const list = Store.businesses().filter((b) => b.active !== false);
+  const opt = (id, label) => `<button data-business="${esc(id)}" class="filter ${id === business ? "is-on" : ""}">${esc(label)}</button>`;
+  return `
+    <div class="filters mt-14">
+      ${opt("all", "Todas")}
+      ${opt("none", "Personales")}
+      ${list.map((b) => opt(b.id, b.name)).join("")}
+    </div>`;
 }
 
 function summaryCard() {
@@ -109,15 +129,17 @@ export default {
     const debts = Store.items()
       .filter((i) => i.active && i.kind === KIND.DEBT)
       .filter((i) => matchesQuery(i, q))
+      .filter(matchesBusiness)
       .sort((a, b) => a.name.localeCompare(b.name, "es"));
 
     const heavy = Store.items()
       .filter((i) => i.active && i.kind === KIND.HEAVY)
       .filter((i) => matchesQuery(i, q))
+      .filter(matchesBusiness)
       .sort((a, b) => (b.balance || 0) - (a.balance || 0));
 
     const filteredRows = isAdvanced
-      ? Filters.applyAll(allDebtItems().filter((i) => matchesQuery(i, q)).map(Filters.normalizeDebtItem), advanced).map((r) => r.raw)
+      ? Filters.applyAll(allDebtItems().filter((i) => matchesQuery(i, q)).filter(matchesBusiness).map(Filters.normalizeDebtItem), advanced).map((r) => r.raw)
       : null;
 
     return `
@@ -138,6 +160,8 @@ export default {
         </div>
         <button class="icon-btn ${isAdvanced ? "is-dark" : "is-outline"}" data-action="open-filters" aria-label="Filtrar">${icon("filter", 18, 2.2)}</button>
       </div>
+
+      ${businessFilterBar()}
 
       ${isAdvanced
         ? `
@@ -172,6 +196,13 @@ export default {
   },
 
   mount(root, ctx) {
+    root.querySelectorAll("[data-business]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        business = btn.dataset.business;
+        ctx.rerender();
+      });
+    });
+
     const filterBtn = root.querySelector('[data-action="open-filters"]');
     if (filterBtn) {
       filterBtn.addEventListener("click", () => {

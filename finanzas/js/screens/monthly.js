@@ -9,9 +9,9 @@ import { backHeader, donutChart } from "../components.js";
 
 let cursor = null;
 
-function conceptTotals(from, to, type) {
+function conceptTotals(from, to, type, businessId) {
   const totals = new Map();
-  Finance.movementsBetween(from, to).forEach((m) => {
+  Finance.movementsBetween(from, to, businessId).forEach((m) => {
     if (m.type !== type) return;
     const key = m.concept;
     totals.set(key, (totals.get(key) || 0) + m.amount);
@@ -42,17 +42,19 @@ function block(title, rows, total, positive) {
 }
 
 export default {
-  render() {
+  render(params) {
     if (!cursor) cursor = startOfMonth(todayISO());
+    const businessId = params && params.id ? params.id : undefined;
+    const business = businessId ? Store.getBusiness(businessId) : null;
     const from = startOfMonth(cursor);
     const to = endOfMonth(cursor);
-    const summary = Finance.summaryBetween(from, to);
-    const income = conceptTotals(from, to, "income");
-    const expense = conceptTotals(from, to, "expense");
-    const categories = Finance.categoryBreakdown(from, to);
+    const summary = Finance.summaryBetween(from, to, businessId);
+    const income = conceptTotals(from, to, "income", businessId);
+    const expense = conceptTotals(from, to, "expense", businessId);
+    const categories = Finance.categoryBreakdown(from, to, businessId);
 
     return `
-      ${backHeader("Resumen del mes", formatMonthYear(cursor))}
+      ${backHeader("Resumen del mes", business ? `${business.name} · ${formatMonthYear(cursor)}` : formatMonthYear(cursor))}
 
       <div class="card">
         <div class="cal-head" style="margin:0">

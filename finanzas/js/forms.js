@@ -50,6 +50,31 @@ function fieldNote(value) {
     </div>`;
 }
 
+/** Selector visual de negocio: 3 botones grandes + "Personal/general". Nunca hay que escribir el nombre. */
+function fieldBusiness(selected) {
+  const businesses = Store.businesses().filter((b) => b.active !== false);
+  const current = selected || "";
+  const chip = (id, label, color) => {
+    const onStyle = `border-color:${color};background:${color}1a;color:${color}`;
+    return `
+    <button type="button" data-business-pick="${esc(id)}" data-on-style="${esc(onStyle)}"
+            class="biz-pick${id === current ? " is-on" : ""}"
+            style="${id === current ? esc(onStyle) : ""}">
+      ${label}
+    </button>`;
+  };
+
+  return `
+    <div class="field">
+      <label>Negocio</label>
+      <div class="chips-pick" data-business-group>
+        ${businesses.map((b) => chip(b.id, esc(b.name), b.color)).join("")}
+        ${chip("", "Personal / general", "#8a8f94")}
+      </div>
+      <input type="hidden" name="businessId" value="${esc(current)}">
+    </div>`;
+}
+
 function fieldCategory(selected, type) {
   const list = Store.categories().filter((c) => (type ? c.type === type : true));
   const options = list
@@ -138,6 +163,21 @@ function validate(panel, data, { requireConcept } = {}) {
 
 /** Enlaza los interruptores y el botón de guardado de una hoja. */
 function wire(panel, close, onSubmit) {
+  const bizGroup = panel.querySelector("[data-business-group]");
+  if (bizGroup) {
+    bizGroup.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-business-pick]");
+      if (!btn) return;
+      const id = btn.dataset.businessPick;
+      const hidden = panel.querySelector('input[name="businessId"]');
+      if (hidden) hidden.value = id;
+      bizGroup.querySelectorAll("[data-business-pick]").forEach((b) => {
+        b.classList.toggle("is-on", b === btn);
+        b.style.cssText = b === btn ? (b.dataset.onStyle || "") : "";
+      });
+    });
+  }
+
   panel.querySelectorAll("[data-switch]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const on = btn.classList.toggle("is-on");
@@ -179,6 +219,7 @@ export function newIncome(prefill) {
     title: "Registrar ingreso",
     subtitle: "Solo aumenta el disponible si ya lo recibiste",
     body: `
+      ${fieldBusiness(prefill && prefill.businessId)}
       ${fieldText("concept", "Concepto", prefill && prefill.concept, "Uñas, barbería, renta, Afores…")}
       ${fieldAmount(prefill && prefill.amount, "Monto")}
       ${fieldDate("date", "Fecha de cobro / recepción", (prefill && prefill.date) || todayISO())}
@@ -201,6 +242,7 @@ export function newIncome(prefill) {
             date: data.date,
             category: data.category,
             note: data.note,
+            businessId: raw.businessId || null,
           });
           close();
           celebrate("Ingreso registrado", money(data.amount));
@@ -213,6 +255,7 @@ export function newIncome(prefill) {
             recurrence: "once",
             startDate: data.date,
             note: data.note,
+            businessId: raw.businessId || null,
           });
           close();
           toast(`Ingreso esperado para el ${formatLong(data.date)} — no cuenta como disponible todavía`, "ok");
@@ -229,6 +272,7 @@ export function newExpense(prefill) {
     title: "Registrar gasto",
     subtitle: "Puede ser un gasto único o uno que se repite",
     body: `
+      ${fieldBusiness(prefill && prefill.businessId)}
       ${fieldText("concept", "Concepto", prefill && prefill.concept, "Comida, gasolina, luz…")}
       ${fieldAmount(prefill && prefill.amount, "Monto")}
       ${fieldDate("date", "Fecha", (prefill && prefill.date) || todayISO())}
@@ -267,6 +311,7 @@ export function newExpense(prefill) {
             recurrence: data.recurrence || "monthly",
             startDate: data.date,
             note: data.note,
+            businessId: raw.businessId || null,
           });
           close();
           toast("Gasto recurrente creado", "ok");
@@ -281,6 +326,7 @@ export function newExpense(prefill) {
             date: data.date,
             category: data.category,
             note: data.note,
+            businessId: raw.businessId || null,
           });
           close();
           celebrate("Gasto registrado", money(data.amount));
@@ -293,6 +339,7 @@ export function newExpense(prefill) {
             recurrence: "once",
             startDate: data.date,
             note: data.note,
+            businessId: raw.businessId || null,
           });
           close();
           toast("Pago pendiente creado", "ok");
@@ -436,6 +483,7 @@ export function editHeavyDebt(item) {
     body: `
       ${fieldText("name", "Nombre", item.name)}
       ${fieldAmount(item.balance || 0, "Saldo actual")}
+      ${fieldBusiness(item.businessId)}
       ${fieldCategory(item.category || "fuertes", "expense")}
       ${fieldText("statusNote", "Estado", item.statusNote, "Esperando Afores…")}
       ${fieldSwitch("active", "Activa", "Si la desactivas, deja de aparecer como deuda pendiente. El historial de abonos no se toca", item.active !== false)}
@@ -471,7 +519,7 @@ export function editHeavyDebt(item) {
         }
         await Store.saveItem({
           ...item, name: raw.name, category: raw.category, note: raw.note,
-          active: raw.active === "1",
+          active: raw.active === "1", businessId: raw.businessId || null,
         });
         await Store.setHeavyBalance(item.id, amount, raw.statusNote);
         close();
@@ -510,6 +558,7 @@ export function editItem(item, kindHint) {
       body: `
         ${fieldText("name", "Nombre", "", "Denisse, BBVA…")}
         ${fieldAmount("", "Saldo")}
+        ${fieldBusiness("")}
         ${fieldCategory("fuertes", "expense")}
         ${fieldText("statusNote", "Estado", "", "Esperando la quita…")}
         ${fieldNote()}
@@ -524,7 +573,7 @@ export function editItem(item, kindHint) {
           await Store.saveItem({
             kind: KIND.HEAVY, name: raw.name, category: raw.category || "fuertes", amount: 0,
             balance: data.amount, recurrence: "once", startDate: null,
-            statusNote: raw.statusNote, note: raw.note,
+            statusNote: raw.statusNote, note: raw.note, businessId: raw.businessId || null,
           });
           close();
           toast("Deuda fuerte creada", "ok");
@@ -538,6 +587,7 @@ export function editItem(item, kindHint) {
     title: isNew ? `Nuevo ${KIND_TITLES[kind]}` : `Editar ${KIND_TITLES[kind]}`,
     subtitle: isNew ? "" : current.name,
     body: `
+      ${fieldBusiness(current.businessId)}
       ${fieldText("name", "Nombre", current.name, isIncome ? "Barbería, uñas, renta…" : "Luz, renta, Netflix…")}
       ${fieldAmount(current.amount, isIncome ? "Monto esperado" : "Monto configurado")}
       ${fieldCategory(current.category, isIncome ? "income" : "expense")}
@@ -566,7 +616,7 @@ export function editItem(item, kindHint) {
           await Store.deleteItem(item.id);
           closeSheet();
           toast("Registro eliminado", "ok");
-          location.hash = isIncome ? "#/ingresos" : kind === KIND.DEBT ? "#/deudas" : "#/gastos";
+          location.hash = kind === KIND.DEBT ? "#/deudas" : "#/movimientos";
         });
       }
 
@@ -591,6 +641,7 @@ export function editItem(item, kindHint) {
           kind,
           name: raw.name,
           category: raw.category,
+          businessId: raw.businessId || null,
           amount: round2(amount),
           recurrence: raw.recurrence,
           startDate: raw.startDate || null,

@@ -4,17 +4,65 @@ import * as Store from "../store.js";
 import * as Finance from "../finance.js";
 import { KIND } from "../model.js";
 import { money, esc, round2 } from "../format.js";
-import { todayISO, formatLong, formatShort, formatMonthYear, startOfMonth, endOfMonth, addMonths } from "../dates.js";
-import { icon, empty } from "../ui.js";
+import {
+  todayISO, formatLong, formatShort, formatMonthYear, startOfMonth, endOfMonth, addMonths,
+  startOfWeek, endOfWeek, isValidISO,
+} from "../dates.js";
+import { icon, empty, sheet } from "../ui.js";
 import { occurrenceRow, barsChart, donutChart } from "../components.js";
 
 let period = "month"; // week | month | quarter
+let homePeriod = "month"; // today | week | month | custom — resumen general de los 3 negocios
+let customRange = null; // { from, to }
 
 const PERIODS = [
   { id: "week", label: "Esta semana" },
   { id: "month", label: "Este mes" },
   { id: "quarter", label: "3 meses" },
 ];
+
+const HOME_PERIODS = [
+  { id: "today", label: "Hoy" },
+  { id: "week", label: "Semana" },
+  { id: "month", label: "Mes" },
+  { id: "custom", label: "Personalizado" },
+];
+
+function homeRange() {
+  const today = todayISO();
+  if (homePeriod === "today") return { from: today, to: today };
+  if (homePeriod === "week") return { from: startOfWeek(today), to: endOfWeek(today) };
+  if (homePeriod === "custom" && customRange) return customRange;
+  return { from: startOfMonth(today), to: endOfMonth(today) };
+}
+
+function openCustomRangeSheet(onApply) {
+  const current = customRange || { from: todayISO(), to: todayISO() };
+  sheet({
+    title: "Periodo personalizado",
+    body: `
+      <div class="field">
+        <label>Desde</label>
+        <input class="input" type="date" data-from value="${esc(current.from)}">
+      </div>
+      <div class="field">
+        <label>Hasta</label>
+        <input class="input" type="date" data-to value="${esc(current.to)}">
+      </div>
+      <div class="sheet-actions">
+        <button class="btn btn-ink" data-apply>Aplicar</button>
+      </div>`,
+    onMount: (panel, close) => {
+      panel.querySelector("[data-apply]").addEventListener("click", () => {
+        const from = panel.querySelector("[data-from]").value;
+        const to = panel.querySelector("[data-to]").value;
+        if (!isValidISO(from) || !isValidISO(to) || from > to) return;
+        close();
+        onApply({ from, to });
+      });
+    },
+  });
+}
 
 /** Saludo según la hora del día. */
 function greeting() {
@@ -54,50 +102,65 @@ function heroCard() {
     </section>`;
 }
 
-function monthCard() {
-  const today = todayISO();
-  const summary = Finance.monthSummary(today);
-  const snap = Finance.pendingSnapshot();
+/** Tarjeta pequeña de un negocio dentro del resumen general de Inicio. */
+function miniBusinessCard(b, s) {
+  const neg = s.net < 0;
+  return `
+    <button class="mini-biz" data-action="nav" data-to="#/negocio/${esc(b.id)}" style="border-left:3px solid ${esc(b.color)}">
+      <span class="mini-biz-name">${esc(b.name)}</span>
+      <span class="mini-biz-row"><span class="tiny muted">Ingresos</span><span class="num tiny">${esc(money(s.income))}</span></span>
+      <span class="mini-biz-row"><span class="tiny muted">Gastos</span><span class="num tiny">${esc(money(s.paid))}</span></span>
+      <span class="mini-biz-row"><span class="tiny strong">Ganancia</span><span class="num tiny strong ${neg ? "neg" : "pos"}">${esc(money(s.net))}</span></span>
+    </button>`;
+}
+
+/**
+ * Resumen general combinado de los 3 negocios + selector de periodo
+ * (hoy/semana/mes/personalizado) — sección 4 del rediseño. El dinero
+ * disponible mostrado aquí es siempre el TOTAL actual (no cambia con el
+ * periodo elegido, que solo afecta a ingresos/gastos/ganancia de abajo).
+ */
+function businessesOverviewCard() {
+  const range = homeRange();
+  const all = Finance.allBusinessesSummary(range.from, range.to);
   const available = Store.availableMoney();
-  const expectedIncome = round2(
-    Finance.pendingIncomes({ from: startOfMonth(today), until: endOfMonth(today) })
-      .reduce((s, o) => s + o.amount, 0)
-  );
+  const businesses = Store.businesses().filter((b) => b.active !== false);
 
   return `
     <section class="stack-card mt-14">
       <div class="top">
-        <span>Resumen del mes</span>
-        <span class="date">${esc(formatMonthYear(today))}</span>
+        <span>Resumen de los 3 negocios</span>
+        <button class="section-link" data-action="nav" data-to="#/negocios">Ver negocios ${icon("chevron", 13, 2.4)}</button>
       </div>
       <div class="body">
-        <div class="mini-grid">
-          <div class="mini">
-            <div class="k">Ingresos recibidos (mes)</div>
-            <div class="v lime num">${esc(money(summary.income))}</div>
-          </div>
-          <div class="mini">
-            <div class="k">Gastos pagados (mes)</div>
-            <div class="v num">${esc(money(summary.paid))}</div>
-          </div>
-          <div class="mini">
-            <div class="k">Vencido</div>
-            <div class="v num" style="${snap.overdueTotal ? "color:#ff9096" : ""}">${esc(money(snap.overdueTotal))}</div>
-          </div>
+        <div class="segment" data-home-period-group>
+          ${HOME_PERIODS.map((p) => `<button data-home-period="${p.id}" class="${p.id === homePeriod ? "is-on" : ""}">${esc(p.label)}</button>`).join("")}
         </div>
+        ${homePeriod === "custom" && customRange
+          ? `<p class="tiny muted mt-8">${esc(formatShort(customRange.from))} → ${esc(formatShort(customRange.to))}</p>` : ""}
+
         <div class="mini-grid mt-14">
           <div class="mini">
-            <div class="k">Próximos pagos</div>
-            <div class="v warn num">${esc(money(snap.upcomingTotal))}</div>
+            <div class="k">Ingresos combinados</div>
+            <div class="v lime num">${esc(money(all.income))}</div>
           </div>
           <div class="mini">
-            <div class="k">Ingresos por recibir</div>
-            <div class="v num">${esc(money(expectedIncome))}</div>
+            <div class="k">Gastos combinados</div>
+            <div class="v num">${esc(money(all.paid))}</div>
           </div>
           <div class="mini">
-            <div class="k">Dinero disponible</div>
-            <div class="v num">${esc(money(available))}</div>
+            <div class="k">Ganancia neta</div>
+            <div class="v num ${all.net < 0 ? "neg" : "pos"}">${esc(money(all.net))}</div>
           </div>
+        </div>
+
+        <div class="kv mt-14" style="padding-top:10px;border-top:1px solid rgba(19,19,19,.08)">
+          <span class="k">Dinero disponible (total, no solo negocios)</span>
+          <span class="v num">${esc(money(available))}</span>
+        </div>
+
+        <div class="mini-biz-grid mt-14">
+          ${businesses.map((b) => miniBusinessCard(b, Finance.businessSummary(b.id, range.from, range.to))).join("")}
         </div>
       </div>
     </section>`;
@@ -144,7 +207,7 @@ function next7DaysCard() {
           quedarían ${diff >= 0 ? "+" : "−"}${esc(money(Math.abs(diff)))}. Esto NO es tu dinero disponible actual.
         </p>
 
-        <button class="stat-card mt-14" data-action="nav" data-to="#/gastos" style="text-align:left;width:100%">
+        <button class="stat-card mt-14" data-action="nav" data-to="#/movimientos" style="text-align:left;width:100%">
           <div class="k">¿Alcanza para cubrir los próximos pagos?</div>
           <div class="mt-8" style="display:flex;flex-direction:column;gap:6px">
             <div class="flex" style="justify-content:space-between;align-items:baseline">
@@ -173,7 +236,7 @@ function overdueSection() {
       <span class="section-link num" style="color:var(--danger)">${esc(money(total))}</span>
     </div>
     <div class="list">${list.slice(0, 6).map((o) => occurrenceRow(o, { showRelative: true })).join("")}</div>
-    ${list.length > 6 ? `<button class="section-link" data-action="nav" data-to="#/gastos" style="display:block;margin:10px 2px 0">Ver todos ${icon("chevron", 13, 2.4)}</button>` : ""}`;
+    ${list.length > 6 ? `<button class="section-link" data-action="nav" data-to="#/movimientos" style="display:block;margin:10px 2px 0">Ver todos ${icon("chevron", 13, 2.4)}</button>` : ""}`;
 }
 
 /** 🟠 Pagos que vencen en los próximos 7 días (desde mañana): nunca incluye lo vencido. */
@@ -212,7 +275,7 @@ function expectedIncomeSection() {
   return `
     <div class="section-head">
       <h2 class="section-title">Ingresos esperados</h2>
-      <button class="section-link" data-action="nav" data-to="#/ingresos">Ver todo ${icon("chevron", 13, 2.4)}</button>
+      <button class="section-link" data-action="nav" data-to="#/movimientos">Ver todo ${icon("chevron", 13, 2.4)}</button>
     </div>
     <div class="list">${list.map((o) => occurrenceRow(o, { showRelative: true })).join("")}${extra}</div>`;
 }
@@ -270,7 +333,7 @@ export default {
       </header>
 
       ${heroCard()}
-      ${monthCard()}
+      ${businessesOverviewCard()}
       ${next7DaysCard()}
 
       <div class="search" data-action="nav" data-to="#/buscar" role="button" tabindex="0">
@@ -289,6 +352,21 @@ export default {
     root.querySelectorAll("[data-period]").forEach((btn) => {
       btn.addEventListener("click", () => {
         period = btn.dataset.period;
+        ctx.rerender();
+      });
+    });
+
+    root.querySelectorAll("[data-home-period]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (btn.dataset.homePeriod === "custom") {
+          openCustomRangeSheet((range) => {
+            customRange = range;
+            homePeriod = "custom";
+            ctx.rerender();
+          });
+          return;
+        }
+        homePeriod = btn.dataset.homePeriod;
         ctx.rerender();
       });
     });

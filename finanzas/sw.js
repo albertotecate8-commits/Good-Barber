@@ -6,7 +6,7 @@
 // leer/guardar información — este service worker solo acelera la carga del
 // código de la app y permite que abra (sin datos) si no hay conexión.
 
-const CACHE = "finanzas-v7"; // v7: migración de IndexedDB a Supabase (proyecto remoto dedicado a Finanzas)
+const CACHE = "finanzas-v8"; // v8: rediseño en torno a 3 negocios + login + sincronización
 
 // Carpeta donde vive la app. Se deduce de la ubicación del propio service
 // worker, así funciona igual si la app está en la raíz del dominio o en una
@@ -32,7 +32,11 @@ const SHELL = [
   "./js/components.js",
   "./js/dates.js",
   "./js/format.js",
+  "./js/screens/login.js",
   "./js/screens/home.js",
+  "./js/screens/negocios.js",
+  "./js/screens/negocio.js",
+  "./js/screens/movements.js",
   "./js/screens/expenses.js",
   "./js/screens/income.js",
   "./js/screens/debts.js",

@@ -8,6 +8,29 @@ import { todayISO, formatLong, WEEKDAYS_PLURAL } from "../dates.js";
 import { icon, empty, sheet, toast, confirmSheet } from "../ui.js";
 import { backHeader } from "../components.js";
 
+function userCard() {
+  const user = Store.currentUser();
+  const profile = Store.currentProfile();
+  if (!user) return "";
+
+  const name = (profile && profile.name) || (user.email || "").split("@")[0];
+  const roleLabel = profile && profile.role === "admin" ? "Administrador" : "Colaborador";
+
+  return `
+    <section class="card-dark">
+      <div class="flex" style="align-items:center;gap:12px">
+        <span class="row-ico" style="background:rgba(255,255,255,.12);color:var(--lime)">${icon("user", 20)}</span>
+        <div class="grow">
+          <div class="row-title" style="color:var(--on-dark)">${esc(name)}</div>
+          <div class="tiny" style="color:var(--on-dark-3)">${esc(user.email)} · ${esc(roleLabel)}</div>
+        </div>
+      </div>
+      <button class="btn btn-outline mt-14" data-action="sign-out" style="width:100%">
+        ${icon("logout", 17, 2.2)} Cerrar sesión
+      </button>
+    </section>`;
+}
+
 function tile(action, glyph, title, description, extra) {
   return `
     <button class="row" data-action="${esc(action)}">
@@ -182,15 +205,18 @@ export default {
           </div>
         </div>` : ""}
 
+      ${userCard()}
+
       <div class="section-head" style="margin-top:8px">
         <h2 class="section-title">Consultar</h2>
       </div>
       <div class="list">
+        ${tile("nav-negocios", "wallet", "Negocios", "Barbería, Uñas y Afores")}
         ${tile("nav-calendario", "calendar", "Calendario", "Movimientos día por día")}
         ${tile("nav-historial", "history", "Historial", "Todo lo registrado")}
         ${tile("nav-mensual", "chart", "Resumen del mes", "Ingresos y gastos por concepto")}
         ${tile("nav-corte", "income", "Corte semanal", `Cierra ${WEEKDAYS_PLURAL[Finance.cutClosingDay()]}`)}
-        ${tile("nav-categorias", "tag", "Categorías", "Cuánto tienes comprometido por categoría")}
+        ${tile("nav-categorias", "tag", "Categorías", "Por negocio o generales")}
         ${tile("nav-buscar", "search", "Buscar y filtrar", "Encuentra cualquier registro")}
       </div>
 
@@ -242,6 +268,7 @@ export default {
     const go = (hash) => { location.hash = hash; };
 
     const handlers = {
+      "nav-negocios": () => go("#/negocios"),
       "nav-calendario": () => go("#/calendario"),
       "nav-historial": () => go("#/historial"),
       "nav-mensual": () => go("#/mensual"),

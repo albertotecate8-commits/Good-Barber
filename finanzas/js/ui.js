@@ -36,6 +36,8 @@ const PATHS = {
   filter: '<path d="M3 5h18"/><path d="M6 12h12"/><path d="M10 19h4"/>',
   db: '<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
   send: '<path d="M4 12 20 4l-4 16-4.5-6.5z"/><path d="m11.5 13.5 8.5-9.5"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.5-7 8-7s8 3 8 7"/>',
+  logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>',
 };
 
 export function icon(name, size, strokeWidth) {

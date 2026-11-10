@@ -8,7 +8,11 @@ import { money, esc } from "./format.js";
 import { formatLong } from "./dates.js";
 import { icon, toast, sheet, closeSheet, confirmSheet } from "./ui.js";
 
+import login from "./screens/login.js";
 import home from "./screens/home.js";
+import negocios from "./screens/negocios.js";
+import negocio from "./screens/negocio.js";
+import movements from "./screens/movements.js";
 import expenses from "./screens/expenses.js";
 import income from "./screens/income.js";
 import debts from "./screens/debts.js";
@@ -23,7 +27,10 @@ import categoriesScreen from "./screens/categories.js";
 
 const SCREENS = {
   inicio: home,
-  gastos: expenses,
+  negocios,
+  negocio,
+  movimientos: movements,
+  gastos: expenses,   // enlaces antiguos — ya no hay pestaña, pero siguen funcionando
   ingresos: income,
   deudas: debts,
   mas: moreScreen,
@@ -38,23 +45,27 @@ const SCREENS = {
 
 const TABS = [
   { id: "inicio", label: "Inicio", glyph: "home" },
-  { id: "gastos", label: "Gastos", glyph: "expense" },
-  { id: "ingresos", label: "Ingresos", glyph: "income", center: true },
+  { id: "negocios", label: "Negocios", glyph: "wallet" },
+  { id: "movimientos", label: "Movimientos", glyph: "expense", center: true },
   { id: "deudas", label: "Deudas", glyph: "debt" },
   { id: "mas", label: "Más", glyph: "more" },
 ];
 
 const TAB_FOR_ROUTE = {
   detalle: null,
+  negocio: "negocios",
+  gastos: "movimientos",
+  ingresos: "movimientos",
   calendario: "mas",
   historial: "mas",
   mensual: "mas",
   buscar: null,
-  corte: "ingresos",
+  corte: "movimientos",
   categorias: "mas",
 };
 
 let current = { name: "inicio", params: {} };
+let appStarted = false;
 
 /* ============================================================== Rutas === */
 
@@ -228,6 +239,20 @@ const ACTIONS = {
   "new-debt": () => Forms.editItem(null, KIND.DEBT),
   "new-heavy": () => Forms.editItem(null, KIND.HEAVY),
   "new-income-source": () => Forms.editItem(null, KIND.INCOME),
+
+  "negocio-ingreso": (data) => Forms.newIncome({ businessId: data.business || null }),
+  "negocio-gasto": (data) => Forms.newExpense({ businessId: data.business || null }),
+
+  "sign-out": async () => {
+    const ok = await confirmSheet({
+      title: "¿Cerrar sesión?",
+      message: "Tendrás que volver a entrar con tu correo y contraseña.",
+      confirmText: "Sí, cerrar sesión",
+      danger: true,
+    });
+    if (!ok) return;
+    await Store.signOut();
+  },
 };
 
 function bindGlobalActions() {
@@ -256,9 +281,17 @@ function bindGlobalActions() {
 
 /* ================================================================ Boot === */
 
-async function boot() {
-  bindGlobalActions();
+function paintCurrentIfLoggedIn() {
+  if (!Store.currentUser()) return;
+  const root = document.getElementById("screen");
+  if (!root) return;
+  const scroll = window.scrollY;
+  paint(root, false);
+  window.scrollTo(0, scroll);
+  renderTabs();
+}
 
+async function showApp() {
   try {
     const persistent = await Store.init();
     if (!persistent) {
@@ -269,31 +302,63 @@ async function boot() {
     toast("Hubo un problema al iniciar la app.", "err");
   }
 
-  // Cada cambio de datos repinta la pantalla actual.
-  Store.subscribe(() => {
-    const root = document.getElementById("screen");
-    if (!root) return;
-    const scroll = window.scrollY;
-    paint(root, false);
-    window.scrollTo(0, scroll);
-    renderTabs();
-  });
+  if (!appStarted) {
+    appStarted = true;
 
-  window.addEventListener("hashchange", navigate);
+    // Cada cambio de datos repinta la pantalla actual.
+    Store.subscribe(paintCurrentIfLoggedIn);
 
-  // Al volver a la app tras un rato, se recalculan los vencimientos por si
-  // cambió el día.
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") {
-      Store.ensureOccurrences().catch(() => {});
-    }
-  });
+    window.addEventListener("hashchange", () => {
+      if (Store.currentUser()) navigate();
+    });
+
+    // Al volver a la app tras un rato: trae lo que haya registrado el otro
+    // teléfono y recalcula los vencimientos por si cambió el día.
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible" && Store.currentUser()) {
+        Store.refresh().then(() => Store.ensureOccurrences()).catch(() => {});
+      }
+    });
+
+    // Sincronización casi en tiempo real entre los dos teléfonos: mientras la
+    // app está abierta y visible, se refresca sola cada 30 segundos.
+    setInterval(() => {
+      if (document.visibilityState === "visible" && Store.currentUser()) {
+        Store.refresh().catch(() => {});
+      }
+    }, 30000);
+  }
 
   if (!location.hash) location.hash = "#/inicio";
   navigate();
 
-  document.getElementById("app").hidden = false;
   document.getElementById("tabbar").hidden = false;
+}
+
+function showLogin() {
+  closeSheet(true);
+  const root = document.getElementById("screen");
+  root.innerHTML = login.render();
+  login.mount(root, { rerender: showLogin });
+  document.getElementById("tabbar").hidden = true;
+}
+
+async function boot() {
+  bindGlobalActions();
+
+  const session = await Store.initAuth((nextSession, had) => {
+    if (nextSession && !had) {
+      showApp();
+    } else if (!nextSession && had) {
+      Store.resetInMemoryState();
+      showLogin();
+    }
+  });
+
+  if (session) await showApp();
+  else showLogin();
+
+  document.getElementById("app").hidden = false;
   const bootEl = document.getElementById("boot");
   bootEl.classList.add("is-out");
   setTimeout(() => bootEl.remove(), 320);
