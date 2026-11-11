@@ -3,7 +3,7 @@
 
 import * as Store from "./store.js";
 import * as Finance from "./finance.js";
-import { KIND, STATUS } from "./model.js";
+import { KIND, STATUS, PARTNER_SHARE } from "./model.js";
 import { money, parseMoney, esc, round2 } from "./format.js";
 import { todayISO, formatLong, formatMedium, RECURRENCES, recurrenceLabel, isValidISO } from "./dates.js";
 import { sheet, closeSheet, toast, celebrate, confirmSheet, icon } from "./ui.js";
@@ -260,6 +260,97 @@ export function newIncome(prefill) {
           close();
           toast(`Ingreso esperado para el ${formatLong(data.date)} — no cuenta como disponible todavía`, "ok");
         }
+      });
+    },
+  });
+}
+
+/* ======================================= Entrada de Barbería / Uñas ====== */
+
+const ENTRY_CATEGORY = { barberia: "cortes", unas: "servicios-unas" };
+
+/** Reparte un total entre tú y tu socia según PARTNER_SHARE. */
+export function splitTotal(businessId, total) {
+  const share = PARTNER_SHARE[businessId];
+  if (!share || !isFinite(total) || total <= 0) return null;
+  const mine = round2(total * share);
+  return { mine, theirs: round2(total - mine) };
+}
+
+/** Lo mínimo: escribes el total, se guarda y se ve cómo se divide. */
+export function newBusinessEntry(businessId) {
+  const business = Store.getBusiness(businessId);
+  const name = business ? business.name : "Negocio";
+  const shared = !!PARTNER_SHARE[businessId];
+
+  sheet({
+    title: `Entrada ${name}`,
+    subtitle: shared ? "Escribe el total — se divide entre tú y tu socia" : "Escribe el total",
+    body: `
+      ${fieldAmount("", "Total")}
+      ${shared ? `<div class="card" data-split style="margin:-4px 0 14px"></div>` : ""}
+      ${fieldDate("date", "Fecha", todayISO())}
+      <div class="sheet-actions">
+        <button class="btn btn-lime" data-submit>${icon("check", 18, 2.4)} Guardar entrada</button>
+      </div>`,
+    onMount: (panel, close) => {
+      const input = panel.querySelector('[name="amount"]');
+      const preview = panel.querySelector("[data-split]");
+      const paint = () => {
+        if (!preview) return;
+        const split = splitTotal(businessId, parseMoney(input.value)) || { mine: 0, theirs: 0 };
+        preview.innerHTML = `
+          <div class="kv"><span class="k">Tu parte</span><span class="v num pos">${esc(money(split.mine))}</span></div>
+          <div class="kv"><span class="k">Tu socia</span><span class="v num">${esc(money(split.theirs))}</span></div>`;
+      };
+      input.addEventListener("input", paint);
+      paint();
+
+      wire(panel, close, async (raw) => {
+        const data = validate(panel, raw);
+        if (!data) return;
+        const split = splitTotal(businessId, data.amount);
+        await Store.addQuickMovement({
+          type: "income",
+          concept: `Entrada ${name}`,
+          amount: data.amount,
+          date: data.date,
+          category: ENTRY_CATEGORY[businessId] || "otros-ingresos",
+          businessId,
+          note: split ? `Tu parte ${money(split.mine)} · Tu socia ${money(split.theirs)}` : "",
+        });
+        close();
+        celebrate(`Entrada ${name}`, money(data.amount));
+      });
+    },
+  });
+}
+
+/* ======================================================= Afore por recibir = */
+
+/** Cuánto se espera recibir del Afore. No suma al disponible hasta recibirlo. */
+export function editAforeAmount(item) {
+  sheet({
+    title: "Afore por recibir",
+    subtitle: "No cuenta como disponible hasta que lo recibas",
+    body: `
+      ${fieldAmount(item && item.amount ? item.amount : "", "Monto por recibir")}
+      ${fieldText("statusNote", "Nota (opcional)", item ? item.statusNote : "", "Ej. cobro en diciembre")}
+      <div class="sheet-actions">
+        <button class="btn btn-ink" data-submit>Guardar</button>
+      </div>`,
+    onMount: (panel, close) => {
+      wire(panel, close, async (raw) => {
+        const data = validate(panel, raw);
+        if (!data) return;
+        await Store.saveItem({
+          ...(item || { kind: KIND.INCOME, name: "Afores", category: "afores", businessId: "afores", recurrence: "once", startDate: null }),
+          amount: data.amount,
+          statusNote: raw.statusNote || "",
+          active: true,
+        });
+        close();
+        toast("Monto del Afore guardado", "ok");
       });
     },
   });

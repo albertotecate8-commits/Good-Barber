@@ -2,10 +2,12 @@
 //
 // Reglas seguidas:
 //  · Los conceptos que traían fecha explícita la conservan tal cual.
-//  · Los que solo traían una regla ("día 23 de cada mes", "por semana",
-//    "por mes") se anclan a partir de hoy, sin inventar una fecha del pasado.
-//  · Los que NO traían fecha (Gas, Comida, Gasolina, Afores) quedan SIN fecha:
-//    la app los muestra como "sin programar" y se puede fijar la fecha después.
+//  · Los que solo traían una regla ("día 6 de cada mes") se anclan a partir
+//    de hoy, sin inventar una fecha del pasado.
+//  · Los que NO traían día (Internet, Luz y Comida de la casa) quedan SIN
+//    fecha: la app los muestra como "sin programar" y se puede fijar después.
+//  · Barbería y Uñas no son conceptos fijos: cada entrada se registra con su
+//    total en el momento (Inicio → Barbería / Uñas).
 
 import { KIND, makeItem } from "./model.js";
 import { todayISO, parseISO, toISO, daysInMonth, addMonths, addDays } from "./dates.js";
@@ -61,75 +63,30 @@ export function buildSeed(todayOverride) {
     items.push(makeItem({ ...data, startDate, anchorDay: anchor, seeded: true }));
   };
 
+  // ----------------------------------------------------------------- LOCAL --
+  // Suman ≈ $4,755 al mes (renta + internet + la mitad de luz y de agua,
+  // que son cada 2 meses) — por eso hay que apartar $1,100 por semana.
+  add({ id: "local-renta", kind: KIND.EXPENSE, name: "Renta", category: "local",
+        amount: 3500, recurrence: "monthly", startDate: nextMonthDayFrom(today, 6), anchorDay: 6 });
+  add({ id: "local-luz", kind: KIND.EXPENSE, name: "Luz", category: "local",
+        amount: 1000, recurrence: "bimonthly", startDate: "2027-01-01", anchorDay: 1 });
+  add({ id: "local-agua", kind: KIND.EXPENSE, name: "Agua", category: "local",
+        amount: 350, recurrence: "bimonthly", startDate: "2026-12-21", anchorDay: 21 });
+  add({ id: "local-internet", kind: KIND.EXPENSE, name: "Internet", category: "local",
+        amount: 580, recurrence: "monthly", startDate: nextMonthDayFrom(today, 24), anchorDay: 24 });
+
   // ------------------------------------------------------------------ CASA --
   add({ id: "casa-internet", kind: KIND.EXPENSE, name: "Internet", category: "casa",
-        amount: 300, recurrence: "monthly", startDate: "2026-08-10", reference: "0320443116" });
+        amount: 300, recurrence: "monthly", startDate: null });
   add({ id: "casa-luz", kind: KIND.EXPENSE, name: "Luz", category: "casa",
-        amount: 399, recurrence: "monthly", startDate: "2026-09-04" });
-  add({ id: "casa-gas", kind: KIND.EXPENSE, name: "Gas", category: "casa",
-        amount: 100, recurrence: "triweekly", startDate: null });
+        amount: 400, recurrence: "monthly", startDate: null });
   add({ id: "casa-comida", kind: KIND.EXPENSE, name: "Comida", category: "casa",
-        amount: 6000, recurrence: "monthly", startDate: null });
-  add({ id: "casa-gasolina", kind: KIND.EXPENSE, name: "Gasolina", category: "casa",
-        amount: 1000, recurrence: "monthly", startDate: null });
+        amount: 2000, recurrence: "weekly", startDate: null });
 
-  // ----------------------------------------------------------------- LOCAL --
-  add({ id: "local-agua", kind: KIND.EXPENSE, name: "Agua", category: "local",
-        amount: 175, recurrence: "monthly", startDate: "2026-09-21" });
-  add({ id: "local-luz", kind: KIND.EXPENSE, name: "Luz", category: "local",
-        amount: 1244, recurrence: "bimonthly", startDate: "2026-08-31", anchorDay: 31 });
-  add({ id: "local-renta", kind: KIND.EXPENSE, name: "Renta", category: "local",
-        amount: 3500, recurrence: "monthly", startDate: "2026-09-06" });
-  add({ id: "local-internet", kind: KIND.EXPENSE, name: "Internet", category: "local",
-        amount: 400, recurrence: "monthly", startDate: nextMonthDayFrom(today, 23), anchorDay: 23 });
-
-  // ---------------------------------------------------------------- DEUDAS --
-  add({ id: "deuda-vexi", kind: KIND.DEBT, name: "Vexi", category: "deudas",
-        amount: 1429, recurrence: "monthly", startDate: "2026-09-18", variable: true });
-  add({ id: "deuda-plata", kind: KIND.DEBT, name: "Plata", category: "deudas",
-        amount: 810, recurrence: "monthly", startDate: "2026-09-23", variable: true });
-  add({ id: "deuda-carro", kind: KIND.DEBT, name: "Carro", category: "deudas",
-        amount: 5538, recurrence: "monthly", startDate: "2026-09-16" });
-  add({ id: "deuda-mercadolibre", kind: KIND.DEBT, name: "Mercado Libre", category: "deudas",
-        amount: 2789, recurrence: "monthly", startDate: "2026-09-01", variable: true });
-  add({ id: "deuda-open", kind: KIND.DEBT, name: "Open", category: "deudas",
-        amount: 1172, recurrence: "monthly", startDate: "2026-09-02", variable: true });
-
-  // -------------------------------------------------------- SUSCRIPCIONES --
-  add({ id: "sus-claude", kind: KIND.EXPENSE, name: "Claude", category: "suscripciones",
-        amount: 349, recurrence: "monthly", startDate: "2026-08-20" });
-  add({ id: "sus-gemini", kind: KIND.EXPENSE, name: "Gemini", category: "suscripciones",
-        amount: 99, recurrence: "monthly", startDate: "2026-09-04" });
-  add({ id: "sus-chatgpt", kind: KIND.EXPENSE, name: "ChatGPT", category: "suscripciones",
-        amount: 129, recurrence: "monthly", startDate: "2026-09-05" });
-  add({ id: "sus-youtube", kind: KIND.EXPENSE, name: "YouTube", category: "suscripciones",
-        amount: 160, recurrence: "monthly", startDate: "2026-09-24" });
-  add({ id: "sus-netflix", kind: KIND.EXPENSE, name: "Netflix", category: "suscripciones",
-        amount: 130, recurrence: "monthly", startDate: "2026-09-12" });
-  add({ id: "sus-gamepass", kind: KIND.EXPENSE, name: "Game Pass", category: "suscripciones",
-        amount: 160, recurrence: "monthly", startDate: "2026-09-25" });
-
-  // -------------------------------------------------------- DEUDAS FUERTES --
-  // No generan pagos mensuales automáticos: son saldos que se abonan cuando se puede.
-  add({ id: "fuerte-denisse", kind: KIND.HEAVY, name: "Denisse", category: "fuertes",
-        amount: 0, balance: 35800, recurrence: "once", startDate: null,
-        statusNote: "Esperando Afores" });
-  add({ id: "fuerte-bbva", kind: KIND.HEAVY, name: "BBVA", category: "fuertes",
-        amount: 0, balance: 18835, recurrence: "once", startDate: null,
-        statusNote: "Esperando la quita" });
-
-  // -------------------------------------------------------------- INGRESOS --
-  // Barbería y Uñas son ingresos del corte semanal (domingo a sábado): no
-  // tienen un día fijo inventado, se registran dentro de la semana que caiga.
-  add({ id: "ing-barberia", kind: KIND.INCOME, name: "Barbería", category: "barberia", businessId: "barberia",
-        amount: 300, recurrence: "weekly", startDate: null, variable: true, cutBased: true });
-  add({ id: "ing-unas", kind: KIND.INCOME, name: "Uñas", category: "unas", businessId: "unas",
-        amount: 5400, recurrence: "weekly", startDate: null, variable: true, cutBased: true });
-  add({ id: "ing-rentas", kind: KIND.INCOME, name: "Rentas", category: "rentas",
-        amount: 5000, recurrence: "monthly", startDate: nextMonthDayFrom(today, 1), anchorDay: 1 });
+  // -------------------------------------------------------------- AFORES --
+  // El monto se escribe desde Inicio cuando se sepa cuánto se va a recibir.
   add({ id: "ing-afores", kind: KIND.INCOME, name: "Afores", category: "afores", businessId: "afores",
-        amount: 26051, recurrence: "once", startDate: null,
-        statusNote: "Cobrar en septiembre" });
+        amount: 0, recurrence: "once", startDate: null });
 
   return items;
 }

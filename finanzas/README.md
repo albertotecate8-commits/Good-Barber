@@ -277,23 +277,20 @@ proyecto de Supabase, etc.).
 
 ## Datos iniciales
 
-Se cargan una sola vez, tal como fueron proporcionados, sin agregar nada:
+Se cargan tal como fueron proporcionados, sin agregar nada (es también lo que
+deja **Más → Restaurar datos iniciales**):
 
-- **Casa:** Internet $300 (ref. 0320443116), Luz $399, Gas $100, Comida $6,000,
-  Gasolina $1,000.
-- **Local:** Agua $175, Luz $1,244 (cada 2 meses), Renta $3,500, Internet $400.
-- **Deudas:** Vexi $1,429, Plata $810, Carro $5,538, Mercado Libre $2,789,
-  Open $1,172.
-- **Suscripciones:** Claude $349, Gemini $99, ChatGPT $129, YouTube $160,
-  Netflix $130, Game Pass $160.
-- **Deudas fuertes:** Denisse $35,800 (esperando Afores), BBVA $18,835
-  (esperando la quita). No generan pagos mensuales automáticos.
-- **Ingresos:** Barbería $300/semana, Uñas $5,400/semana, Rentas $5,000/mes,
-  Afores $26,051 (a cobrar en septiembre).
+- **Local:** Renta $3,500 (día 6 de cada mes), Luz $1,000 (cada 2 meses, el
+  día 1), Agua $350 (cada 2 meses, el día 21), Internet $580 (día 24). Suman
+  ≈ $4,755 al mes: hay que **apartar $1,100 por semana** (se muestra en Inicio).
+- **Casa:** Internet $300/mes, Luz $400/mes, Comida $2,000/semana.
+- **Afores:** el monto por recibir se escribe desde Inicio (empieza en $0).
+- **Sin deudas.**
+- **Barbería y Uñas** no son conceptos fijos: cada entrada se registra con su
+  total desde Inicio y la app muestra cómo se divide 50/50 con la socia
+  (`PARTNER_SHARE` en `js/model.js`). Se cuenta el total como ingreso.
 
-**Conceptos sin fecha.** Gas, Comida, Gasolina y el Afore no traían una fecha
-concreta, así que quedaron **sin programar** en vez de inventarles una. Aparecen
-en su sección con la etiqueta *"Sin programar"* y se les puede poner fecha desde
-**Editar**, o registrarlos directamente cuando ocurran con el botón **Pagar** /
-**Recibir**. Lo mismo aplica a las fechas derivadas de una regla ("día 23 de
-cada mes", "por semana", "por mes"): se anclan a partir de hoy hacia adelante.
+**Conceptos sin fecha.** Los de la casa no traían un día concreto, así que
+quedaron **sin programar** en vez de inventarles uno. Se les puede poner fecha
+desde **Editar**, o registrarlos cuando ocurran. Las fechas derivadas de una
+regla ("día 6 de cada mes") se anclan a partir de hoy hacia adelante.

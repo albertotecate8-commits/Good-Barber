@@ -1,95 +1,57 @@
-// Pantalla de INICIO: la situación financiera completa de un vistazo.
+// Pantalla de INICIO: un tablero corto — saludo con el dinero disponible y
+// los botones de entrada, cuatro fichas (Barbería, Uñas, tu parte, apartar
+// para el local), la semana en barras, de dónde entró el dinero, los pagos
+// que se vienen y el Afore.
 
 import * as Store from "../store.js";
 import * as Finance from "../finance.js";
-import { KIND } from "../model.js";
-import { money, esc, round2 } from "../format.js";
-import {
-  todayISO, formatLong, formatShort, formatMonthYear, startOfMonth, endOfMonth, addMonths,
-  startOfWeek, endOfWeek, isValidISO,
-} from "../dates.js";
-import { icon, empty, sheet } from "../ui.js";
-import { occurrenceRow, barsChart, donutChart } from "../components.js";
+import { KIND, PARTNER_SHARE, LOCAL_WEEKLY_RESERVE } from "../model.js";
+import { money, moneyShort, esc, round2 } from "../format.js";
+import { todayISO, formatLong, formatCutRange, addDays, parseISO, relativeLabel, startOfMonth, endOfMonth } from "../dates.js";
+import { icon } from "../ui.js";
+import { donutChart } from "../components.js";
+import { splitTotal } from "../forms.js";
 
-let period = "month"; // week | month | quarter
-let homePeriod = "month"; // today | week | month | custom — resumen general de los 3 negocios
-let customRange = null; // { from, to }
-
-const PERIODS = [
-  { id: "week", label: "Esta semana" },
-  { id: "month", label: "Este mes" },
-  { id: "quarter", label: "3 meses" },
-];
-
-const HOME_PERIODS = [
-  { id: "today", label: "Hoy" },
-  { id: "week", label: "Semana" },
-  { id: "month", label: "Mes" },
-  { id: "custom", label: "Personalizado" },
-];
-
-function homeRange() {
-  const today = todayISO();
-  if (homePeriod === "today") return { from: today, to: today };
-  if (homePeriod === "week") return { from: startOfWeek(today), to: endOfWeek(today) };
-  if (homePeriod === "custom" && customRange) return customRange;
-  return { from: startOfMonth(today), to: endOfMonth(today) };
-}
-
-function openCustomRangeSheet(onApply) {
-  const current = customRange || { from: todayISO(), to: todayISO() };
-  sheet({
-    title: "Periodo personalizado",
-    body: `
-      <div class="field">
-        <label>Desde</label>
-        <input class="input" type="date" data-from value="${esc(current.from)}">
-      </div>
-      <div class="field">
-        <label>Hasta</label>
-        <input class="input" type="date" data-to value="${esc(current.to)}">
-      </div>
-      <div class="sheet-actions">
-        <button class="btn btn-ink" data-apply>Aplicar</button>
-      </div>`,
-    onMount: (panel, close) => {
-      panel.querySelector("[data-apply]").addEventListener("click", () => {
-        const from = panel.querySelector("[data-from]").value;
-        const to = panel.querySelector("[data-to]").value;
-        if (!isValidISO(from) || !isValidISO(to) || from > to) return;
-        close();
-        onApply({ from, to });
-      });
-    },
-  });
-}
+const SHARED_BUSINESSES = Object.keys(PARTNER_SHARE);
+const DAY_LETTER = ["D", "L", "M", "M", "J", "V", "S"];
 
 /** Saludo según la hora del día. */
 function greeting() {
   const hour = new Date().getHours();
-  if (hour < 12) return "buenos días";
-  if (hour < 19) return "buenas tardes";
-  return "buenas noches";
+  if (hour < 12) return "Buenos días";
+  if (hour < 19) return "Buenas tardes";
+  return "Buenas noches";
 }
 
-function heroCard() {
+function businessName(id) {
+  const b = Store.getBusiness(id);
+  return b ? b.name : id;
+}
+
+function businessColor(id) {
+  const b = Store.getBusiness(id);
+  return (b && b.color) || "#3d8b98";
+}
+
+function banner() {
   const available = Store.availableMoney();
-  const negative = available < 0;
-  const hasInitial = Store.initialBalance() !== 0;
+  const profile = Store.currentProfile();
+  const name = profile && profile.name ? `, ${profile.name}` : "";
 
   return `
-    <section class="hero">
+    <section class="banner">
+      <div class="banner-hi">${esc(greeting() + name)}</div>
+      <div class="banner-sub">${esc(formatLong(todayISO()))}</div>
       <button class="hero-tap" data-action="show-breakdown" aria-label="Ver de dónde sale el dinero disponible">
-        <div class="hero-label">Dinero disponible ${icon("info", 13, 2.2)}</div>
-        <div class="hero-amount num${negative ? " is-neg" : ""}">${esc(money(available))}</div>
-        <div class="hero-note">${hasInitial ? "Saldo inicial + ingresos recibidos − gastos pagados" : "Ingresos recibidos menos gastos pagados"} · toca para ver el detalle</div>
+        <div class="banner-amount num${available < 0 ? " is-neg" : ""}">${esc(money(available))}</div>
+        <div class="banner-sub">Dinero disponible ${icon("info", 12, 2.2)}</div>
       </button>
-
-      <div class="hero-actions">
-        <button class="qa is-primary" data-action="quick-income">
-          <span class="ic">${icon("plus", 21, 2.4)}</span>
-          <span class="lbl">Ingreso</span>
-        </button>
+      <div class="banner-actions">
+        ${SHARED_BUSINESSES.map((id) => `
+          <button class="qa is-primary" data-action="entrada" data-business="${esc(id)}">
+            <span class="ic">${icon("plus", 21, 2.4)}</span>
+            <span class="lbl">${esc(businessName(id))}</span>
+          </button>`).join("")}
         <button class="qa" data-action="quick-expense">
           <span class="ic">${icon("minus", 21, 2.4)}</span>
           <span class="lbl">Gasto</span>
@@ -102,273 +64,170 @@ function heroCard() {
     </section>`;
 }
 
-/** Tarjeta pequeña de un negocio dentro del resumen general de Inicio. */
-function miniBusinessCard(b, s) {
-  const neg = s.net < 0;
-  return `
-    <button class="mini-biz" data-action="nav" data-to="#/negocio/${esc(b.id)}" style="border-left:3px solid ${esc(b.color)}">
-      <span class="mini-biz-name">${esc(b.name)}</span>
-      <span class="mini-biz-row"><span class="tiny muted">Ingresos</span><span class="num tiny">${esc(money(s.income))}</span></span>
-      <span class="mini-biz-row"><span class="tiny muted">Gastos</span><span class="num tiny">${esc(money(s.paid))}</span></span>
-      <span class="mini-biz-row"><span class="tiny strong">Ganancia</span><span class="num tiny strong ${neg ? "neg" : "pos"}">${esc(money(s.net))}</span></span>
-    </button>`;
-}
+/** Cuatro fichas: lo que entró esta semana por negocio, tu parte y lo del local. */
+function tiles(range) {
+  let mine = 0;
+  const tones = ["is-mint", ""];
 
-/**
- * Resumen general combinado de los 3 negocios + selector de periodo
- * (hoy/semana/mes/personalizado) — sección 4 del rediseño. El dinero
- * disponible mostrado aquí es siempre el TOTAL actual (no cambia con el
- * periodo elegido, que solo afecta a ingresos/gastos/ganancia de abajo).
- */
-function businessesOverviewCard() {
-  const range = homeRange();
-  const all = Finance.allBusinessesSummary(range.from, range.to);
-  const available = Store.availableMoney();
-  const businesses = Store.businesses().filter((b) => b.active !== false);
+  const business = SHARED_BUSINESSES.map((id, i) => {
+    const total = Finance.businessSummary(id, range.start, range.end).income;
+    const split = splitTotal(id, total) || { mine: 0, theirs: 0 };
+    mine += split.mine;
+    return `
+      <button class="tile ${tones[i % tones.length]}" data-action="entrada" data-business="${esc(id)}">
+        <div class="tile-ic">${icon("plus", 18, 2.4)}</div>
+        <div class="k">${esc(businessName(id))}</div>
+        <div class="v num">${esc(money(total))}</div>
+        <div class="d num">Tú ${esc(moneyShort(split.mine))} · Socia ${esc(moneyShort(split.theirs))}</div>
+      </button>`;
+  }).join("");
 
   return `
-    <section class="stack-card mt-14">
-      <div class="top">
-        <span>Resumen de los 3 negocios</span>
-        <button class="section-link" data-action="nav" data-to="#/negocios">Ver negocios ${icon("chevron", 13, 2.4)}</button>
+    <section class="tiles">
+      ${business}
+      <div class="tile is-ice">
+        <div class="tile-ic">${icon("wallet", 18)}</div>
+        <div class="k">Tu parte</div>
+        <div class="v num">${esc(money(round2(mine)))}</div>
+        <div class="d">Esta semana</div>
       </div>
-      <div class="body">
-        <div class="segment" data-home-period-group>
-          ${HOME_PERIODS.map((p) => `<button data-home-period="${p.id}" class="${p.id === homePeriod ? "is-on" : ""}">${esc(p.label)}</button>`).join("")}
-        </div>
-        ${homePeriod === "custom" && customRange
-          ? `<p class="tiny muted mt-8">${esc(formatShort(customRange.from))} → ${esc(formatShort(customRange.to))}</p>` : ""}
-
-        <div class="mini-grid mt-14">
-          <div class="mini">
-            <div class="k">Ingresos combinados</div>
-            <div class="v lime num">${esc(money(all.income))}</div>
-          </div>
-          <div class="mini">
-            <div class="k">Gastos combinados</div>
-            <div class="v num">${esc(money(all.paid))}</div>
-          </div>
-          <div class="mini">
-            <div class="k">Ganancia neta</div>
-            <div class="v num ${all.net < 0 ? "neg" : "pos"}">${esc(money(all.net))}</div>
-          </div>
-        </div>
-
-        <div class="kv mt-14" style="padding-top:10px;border-top:1px solid rgba(19,19,19,.08)">
-          <span class="k">Dinero disponible (total, no solo negocios)</span>
-          <span class="v num">${esc(money(available))}</span>
-        </div>
-
-        <div class="mini-biz-grid mt-14">
-          ${businesses.map((b) => miniBusinessCard(b, Finance.businessSummary(b.id, range.from, range.to))).join("")}
-        </div>
+      <div class="tile is-lav">
+        <div class="tile-ic">${icon("home", 18)}</div>
+        <div class="k">Apartar local</div>
+        <div class="v num">${esc(money(LOCAL_WEEKLY_RESERVE))}</div>
+        <div class="d">Cada semana</div>
       </div>
     </section>`;
 }
 
-/**
- * Próximos 7 días: ingresos esperados y pagos próximos son cifras del MISMO
- * periodo (mañana → +7 días), nunca se mezclan con el dinero disponible
- * actual. "Diferencia" es un escenario hipotético, no dinero que ya se tenga.
- */
-function next7DaysCard() {
-  const week = Finance.next7Days();
-  const diff = round2(week.expected - week.needed);
-  const scenarioA = week.available >= week.needed;
-  const scenarioB = round2(week.available + week.expected - week.needed);
+/** Entradas de cada día de la semana, una barra por negocio. */
+function weekChart(range) {
+  const today = todayISO();
+  const days = [];
+  for (let d = range.start; d <= range.end; d = addDays(d, 1)) {
+    const values = SHARED_BUSINESSES.map((id) =>
+      Finance.movementsBetween(d, d, id).reduce((s, m) => s + (m.type === "income" ? m.amount : 0), 0));
+    days.push({ date: d, values });
+  }
+  const max = Math.max(1, ...days.flatMap((d) => d.values));
+
+  const bars = days.map((d) => `
+    <div class="g${d.date === today ? " is-today" : ""}">
+      <div class="pair">
+        ${d.values.map((v, i) => `<i style="height:${Math.round((v / max) * 100)}%;background:${esc(businessColor(SHARED_BUSINESSES[i]))}" title="${esc(money(v))}"></i>`).join("")}
+      </div>
+      <span class="cap">${DAY_LETTER[parseISO(d.date).getDay()]}</span>
+    </div>`).join("");
+
+  const legend = SHARED_BUSINESSES.map((id) => `
+    <div class="cl"><i style="background:${esc(businessColor(id))}"></i><span class="n">${esc(businessName(id))}</span></div>`).join("");
 
   return `
-    <section class="stack-card mt-14">
-      <div class="top">
-        <span>Próximos 7 días</span>
-        <span class="date">${esc(formatShort(week.from))} → ${esc(formatShort(week.until))}</span>
+    <section class="card">
+      <div class="between">
+        <h2 class="panel-title">Entradas de la semana</h2>
+        <span class="tiny muted">${esc(formatCutRange(range.start, range.end))}</span>
       </div>
-      <div class="body">
-        <div class="kv" style="padding-bottom:10px">
-          <span class="k">Disponible ahora (real, no proyectado)</span>
-          <span class="v num">${esc(money(week.available))}</span>
-        </div>
-        <div class="mini-grid">
-          <div class="mini">
-            <div class="k">Ingresos esperados</div>
-            <div class="v lime num">${esc(money(week.expected))}</div>
-          </div>
-          <div class="mini">
-            <div class="k">Pagos próximos</div>
-            <div class="v warn num">${esc(money(week.needed))}</div>
-          </div>
-          <div class="mini">
-            <div class="k">Diferencia</div>
-            <div class="v num ${diff >= 0 ? "pos" : "neg"}">${diff >= 0 ? "+" : "−"}${esc(money(Math.abs(diff)))}</div>
-          </div>
-        </div>
-        <p class="tiny muted mt-14">
-          Si recibes todos los ingresos esperados de este periodo y cubres los pagos del mismo periodo,
-          quedarían ${diff >= 0 ? "+" : "−"}${esc(money(Math.abs(diff)))}. Esto NO es tu dinero disponible actual.
-        </p>
+      <div class="week-bars">${bars}</div>
+      <div class="cat-legend week-legend">${legend}</div>
+    </section>`;
+}
 
-        <button class="stat-card mt-14" data-action="nav" data-to="#/movimientos" style="text-align:left;width:100%">
-          <div class="k">¿Alcanza para cubrir los próximos pagos?</div>
-          <div class="mt-8" style="display:flex;flex-direction:column;gap:6px">
-            <div class="flex" style="justify-content:space-between;align-items:baseline">
-              <span class="tiny muted">A. Solo con lo disponible ahora</span>
-              <span class="tiny strong ${scenarioA ? "pos" : "neg"}">${scenarioA ? "Sí alcanza" : "No alcanza"}</span>
-            </div>
-            <div class="flex" style="justify-content:space-between;align-items:baseline">
-              <span class="tiny muted">B. Si recibo los ingresos esperados</span>
-              <span class="tiny strong num">${esc(money(scenarioB))} ${scenarioB >= 0 ? "disponibles" : "en contra"}</span>
-            </div>
-          </div>
+/** De qué negocio entró el dinero este mes. */
+function monthDonut() {
+  const today = todayISO();
+  const rows = Store.businesses()
+    .filter((b) => b.active !== false)
+    .map((b) => ({ name: b.name, color: b.color, amount: Finance.businessSummary(b.id, startOfMonth(today), endOfMonth(today)).income }))
+    .filter((r) => r.amount > 0);
+  const total = round2(rows.reduce((s, r) => s + r.amount, 0));
+
+  return `
+    <section class="card">
+      <h2 class="panel-title">Entradas del mes</h2>
+      <div class="mt-14">
+        ${total
+          ? donutChart(rows, total, "Total")
+          : `<p class="tiny muted">Todavía no hay entradas este mes. Registra la primera con los botones de arriba.</p>`}
+      </div>
+    </section>`;
+}
+
+/** Vencidos primero y luego lo que viene; cada uno con su botón para pagarlo. */
+function paymentsCard() {
+  const today = todayISO();
+  const overdue = Finance.overduePayments();
+  const upcoming = Finance.pendingPayments({ from: addDays(today, 1) });
+  const list = [...overdue, ...upcoming].slice(0, 5);
+
+  const rows = list.map((o) => {
+    const late = o.dueDate <= today;
+    return `
+      <div class="pay-item${late ? " is-late" : ""}">
+        <button class="grow pay-open" data-action="open-item" data-id="${esc(o.itemId)}" data-occ="${esc(o.id)}">
+          <div class="t">${esc(o.name)} <span class="muted">· ${esc(Store.categoryName(o.category))}</span></div>
+          <div class="s">${esc(late && o.dueDate < today ? "Vencido · " : "")}${esc(relativeLabel(o.dueDate))}</div>
         </button>
+        <span class="a num">${esc(money(o.amount))}</span>
+        <button class="round-btn" data-action="pay" data-occ="${esc(o.id)}" aria-label="Pagar ${esc(o.name)}">${icon("check", 17, 2.6)}</button>
+      </div>`;
+  }).join("");
+
+  return `
+    <section class="card">
+      <div class="between">
+        <h2 class="panel-title">Próximos pagos</h2>
+        <button class="section-link" data-action="nav" data-to="#/calendario">Calendario</button>
       </div>
+      ${list.length
+        ? `<div class="pay-list">${rows}</div>`
+        : `<p class="tiny muted mt-8">Nada pendiente por ahora.</p>`}
     </section>`;
 }
 
-/** 🔴 Vencidos: su fecha ya llegó y siguen sin pagarse. Nunca se mezclan con los próximos. */
-function overdueSection() {
-  const list = Finance.overduePayments();
-  if (!list.length) return "";
-  const total = round2(list.reduce((s, o) => s + o.amount, 0));
+/** Lo que se espera recibir del Afore (se escribe a mano). */
+function aforeCard() {
+  const item = Store.items().find((i) => i.active && i.kind === KIND.INCOME && i.businessId === "afores");
+  const hasAmount = item && item.amount > 0;
+  const id = esc(item ? item.id : "");
 
   return `
-    <div class="section-head">
-      <h2 class="section-title" style="color:var(--danger)">Vencidos</h2>
-      <span class="section-link num" style="color:var(--danger)">${esc(money(total))}</span>
-    </div>
-    <div class="list">${list.slice(0, 6).map((o) => occurrenceRow(o, { showRelative: true })).join("")}</div>
-    ${list.length > 6 ? `<button class="section-link" data-action="nav" data-to="#/movimientos" style="display:block;margin:10px 2px 0">Ver todos ${icon("chevron", 13, 2.4)}</button>` : ""}`;
-}
-
-/** 🟠 Pagos que vencen en los próximos 7 días (desde mañana): nunca incluye lo vencido. */
-function next7DaysSection() {
-  const week = Finance.next7Days();
-
-  return `
-    <div class="section-head">
-      <h2 class="section-title">Próximos pagos</h2>
-      <span class="section-link num">${esc(money(week.needed))}</span>
-    </div>
-    ${week.list.length
-      ? `<div class="list">${week.list.map((o) => occurrenceRow(o, { showRelative: true })).join("")}</div>`
-      : `<div class="card">${empty("Nada en los próximos 7 días", "Todo al corriente por ahora.", "check")}</div>`}`;
-}
-
-function expectedIncomeSection() {
-  const today = todayISO();
-  const list = Finance.pendingIncomes({ until: endOfMonth(today) }).slice(0, 4);
-  const noDate = Store.items().filter(
-    (i) => i.active && i.kind === KIND.INCOME && !i.startDate && !i.cutBased
-  );
-
-  if (!list.length && !noDate.length) return "";
-
-  const extra = noDate.map((item) => `
-    <button class="row" data-action="open-item" data-id="${esc(item.id)}">
-      <span class="row-ico c-ingreso">${icon("income", 18)}</span>
-      <span class="row-body">
-        <span class="row-title">${esc(item.name)}</span>
-        <span class="row-sub"><span class="chip pending">${esc(item.statusNote || "Sin fecha")}</span></span>
-      </span>
-      <span class="row-end"><span class="row-amount num pos">+${esc(money(item.amount))}</span></span>
-    </button>`).join("");
-
-  return `
-    <div class="section-head">
-      <h2 class="section-title">Ingresos esperados</h2>
-      <button class="section-link" data-action="nav" data-to="#/movimientos">Ver todo ${icon("chevron", 13, 2.4)}</button>
-    </div>
-    <div class="list">${list.map((o) => occurrenceRow(o, { showRelative: true })).join("")}${extra}</div>`;
-}
-
-function summarySection() {
-  const groups = Finance.series(period);
-  const today = todayISO();
-  let range;
-  if (period === "week") range = Finance.weekSummary(today);
-  else if (period === "quarter") range = Finance.summaryBetween(addMonths(today, -2, 1).slice(0, 8) + "01", endOfMonth(today));
-  else range = Finance.monthSummary(today);
-
-  const available = Store.availableMoney();
-
-  return `
-    <div class="section-head">
-      <h2 class="section-title">Ingresos vs gastos</h2>
-    </div>
-    <div class="card">
-      <div class="segment" data-period-group>
-        ${PERIODS.map((p) => `<button data-period="${p.id}" class="${p.id === period ? "is-on" : ""}">${esc(p.label)}</button>`).join("")}
-      </div>
-      <div class="mt-14">${barsChart(groups)}</div>
-      <div class="mt-14 stack" style="gap:0">
-        <div class="kv"><span class="k">Ingresos del periodo</span><span class="v num pos">${esc(money(range.income))}</span></div>
-        <div class="kv"><span class="k">Gastos pagados del periodo</span><span class="v num">${esc(money(range.paid))}</span></div>
-        <div class="kv"><span class="k">Pendiente del periodo</span><span class="v num">${esc(money(range.pending))}</span></div>
-        <div class="kv"><span class="k">Disponible ahora (total)</span><span class="v num">${esc(money(available))}</span></div>
-      </div>
-    </div>`;
-}
-
-function categorySection() {
-  const today = todayISO();
-  const { rows, total } = Finance.categoryBreakdown(startOfMonth(today), endOfMonth(today));
-
-  return `
-    <div class="section-head">
-      <h2 class="section-title">Gastos por categoría</h2>
-      <button class="section-link" data-action="nav" data-to="#/mensual">Detalle ${icon("chevron", 13, 2.4)}</button>
-    </div>
-    <div class="card">${donutChart(rows, total, "Pagado")}</div>`;
+    <section class="card card-dark">
+      <h2 class="panel-title">Afore</h2>
+      ${hasAmount
+        ? `<div class="banner-amount num">+${esc(money(item.amount))}</div>
+           <p class="banner-sub">Por recibir · no cuenta como disponible hasta que llegue.</p>
+           <div class="btn-row mt-14">
+             <button class="btn btn-outline btn-sm" data-action="afore-edit" data-id="${id}">Cambiar</button>
+             <button class="btn btn-lime btn-sm" data-action="receive-item" data-id="${id}">Ya lo recibí</button>
+           </div>`
+        : `<div class="cta">
+             <p class="banner-sub grow">Escribe cuánto vas a recibir para tenerlo a la vista.</p>
+             <button class="btn btn-lime btn-sm" data-action="afore-edit" data-id="${id}">Escribir monto</button>
+           </div>`}
+    </section>`;
 }
 
 export default {
   render() {
+    const range = Finance.weekRangeFor(todayISO());
     return `
       <header class="head">
         <div class="head-titles">
-          <div class="head-title">Hola, <b>${esc(greeting())}</b></div>
-          <div class="head-sub">${esc(formatLong(todayISO()))}</div>
+          <div class="head-title"><b>Inicio</b></div>
         </div>
-        <button class="icon-btn is-outline" data-action="nav" data-to="#/calendario" aria-label="Calendario">${icon("calendar", 18)}</button>
-        <button class="icon-btn is-dark" data-action="nav" data-to="#/buscar" aria-label="Buscar">${icon("search", 18)}</button>
+        <button class="icon-btn is-outline" data-action="nav" data-to="#/buscar" aria-label="Buscar">${icon("search", 18)}</button>
       </header>
 
-      ${heroCard()}
-      ${businessesOverviewCard()}
-      ${next7DaysCard()}
-
-      <div class="search" data-action="nav" data-to="#/buscar" role="button" tabindex="0">
-        <span class="mag">${icon("search", 16, 2.2)}</span>
-        <input type="text" placeholder="Buscar Mercado Libre, Vexi, Netflix…" readonly>
-      </div>
-
-      ${overdueSection()}
-      ${next7DaysSection()}
-      ${expectedIncomeSection()}
-      ${summarySection()}
-      ${categorySection()}`;
+      ${banner()}
+      ${tiles(range)}
+      <div class="panel-grid">
+        ${weekChart(range)}
+        ${monthDonut()}
+        ${paymentsCard()}
+        ${aforeCard()}
+      </div>`;
   },
 
-  mount(root, ctx) {
-    root.querySelectorAll("[data-period]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        period = btn.dataset.period;
-        ctx.rerender();
-      });
-    });
-
-    root.querySelectorAll("[data-home-period]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        if (btn.dataset.homePeriod === "custom") {
-          openCustomRangeSheet((range) => {
-            customRange = range;
-            homePeriod = "custom";
-            ctx.rerender();
-          });
-          return;
-        }
-        homePeriod = btn.dataset.homePeriod;
-        ctx.rerender();
-      });
-    });
-  },
+  mount() {},
 };

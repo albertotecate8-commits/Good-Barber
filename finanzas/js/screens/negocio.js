@@ -8,6 +8,7 @@ import { money, esc } from "../format.js";
 import { todayISO, startOfMonth, endOfMonth, formatMonthYear, formatCutRange } from "../dates.js";
 import { icon, empty } from "../ui.js";
 import { backHeader, movementRow } from "../components.js";
+import { splitTotal } from "../forms.js";
 
 export default {
   render(params) {
@@ -21,6 +22,7 @@ export default {
     const month = Finance.businessSummary(b.id, startOfMonth(today), endOfMonth(today));
     const weekRange = Finance.weekRangeFor(today);
     const week = Finance.businessSummary(b.id, weekRange.start, weekRange.end);
+    const monthSplit = splitTotal(b.id, month.income);
     const neg = month.net < 0;
 
     const recent = Store.movements()
@@ -48,6 +50,7 @@ export default {
             <div class="v warn num">${esc(money(month.pending))}</div>
           </div>
         </div>
+        ${monthSplit ? `<div class="hero-note mt-14" style="text-align:left">De las entradas del mes: tú ${esc(money(monthSplit.mine))} · tu socia ${esc(money(monthSplit.theirs))}</div>` : ""}
       </section>
 
       <div class="section-head mt-14">
