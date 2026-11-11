@@ -1,47 +1,57 @@
-// Pantalla de INICIO: lo de todos los días, rápido — entradas de Barbería y
-// Uñas (con lo que le toca a cada quien), el Afore por recibir, lo que hay
-// que apartar para el local y los pagos que se vienen.
+// Pantalla de INICIO: un tablero corto — saludo con el dinero disponible y
+// los botones de entrada, cuatro fichas (Barbería, Uñas, tu parte, apartar
+// para el local), la semana en barras, de dónde entró el dinero, los pagos
+// que se vienen y el Afore.
 
 import * as Store from "../store.js";
 import * as Finance from "../finance.js";
 import { KIND, PARTNER_SHARE, LOCAL_WEEKLY_RESERVE } from "../model.js";
-import { money, esc, round2 } from "../format.js";
-import { todayISO, formatLong, formatShort, formatCutRange } from "../dates.js";
-import { icon, empty } from "../ui.js";
-import { occurrenceRow } from "../components.js";
+import { money, moneyShort, esc, round2 } from "../format.js";
+import { todayISO, formatLong, formatCutRange, addDays, parseISO, relativeLabel, startOfMonth, endOfMonth } from "../dates.js";
+import { icon } from "../ui.js";
+import { donutChart } from "../components.js";
 import { splitTotal } from "../forms.js";
 
 const SHARED_BUSINESSES = Object.keys(PARTNER_SHARE);
+const DAY_LETTER = ["D", "L", "M", "M", "J", "V", "S"];
 
 /** Saludo según la hora del día. */
 function greeting() {
   const hour = new Date().getHours();
-  if (hour < 12) return "buenos días";
-  if (hour < 19) return "buenas tardes";
-  return "buenas noches";
+  if (hour < 12) return "Buenos días";
+  if (hour < 19) return "Buenas tardes";
+  return "Buenas noches";
 }
 
-function heroCard() {
+function businessName(id) {
+  const b = Store.getBusiness(id);
+  return b ? b.name : id;
+}
+
+function businessColor(id) {
+  const b = Store.getBusiness(id);
+  return (b && b.color) || "#3d8b98";
+}
+
+function banner() {
   const available = Store.availableMoney();
-  const entry = (id, label) => `
-    <button class="qa is-primary" data-action="entrada" data-business="${esc(id)}">
-      <span class="ic">${icon("plus", 21, 2.4)}</span>
-      <span class="lbl">${esc(label)}</span>
-    </button>`;
+  const profile = Store.currentProfile();
+  const name = profile && profile.name ? `, ${profile.name}` : "";
 
   return `
-    <section class="hero">
+    <section class="banner">
+      <div class="banner-hi">${esc(greeting() + name)}</div>
+      <div class="banner-sub">${esc(formatLong(todayISO()))}</div>
       <button class="hero-tap" data-action="show-breakdown" aria-label="Ver de dónde sale el dinero disponible">
-        <div class="hero-label">Dinero disponible ${icon("info", 13, 2.2)}</div>
-        <div class="hero-amount num${available < 0 ? " is-neg" : ""}">${esc(money(available))}</div>
-        <div class="hero-note">Lo que entró menos lo que se pagó · toca para ver el detalle</div>
+        <div class="banner-amount num${available < 0 ? " is-neg" : ""}">${esc(money(available))}</div>
+        <div class="banner-sub">Dinero disponible ${icon("info", 12, 2.2)}</div>
       </button>
-
-      <div class="hero-actions is-4">
-        ${SHARED_BUSINESSES.map((id) => {
-          const b = Store.getBusiness(id);
-          return entry(id, b ? b.name : id);
-        }).join("")}
+      <div class="banner-actions">
+        ${SHARED_BUSINESSES.map((id) => `
+          <button class="qa is-primary" data-action="entrada" data-business="${esc(id)}">
+            <span class="ic">${icon("plus", 21, 2.4)}</span>
+            <span class="lbl">${esc(businessName(id))}</span>
+          </button>`).join("")}
         <button class="qa" data-action="quick-expense">
           <span class="ic">${icon("minus", 21, 2.4)}</span>
           <span class="lbl">Gasto</span>
@@ -54,40 +64,124 @@ function heroCard() {
     </section>`;
 }
 
-/** Entradas de la semana (sábado a viernes) y cómo se dividen con la socia. */
-function entriesCard() {
-  const range = Finance.weekRangeFor(todayISO());
-  let mineTotal = 0;
+/** Cuatro fichas: lo que entró esta semana por negocio, tu parte y lo del local. */
+function tiles(range) {
+  let mine = 0;
+  const tones = ["is-mint", ""];
 
-  const rows = SHARED_BUSINESSES.map((id) => {
-    const b = Store.getBusiness(id);
+  const business = SHARED_BUSINESSES.map((id, i) => {
     const total = Finance.businessSummary(id, range.start, range.end).income;
     const split = splitTotal(id, total) || { mine: 0, theirs: 0 };
-    mineTotal += split.mine;
+    mine += split.mine;
     return `
-      <div class="entry-row">
-        <div class="grow">
-          <div class="name">${esc(b ? b.name : id)}</div>
-          <div class="total num">${esc(money(total))}</div>
-          <div class="split num">Tú ${esc(money(split.mine))} · Tu socia ${esc(money(split.theirs))}</div>
-        </div>
-        <button class="btn btn-lime btn-sm" data-action="entrada" data-business="${esc(id)}">${icon("plus", 15, 2.4)} Entrada</button>
+      <button class="tile ${tones[i % tones.length]}" data-action="entrada" data-business="${esc(id)}">
+        <div class="tile-ic">${icon("plus", 18, 2.4)}</div>
+        <div class="k">${esc(businessName(id))}</div>
+        <div class="v num">${esc(money(total))}</div>
+        <div class="d num">Tú ${esc(moneyShort(split.mine))} · Socia ${esc(moneyShort(split.theirs))}</div>
+      </button>`;
+  }).join("");
+
+  return `
+    <section class="tiles">
+      ${business}
+      <div class="tile is-ice">
+        <div class="tile-ic">${icon("wallet", 18)}</div>
+        <div class="k">Tu parte</div>
+        <div class="v num">${esc(money(round2(mine)))}</div>
+        <div class="d">Esta semana</div>
+      </div>
+      <div class="tile is-lav">
+        <div class="tile-ic">${icon("home", 18)}</div>
+        <div class="k">Apartar local</div>
+        <div class="v num">${esc(money(LOCAL_WEEKLY_RESERVE))}</div>
+        <div class="d">Cada semana</div>
+      </div>
+    </section>`;
+}
+
+/** Entradas de cada día de la semana, una barra por negocio. */
+function weekChart(range) {
+  const today = todayISO();
+  const days = [];
+  for (let d = range.start; d <= range.end; d = addDays(d, 1)) {
+    const values = SHARED_BUSINESSES.map((id) =>
+      Finance.movementsBetween(d, d, id).reduce((s, m) => s + (m.type === "income" ? m.amount : 0), 0));
+    days.push({ date: d, values });
+  }
+  const max = Math.max(1, ...days.flatMap((d) => d.values));
+
+  const bars = days.map((d) => `
+    <div class="g${d.date === today ? " is-today" : ""}">
+      <div class="pair">
+        ${d.values.map((v, i) => `<i style="height:${Math.round((v / max) * 100)}%;background:${esc(businessColor(SHARED_BUSINESSES[i]))}" title="${esc(money(v))}"></i>`).join("")}
+      </div>
+      <span class="cap">${DAY_LETTER[parseISO(d.date).getDay()]}</span>
+    </div>`).join("");
+
+  const legend = SHARED_BUSINESSES.map((id) => `
+    <div class="cl"><i style="background:${esc(businessColor(id))}"></i><span class="n">${esc(businessName(id))}</span></div>`).join("");
+
+  return `
+    <section class="card">
+      <div class="between">
+        <h2 class="panel-title">Entradas de la semana</h2>
+        <span class="tiny muted">${esc(formatCutRange(range.start, range.end))}</span>
+      </div>
+      <div class="week-bars">${bars}</div>
+      <div class="cat-legend week-legend">${legend}</div>
+    </section>`;
+}
+
+/** De qué negocio entró el dinero este mes. */
+function monthDonut() {
+  const today = todayISO();
+  const rows = Store.businesses()
+    .filter((b) => b.active !== false)
+    .map((b) => ({ name: b.name, color: b.color, amount: Finance.businessSummary(b.id, startOfMonth(today), endOfMonth(today)).income }))
+    .filter((r) => r.amount > 0);
+  const total = round2(rows.reduce((s, r) => s + r.amount, 0));
+
+  return `
+    <section class="card">
+      <h2 class="panel-title">Entradas del mes</h2>
+      <div class="mt-14">
+        ${total
+          ? donutChart(rows, total, "Total")
+          : `<p class="tiny muted">Todavía no hay entradas este mes. Registra la primera con los botones de arriba.</p>`}
+      </div>
+    </section>`;
+}
+
+/** Vencidos primero y luego lo que viene; cada uno con su botón para pagarlo. */
+function paymentsCard() {
+  const today = todayISO();
+  const overdue = Finance.overduePayments();
+  const upcoming = Finance.pendingPayments({ from: addDays(today, 1) });
+  const list = [...overdue, ...upcoming].slice(0, 5);
+
+  const rows = list.map((o) => {
+    const late = o.dueDate <= today;
+    return `
+      <div class="pay-item${late ? " is-late" : ""}">
+        <button class="grow pay-open" data-action="open-item" data-id="${esc(o.itemId)}" data-occ="${esc(o.id)}">
+          <div class="t">${esc(o.name)} <span class="muted">· ${esc(Store.categoryName(o.category))}</span></div>
+          <div class="s">${esc(late && o.dueDate < today ? "Vencido · " : "")}${esc(relativeLabel(o.dueDate))}</div>
+        </button>
+        <span class="a num">${esc(money(o.amount))}</span>
+        <button class="round-btn" data-action="pay" data-occ="${esc(o.id)}" aria-label="Pagar ${esc(o.name)}">${icon("check", 17, 2.6)}</button>
       </div>`;
   }).join("");
 
   return `
-    <section class="stack-card mt-14">
-      <div class="top">
-        <span>Entradas de la semana</span>
-        <span class="date">${esc(formatCutRange(range.start, range.end))}</span>
+    <section class="card">
+      <div class="between">
+        <h2 class="panel-title">Próximos pagos</h2>
+        <button class="section-link" data-action="nav" data-to="#/calendario">Calendario</button>
       </div>
-      <div class="body">
-        ${rows}
-        <div class="entry-row">
-          <span class="name">Tu parte de la semana</span>
-          <span class="total num" style="color:var(--lime)">${esc(money(round2(mineTotal)))}</span>
-        </div>
-      </div>
+      ${list.length
+        ? `<div class="pay-list">${rows}</div>`
+        : `<p class="tiny muted mt-8">Nada pendiente por ahora.</p>`}
     </section>`;
 }
 
@@ -95,92 +189,44 @@ function entriesCard() {
 function aforeCard() {
   const item = Store.items().find((i) => i.active && i.kind === KIND.INCOME && i.businessId === "afores");
   const hasAmount = item && item.amount > 0;
+  const id = esc(item ? item.id : "");
 
   return `
-    <div class="section-head">
-      <h2 class="section-title">Afore</h2>
-    </div>
-    <div class="card">
+    <section class="card card-dark">
+      <h2 class="panel-title">Afore</h2>
       ${hasAmount
-        ? `<div class="kv"><span class="k">Por recibir</span><span class="v num pos">+${esc(money(item.amount))}</span></div>
-           ${item.statusNote ? `<p class="tiny muted mt-8">${esc(item.statusNote)}</p>` : ""}
-           <p class="tiny muted mt-8">No cuenta como disponible hasta que lo recibas.</p>
+        ? `<div class="banner-amount num">+${esc(money(item.amount))}</div>
+           <p class="banner-sub">Por recibir · no cuenta como disponible hasta que llegue.</p>
            <div class="btn-row mt-14">
-             <button class="btn btn-outline btn-sm" data-action="afore-edit" data-id="${esc(item.id)}">Cambiar monto</button>
-             <button class="btn btn-lime btn-sm" data-action="receive-item" data-id="${esc(item.id)}">Ya lo recibí</button>
+             <button class="btn btn-outline btn-sm" data-action="afore-edit" data-id="${id}">Cambiar</button>
+             <button class="btn btn-lime btn-sm" data-action="receive-item" data-id="${id}">Ya lo recibí</button>
            </div>`
-        : `<p class="tiny muted">Escribe cuánto vas a recibir del Afore para tenerlo a la vista.</p>
-           <div class="btn-row mt-14">
-             <button class="btn btn-ink btn-sm" data-action="afore-edit" data-id="${esc(item ? item.id : "")}">Escribir monto</button>
+        : `<div class="cta">
+             <p class="banner-sub grow">Escribe cuánto vas a recibir para tenerlo a la vista.</p>
+             <button class="btn btn-lime btn-sm" data-action="afore-edit" data-id="${id}">Escribir monto</button>
            </div>`}
-    </div>`;
-}
-
-/** Cuánto apartar para el local y cuál es su siguiente pago. */
-function localCard() {
-  const next = Store.occurrences()
-    .filter((o) => o.status === "pending" && o.category === "local")
-    .sort((a, b) => (a.dueDate < b.dueDate ? -1 : 1))[0];
-
-  return `
-    <div class="section-head">
-      <h2 class="section-title">Local</h2>
-    </div>
-    <div class="card">
-      <div class="kv"><span class="k">Aparta esta semana</span><span class="v num">${esc(money(LOCAL_WEEKLY_RESERVE))}</span></div>
-      ${next
-        ? `<div class="kv"><span class="k">Siguiente pago: ${esc(next.name)} · ${esc(formatShort(next.dueDate))}</span><span class="v num">${esc(money(next.amount))}</span></div>`
-        : ""}
-      <p class="tiny muted mt-8">Con eso cubres renta, luz, agua e internet del local.</p>
-    </div>`;
-}
-
-/** Vencidos: su fecha ya llegó y siguen sin pagarse. Nunca se mezclan con los próximos. */
-function overdueSection() {
-  const list = Finance.overduePayments();
-  if (!list.length) return "";
-  const total = round2(list.reduce((s, o) => s + o.amount, 0));
-
-  return `
-    <div class="section-head">
-      <h2 class="section-title" style="color:var(--danger)">Vencidos</h2>
-      <span class="section-link num" style="color:var(--danger)">${esc(money(total))}</span>
-    </div>
-    <div class="list">${list.slice(0, 6).map((o) => occurrenceRow(o, { showRelative: true })).join("")}</div>`;
-}
-
-/** Pagos que vencen en los próximos 7 días (desde mañana). */
-function next7DaysSection() {
-  const week = Finance.next7Days();
-
-  return `
-    <div class="section-head">
-      <h2 class="section-title">Próximos pagos</h2>
-      <span class="section-link num">${esc(money(week.needed))}</span>
-    </div>
-    ${week.list.length
-      ? `<div class="list">${week.list.map((o) => occurrenceRow(o, { showRelative: true })).join("")}</div>`
-      : `<div class="card">${empty("Nada en los próximos 7 días", "Todo al corriente por ahora.", "check")}</div>`}`;
+    </section>`;
 }
 
 export default {
   render() {
+    const range = Finance.weekRangeFor(todayISO());
     return `
       <header class="head">
         <div class="head-titles">
-          <div class="head-title">Hola, <b>${esc(greeting())}</b></div>
-          <div class="head-sub">${esc(formatLong(todayISO()))}</div>
+          <div class="head-title"><b>Inicio</b></div>
         </div>
-        <button class="icon-btn is-outline" data-action="nav" data-to="#/calendario" aria-label="Calendario">${icon("calendar", 18)}</button>
-        <button class="icon-btn is-dark" data-action="nav" data-to="#/buscar" aria-label="Buscar">${icon("search", 18)}</button>
+        <button class="icon-btn is-outline" data-action="nav" data-to="#/buscar" aria-label="Buscar">${icon("search", 18)}</button>
       </header>
 
-      ${heroCard()}
-      ${entriesCard()}
-      ${aforeCard()}
-      ${localCard()}
-      ${overdueSection()}
-      ${next7DaysSection()}`;
+      ${banner()}
+      ${tiles(range)}
+      <div class="panel-grid">
+        ${weekChart(range)}
+        ${monthDonut()}
+        ${paymentsCard()}
+        ${aforeCard()}
+      </div>`;
   },
 
   mount() {},

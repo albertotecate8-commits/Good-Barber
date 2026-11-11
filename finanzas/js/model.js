@@ -18,9 +18,9 @@ export const STATUS = {
 
 /** Los tres negocios. Viven en una tabla editable; esto es solo la semilla. */
 export const DEFAULT_BUSINESSES = [
-  { id: "barberia", name: "Barbería", color: "#17a05c", order: 1, active: true },
-  { id: "unas", name: "Uñas", color: "#b2e528", order: 2, active: true },
-  { id: "afores", name: "Afores", color: "#e08600", order: 3, active: true },
+  { id: "barberia", name: "Barbería", color: "#3d8b98", order: 1, active: true },
+  { id: "unas", name: "Uñas", color: "#8284bd", order: 2, active: true },
+  { id: "afores", name: "Afores", color: "#5b7fb5", order: 3, active: true },
 ];
 
 /**
@@ -39,30 +39,30 @@ export const DEFAULT_CATEGORIES = [
   { id: "suscripciones", name: "Suscripciones", type: "expense", color: "#7c4fe0", order: 4, businessId: null },
   { id: "fuertes", name: "Deudas fuertes", type: "expense", color: "#131313", order: 5, businessId: null },
   { id: "otros", name: "Otros", type: "expense", color: "#8a8f94", order: 6, businessId: null },
-  { id: "barberia", name: "Barbería", type: "income", color: "#17a05c", order: 7, businessId: null },
-  { id: "unas", name: "Uñas", type: "income", color: "#b2e528", order: 8, businessId: null },
+  { id: "barberia", name: "Barbería", type: "income", color: "#3d8b98", order: 7, businessId: null },
+  { id: "unas", name: "Uñas", type: "income", color: "#8284bd", order: 8, businessId: null },
   { id: "rentas", name: "Rentas", type: "income", color: "#4b6bec", order: 9, businessId: null },
   { id: "afores", name: "Afores", type: "income", color: "#e08600", order: 10, businessId: null },
   { id: "otros-ingresos", name: "Otros ingresos", type: "income", color: "#8a8f94", order: 11, businessId: null },
 
   // ------------------------------------------------- Categorías por negocio --
-  { id: "cortes", name: "Cortes", type: "income", color: "#17a05c", order: 20, businessId: "barberia" },
-  { id: "servicios-adicionales", name: "Servicios adicionales", type: "income", color: "#17a05c", order: 21, businessId: "barberia" },
-  { id: "productos-barberia", name: "Productos", type: "expense", color: "#17a05c", order: 22, businessId: "barberia" },
-  { id: "materiales-barberia", name: "Materiales", type: "expense", color: "#17a05c", order: 23, businessId: "barberia" },
-  { id: "renta-barberia", name: "Renta", type: "expense", color: "#17a05c", order: 24, businessId: "barberia" },
-  { id: "servicios-barberia", name: "Servicios", type: "expense", color: "#17a05c", order: 25, businessId: "barberia" },
-  { id: "publicidad-barberia", name: "Publicidad", type: "expense", color: "#17a05c", order: 26, businessId: "barberia" },
-  { id: "otros-barberia", name: "Otros", type: "expense", color: "#17a05c", order: 27, businessId: "barberia" },
+  { id: "cortes", name: "Cortes", type: "income", color: "#3d8b98", order: 20, businessId: "barberia" },
+  { id: "servicios-adicionales", name: "Servicios adicionales", type: "income", color: "#3d8b98", order: 21, businessId: "barberia" },
+  { id: "productos-barberia", name: "Productos", type: "expense", color: "#3d8b98", order: 22, businessId: "barberia" },
+  { id: "materiales-barberia", name: "Materiales", type: "expense", color: "#3d8b98", order: 23, businessId: "barberia" },
+  { id: "renta-barberia", name: "Renta", type: "expense", color: "#3d8b98", order: 24, businessId: "barberia" },
+  { id: "servicios-barberia", name: "Servicios", type: "expense", color: "#3d8b98", order: 25, businessId: "barberia" },
+  { id: "publicidad-barberia", name: "Publicidad", type: "expense", color: "#3d8b98", order: 26, businessId: "barberia" },
+  { id: "otros-barberia", name: "Otros", type: "expense", color: "#3d8b98", order: 27, businessId: "barberia" },
 
-  { id: "servicios-unas", name: "Servicios", type: "income", color: "#b2e528", order: 30, businessId: "unas" },
-  { id: "aplicaciones", name: "Aplicaciones", type: "income", color: "#b2e528", order: 31, businessId: "unas" },
-  { id: "retiros", name: "Retiros", type: "income", color: "#b2e528", order: 32, businessId: "unas" },
-  { id: "materiales-unas", name: "Materiales", type: "expense", color: "#b2e528", order: 33, businessId: "unas" },
-  { id: "productos-unas", name: "Productos", type: "expense", color: "#b2e528", order: 34, businessId: "unas" },
-  { id: "comisiones-unas", name: "Comisiones", type: "expense", color: "#b2e528", order: 35, businessId: "unas" },
-  { id: "renta-unas", name: "Renta", type: "expense", color: "#b2e528", order: 36, businessId: "unas" },
-  { id: "otros-unas", name: "Otros", type: "expense", color: "#b2e528", order: 37, businessId: "unas" },
+  { id: "servicios-unas", name: "Servicios", type: "income", color: "#8284bd", order: 30, businessId: "unas" },
+  { id: "aplicaciones", name: "Aplicaciones", type: "income", color: "#8284bd", order: 31, businessId: "unas" },
+  { id: "retiros", name: "Retiros", type: "income", color: "#8284bd", order: 32, businessId: "unas" },
+  { id: "materiales-unas", name: "Materiales", type: "expense", color: "#8284bd", order: 33, businessId: "unas" },
+  { id: "productos-unas", name: "Productos", type: "expense", color: "#8284bd", order: 34, businessId: "unas" },
+  { id: "comisiones-unas", name: "Comisiones", type: "expense", color: "#8284bd", order: 35, businessId: "unas" },
+  { id: "renta-unas", name: "Renta", type: "expense", color: "#8284bd", order: 36, businessId: "unas" },
+  { id: "otros-unas", name: "Otros", type: "expense", color: "#8284bd", order: 37, businessId: "unas" },
 
   { id: "comisiones-afores", name: "Comisiones", type: "income", color: "#e08600", order: 40, businessId: "afores" },
   { id: "servicios-afores", name: "Servicios", type: "income", color: "#e08600", order: 41, businessId: "afores" },
