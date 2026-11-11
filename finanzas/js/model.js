@@ -23,6 +23,15 @@ export const DEFAULT_BUSINESSES = [
   { id: "afores", name: "Afores", color: "#e08600", order: 3, active: true },
 ];
 
+/**
+ * Barbería y Uñas se reparten con la socia: se registra el TOTAL del negocio
+ * y la app muestra al lado cuánto le toca a cada quien (fracción que es tuya).
+ */
+export const PARTNER_SHARE = { barberia: 0.5, unas: 0.5 };
+
+/** Lo que hay que apartar cada semana para cubrir los gastos del local. */
+export const LOCAL_WEEKLY_RESERVE = 1100;
+
 export const DEFAULT_CATEGORIES = [
   { id: "casa", name: "Casa", type: "expense", color: "#4b6bec", order: 1, businessId: null },
   { id: "local", name: "Local", type: "expense", color: "#e08600", order: 2, businessId: null },

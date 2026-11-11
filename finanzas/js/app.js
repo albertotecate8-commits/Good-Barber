@@ -3,7 +3,7 @@
 import * as Store from "./store.js";
 import * as Finance from "./finance.js";
 import * as Forms from "./forms.js";
-import { KIND } from "./model.js";
+import { KIND, PARTNER_SHARE } from "./model.js";
 import { money, esc } from "./format.js";
 import { formatLong } from "./dates.js";
 import { icon, toast, sheet, closeSheet, confirmSheet } from "./ui.js";
@@ -240,7 +240,11 @@ const ACTIONS = {
   "new-heavy": () => Forms.editItem(null, KIND.HEAVY),
   "new-income-source": () => Forms.editItem(null, KIND.INCOME),
 
-  "negocio-ingreso": (data) => Forms.newIncome({ businessId: data.business || null }),
+  "negocio-ingreso": (data) => (PARTNER_SHARE[data.business]
+    ? Forms.newBusinessEntry(data.business)
+    : Forms.newIncome({ businessId: data.business || null })),
+  entrada: (data) => Forms.newBusinessEntry(data.business),
+  "afore-edit": (data) => Forms.editAforeAmount(data.id ? Store.getItem(data.id) : null),
   "negocio-gasto": (data) => Forms.newExpense({ businessId: data.business || null }),
 
   "sign-out": async () => {
