@@ -1,12 +1,13 @@
 // Service worker de Mis Finanzas.
 //
-// Estrategia: "stale-while-revalidate" para el shell estático (HTML/CSS/JS).
+// Estrategia: primero la red para el shell estático (HTML/CSS/JS) y la caché
+// solo como respaldo sin conexión.
 // Los datos ya NO viven en IndexedDB: viven en Supabase (proyecto remoto
 // dedicado a Finanzas), así que la app necesita conexión a internet para
 // leer/guardar información — este service worker solo acelera la carga del
 // código de la app y permite que abra (sin datos) si no hay conexión.
 
-const CACHE = "finanzas-v12"; // v12: accesos directos y gasto rápido
+const CACHE = "finanzas-v13"; // v13: primero la red (los accesos directos siempre usan la versión nueva)
 
 // Carpeta donde vive la app. Se deduce de la ubicación del propio service
 // worker, así funciona igual si la app está en la raíz del dominio o en una
@@ -82,19 +83,19 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
   if (!url.pathname.startsWith(SCOPE)) return; // no interferir con el resto del sitio
 
+  // Primero la red (así un acceso directo siempre corre la versión más
+  // reciente); si no hay conexión, lo que haya en caché.
   event.respondWith(
-    caches.match(request).then((cached) => {
-      const network = fetch(request)
-        .then((response) => {
-          if (response && response.ok) {
-            const clone = response.clone();
-            caches.open(CACHE).then((cache) => cache.put(request, clone));
-          }
-          return response;
-        })
-        .catch(() => cached || caches.match("./index.html"));
-
-      return cached || network;
-    })
+    fetch(request)
+      .then((response) => {
+        if (response && response.ok && !url.search) {
+          const clone = response.clone();
+          caches.open(CACHE).then((cache) => cache.put(request, clone));
+        }
+        return response;
+      })
+      .catch(() =>
+        caches.match(request, { ignoreSearch: true }).then((cached) => cached || caches.match("./index.html"))
+      )
   );
 });
