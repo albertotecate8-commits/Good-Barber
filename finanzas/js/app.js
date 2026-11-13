@@ -179,7 +179,7 @@ const ACTIONS = {
   back: () => { if (window.history.length > 1) window.history.back(); else location.hash = "#/inicio"; },
 
   "quick-income": () => Forms.newIncome(),
-  "quick-expense": () => Forms.newExpense(),
+  "quick-expense": () => Forms.quickExpense(),
   "quick-pay": () => Forms.choosePayment(Finance.upcomingPayments()),
   "show-breakdown": () => Forms.showAvailableBreakdown(),
   "edit-initial-balance": () => Forms.editInitialBalance(),
@@ -337,6 +337,28 @@ async function showApp() {
   navigate();
 
   document.getElementById("tabbar").hidden = false;
+  openQuickEntryFromLink();
+}
+
+/**
+ * Accesos directos desde la pantalla del celular: `?nuevo=barberia`,
+ * `?nuevo=unas` o `?nuevo=gasto` abren directo el formulario. El parámetro
+ * se borra de la dirección para que no se vuelva a abrir al recargar.
+ */
+const QUICK_ENTRIES = {
+  barberia: () => Forms.newBusinessEntry("barberia"),
+  unas: () => Forms.newBusinessEntry("unas"),
+  gasto: () => Forms.quickExpense(),
+};
+
+function openQuickEntryFromLink() {
+  const params = new URLSearchParams(location.search);
+  const open = QUICK_ENTRIES[params.get("nuevo")];
+  if (!params.has("nuevo")) return;
+  params.delete("nuevo");
+  const query = params.toString();
+  history.replaceState(null, "", location.pathname + (query ? `?${query}` : "") + (location.hash || "#/inicio"));
+  if (open) setTimeout(open, 150);
 }
 
 function showLogin() {
