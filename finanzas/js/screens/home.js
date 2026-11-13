@@ -15,6 +15,9 @@ import { splitTotal } from "../forms.js";
 const SHARED_BUSINESSES = Object.keys(PARTNER_SHARE);
 const DAY_LETTER = ["D", "L", "M", "M", "J", "V", "S"];
 
+/** Día que muestra la tarjeta "Gastos del día" (0 = hoy, -1 = ayer…). */
+let expenseDayOffset = 0;
+
 /** Saludo según la hora del día. */
 function greeting() {
   const hour = new Date().getHours();
@@ -97,6 +100,45 @@ function tiles(range) {
         <div class="v num">${esc(money(LOCAL_WEEKLY_RESERVE))}</div>
         <div class="d">Cada semana</div>
       </div>
+    </section>`;
+}
+
+/** Lo que se gastó en un día, con flechas para ver días anteriores. */
+function dailyExpensesCard() {
+  const today = todayISO();
+  const day = addDays(today, expenseDayOffset);
+  const list = Finance.movementsBetween(day, day).filter((m) => m.type === "expense");
+  const total = round2(list.reduce((s, m) => s + m.amount, 0));
+  const label = expenseDayOffset === 0 ? "Hoy" : expenseDayOffset === -1 ? "Ayer" : relativeLabel(day);
+
+  const rows = list.map((m) => {
+    const name = Store.profileName(m.createdBy);
+    const who = name && name !== "Alguien" ? name : "";
+    return `
+      <button class="pay-item day-exp" data-action="open-movement" data-id="${esc(m.id)}">
+        <div class="grow">
+          <div class="t">${esc(m.concept)}</div>
+          ${who ? `<div class="s">Anotó ${esc(who)}</div>` : ""}
+        </div>
+        <span class="a num">-${esc(money(m.amount))}</span>
+      </button>`;
+  }).join("");
+
+  return `
+    <section class="card day-card">
+      <div class="between">
+        <h2 class="panel-title">Gastos del día</h2>
+        <div class="day-nav">
+          <button class="day-arrow" data-day-step="-1" aria-label="Día anterior">${icon("back", 16, 2.4)}</button>
+          <span class="day-label">${esc(label)}</span>
+          <button class="day-arrow" data-day-step="1" aria-label="Día siguiente"${expenseDayOffset >= 0 ? " disabled" : ""}>${icon("chevron", 16, 2.4)}</button>
+        </div>
+      </div>
+      <div class="day-total num">${esc(money(total))}</div>
+      ${list.length
+        ? `<div class="pay-list">${rows}</div>`
+        : `<p class="tiny muted">Sin gastos ${expenseDayOffset === 0 ? "hoy" : "este día"}.</p>`}
+      <button class="btn btn-ink mt-14" data-action="quick-expense">${icon("plus", 17, 2.4)} Anotar gasto</button>
     </section>`;
 }
 
@@ -222,12 +264,20 @@ export default {
       ${banner()}
       ${tiles(range)}
       <div class="panel-grid">
+        ${dailyExpensesCard()}
+        ${paymentsCard()}
         ${weekChart(range)}
         ${monthDonut()}
-        ${paymentsCard()}
         ${aforeCard()}
       </div>`;
   },
 
-  mount() {},
+  mount(root, ctx) {
+    root.querySelectorAll("[data-day-step]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        expenseDayOffset = Math.min(0, expenseDayOffset + Number(btn.dataset.daystep || btn.dataset.dayStep));
+        ctx.rerender();
+      });
+    });
+  },
 };

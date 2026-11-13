@@ -7,7 +7,7 @@
 // leer/guardar información — este service worker solo acelera la carga del
 // código de la app y permite que abra (sin datos) si no hay conexión.
 
-const CACHE = "finanzas-v13"; // v13: primero la red (los accesos directos siempre usan la versión nueva)
+const CACHE = "finanzas-v14"; // v14: tarjeta "Gastos del día" en Inicio
 
 // Carpeta donde vive la app. Se deduce de la ubicación del propio service
 // worker, así funciona igual si la app está en la raíz del dominio o en una
