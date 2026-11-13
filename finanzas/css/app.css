@@ -1461,3 +1461,12 @@ body { min-height: 100dvh; }
   .banner-actions { max-width: 440px; }
 }
 .stack-card .body .pos, .card-dark .pos, .hero .pos, .detail-hero .pos { color: var(--lime); }
+
+.day-nav { display: flex; align-items: center; gap: 6px; }
+.day-label { min-width: 58px; text-align: center; font-size: 13px; font-weight: 600; color: var(--text-2); }
+.day-arrow { width: 32px; height: 32px; border-radius: 50%; display: grid; place-content: center; color: var(--text);
+  background: linear-gradient(145deg, #dae2ea, #c9d3dd); box-shadow: var(--shadow-sm); }
+.day-arrow:disabled { opacity: 0.35; box-shadow: none; }
+.day-total { font-size: 28px; font-weight: 650; letter-spacing: -0.03em; margin: 8px 0 2px; }
+.day-exp { width: 100%; text-align: left; }
+.day-card .btn { width: 100%; }
