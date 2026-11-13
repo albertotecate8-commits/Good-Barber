@@ -358,6 +358,54 @@ export function editAforeAmount(item) {
 
 /* ==================================================== Gasto rápido ======= */
 
+/**
+ * Gasto en dos pasos: nombre y cantidad. Se guarda como pagado hoy, en
+ * "Otros". Para fecha, categoría o negocio está "Más opciones".
+ */
+export function quickExpense() {
+  sheet({
+    title: "Anotar gasto",
+    subtitle: "Nombre y cantidad — queda pagado hoy",
+    body: `
+      ${fieldText("concept", "Nombre del gasto", "", "Comida, gasolina, material…")}
+      ${fieldAmount("", "Cantidad")}
+      <div class="sheet-actions">
+        <button class="btn btn-ink" data-submit>${icon("check", 18, 2.4)} Guardar gasto</button>
+        <button class="btn btn-soft btn-sm" type="button" data-more>Más opciones</button>
+      </div>`,
+    onMount: (panel, close) => {
+      const concept = panel.querySelector('[name="concept"]');
+      const amount = panel.querySelector('[name="amount"]');
+      setTimeout(() => concept && concept.focus(), 350);
+      panel.addEventListener("input", () => clearErrors(panel));
+      concept.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") { e.preventDefault(); amount.focus(); }
+      });
+
+      panel.querySelector("[data-more]").addEventListener("click", () => {
+        const prefill = { concept: concept.value.trim(), amount: parseMoney(amount.value) || "" };
+        close();
+        setTimeout(() => newExpense(prefill), 300);
+      });
+
+      wire(panel, close, async (raw) => {
+        const data = validate(panel, { ...raw, date: todayISO() }, { requireConcept: true });
+        if (!data) return;
+        await Store.addQuickMovement({
+          type: "expense",
+          concept: data.concept,
+          amount: data.amount,
+          date: todayISO(),
+          category: "otros",
+        });
+        close();
+        celebrate(data.concept, money(data.amount));
+      });
+    },
+  });
+}
+
+
 export function newExpense(prefill) {
   sheet({
     title: "Registrar gasto",

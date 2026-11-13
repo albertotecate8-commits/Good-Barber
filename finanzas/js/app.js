@@ -179,7 +179,7 @@ const ACTIONS = {
   back: () => { if (window.history.length > 1) window.history.back(); else location.hash = "#/inicio"; },
 
   "quick-income": () => Forms.newIncome(),
-  "quick-expense": () => Forms.newExpense(),
+  "quick-expense": () => Forms.quickExpense(),
   "quick-pay": () => Forms.choosePayment(Finance.upcomingPayments()),
   "show-breakdown": () => Forms.showAvailableBreakdown(),
   "edit-initial-balance": () => Forms.editInitialBalance(),
@@ -348,7 +348,7 @@ async function showApp() {
 const QUICK_ENTRIES = {
   barberia: () => Forms.newBusinessEntry("barberia"),
   unas: () => Forms.newBusinessEntry("unas"),
-  gasto: () => Forms.newExpense(),
+  gasto: () => Forms.quickExpense(),
 };
 
 function openQuickEntryFromLink() {
