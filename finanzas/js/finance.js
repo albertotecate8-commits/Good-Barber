@@ -179,6 +179,51 @@ export function partnerWeek(iso, extra = 0) {
   };
 }
 
+/**
+ * Deudas en limpio: cuánto se debe de cada una, cuánto se ha abonado y su
+ * próximo pago (si es de pago periódico). Activas primero, la mayor arriba.
+ */
+export function debtList() {
+  return Store.items()
+    .filter((i) => i.kind === KIND.DEBT || i.kind === KIND.HEAVY)
+    .map((item) => {
+      const paid = round2(Store.movements()
+        .filter((m) => m.itemId === item.id && m.type === "expense")
+        .reduce((s, m) => s + m.amount, 0));
+      const next = item.kind === KIND.DEBT
+        ? Store.occurrencesOf(item.id)
+            .filter((o) => o.status === STATUS.PENDING)
+            .sort((a, b) => (a.dueDate < b.dueDate ? -1 : 1))[0] || null
+        : null;
+      const remaining = item.balance != null
+        ? round2(item.balance)
+        : next ? round2(next.amount - occurrenceProgress(next).paid) : 0;
+      const done = item.active === false || remaining <= 0;
+      const progress = paid + remaining > 0 ? paid / (paid + remaining) : 1;
+      return { item, paid, remaining, next, done, progress };
+    })
+    .sort((a, b) => (a.done - b.done) || (b.remaining - a.remaining));
+}
+
+/**
+ * Fondo del local: cada semana se aparta de Barbería/Uñas hasta $1,100, y de
+ * ahí se pagan renta, luz, agua e internet del local.
+ */
+export function localFund() {
+  const weeks = new Map();
+  Store.movements().forEach((m) => {
+    if (m.type !== "income" || !PARTNER_SHARE[m.businessId]) return;
+    const start = weekRangeFor(m.date).start;
+    weeks.set(start, (weeks.get(start) || 0) + m.amount);
+  });
+  let saved = 0;
+  weeks.forEach((total) => { saved += Math.min(total, LOCAL_WEEKLY_RESERVE); });
+  const paid = Store.movements()
+    .filter((m) => m.type === "expense" && m.category === "local")
+    .reduce((s, m) => s + m.amount, 0);
+  return { saved: round2(saved), paid: round2(paid), balance: round2(saved - paid) };
+}
+
 /** Semana sábado→viernes (o el día de cierre configurado) que contiene `iso`. */
 export function weekRangeFor(iso) {
   const ref = iso || todayISO();

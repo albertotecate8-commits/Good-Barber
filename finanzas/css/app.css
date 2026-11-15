@@ -1473,3 +1473,14 @@ body { min-height: 100dvh; }
 
 .partner-head { margin-top: 22px; flex-wrap: wrap; row-gap: 2px; }
 .partner-head + .tiles { margin-top: 10px; }
+.debt-name { display: inline-flex; align-items: center; gap: 4px; font-size: 16px; font-weight: 650; letter-spacing: -0.015em; color: var(--text); }
+.debt-left { font-size: 20px; font-weight: 650; letter-spacing: -0.02em; }
+.debt-card .track { height: 10px; }
+.debt-actions { display: flex; justify-content: flex-end; }
+.debt-actions .btn { width: auto; padding: 0 18px; }
+.banner-actions.is-3 { grid-template-columns: repeat(3, 1fr); }
+.partner-link { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; color: var(--text); }
+.partner-link .t { display: block; font-size: 15px; font-weight: 650; }
+.partner-link .s { display: block; font-size: 12.5px; color: var(--text-2); margin-top: 2px; }
+.pay-item .track { height: 6px; }
+.banner-actions.is-2 { grid-template-columns: repeat(2, 1fr); max-width: 280px; }

@@ -45,7 +45,7 @@ const SCREENS = {
 
 const TABS = [
   { id: "inicio", label: "Inicio", glyph: "home" },
-  { id: "negocios", label: "Negocios", glyph: "wallet" },
+  { id: "negocios", label: "Negocio", glyph: "wallet" },
   { id: "movimientos", label: "Movimientos", glyph: "expense", center: true },
   { id: "deudas", label: "Deudas", glyph: "debt" },
   { id: "mas", label: "Más", glyph: "more" },
@@ -178,7 +178,7 @@ const ACTIONS = {
   nav: (data) => { if (data.to) location.hash = data.to; },
   back: () => { if (window.history.length > 1) window.history.back(); else location.hash = "#/inicio"; },
 
-  "quick-income": () => Forms.newIncome(),
+  "quick-income": () => Forms.quickIncome(),
   "quick-expense": () => Forms.quickExpense(),
   "quick-pay": () => Forms.choosePayment(Finance.upcomingPayments()),
   "show-breakdown": () => Forms.showAvailableBreakdown(),
