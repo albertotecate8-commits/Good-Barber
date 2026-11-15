@@ -360,6 +360,44 @@ export function editAforeAmount(item) {
 /* ==================================================== Gasto rápido ======= */
 
 /**
+ * Ingreso en dos pasos: nombre (ya trae "Afore") y cantidad. Suma a "Mi
+ * dinero". Barbería y Uñas no van aquí: tienen su propio apartado.
+ */
+export function quickIncome() {
+  sheet({
+    title: "Anotar ingreso",
+    subtitle: "Suma a tu dinero — Barbería y Uñas van en su apartado",
+    body: `
+      ${fieldText("concept", "Nombre del ingreso", "Afore", "Afore, renta, otro…")}
+      ${fieldAmount("", "Cantidad")}
+      <div class="sheet-actions">
+        <button class="btn btn-lime" data-submit>${icon("check", 18, 2.4)} Guardar ingreso</button>
+      </div>`,
+    onMount: (panel, close) => {
+      const amount = panel.querySelector('[name="amount"]');
+      setTimeout(() => amount && amount.focus(), 350);
+      panel.addEventListener("input", () => clearErrors(panel));
+      wire(panel, close, async (raw) => {
+        const data = validate(panel, { ...raw, date: todayISO() }, { requireConcept: true });
+        if (!data) return;
+        const isAfore = /afore/i.test(data.concept);
+        await Store.addQuickMovement({
+          type: "income",
+          concept: data.concept,
+          amount: data.amount,
+          date: todayISO(),
+          category: isAfore ? "afores" : "otros-ingresos",
+          businessId: isAfore ? "afores" : null,
+        });
+        close();
+        celebrate(data.concept, money(data.amount));
+      });
+    },
+  });
+}
+
+
+/**
  * Gasto en dos pasos: nombre y cantidad. Se guarda como pagado hoy, en
  * "Otros". Para fecha, categoría o negocio está "Más opciones".
  */

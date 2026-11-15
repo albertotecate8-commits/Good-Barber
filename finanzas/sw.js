@@ -7,7 +7,7 @@
 // leer/guardar información — este service worker solo acelera la carga del
 // código de la app y permite que abra (sin datos) si no hay conexión.
 
-const CACHE = "finanzas-v16"; // v16: siempre revalida con el servidor y recarga al actualizarse
+const CACHE = "finanzas-v17"; // v17: Inicio limpio, Barbería y Uñas aparte con fondo del local, Deudas simple
 
 // Carpeta donde vive la app. Se deduce de la ubicación del propio service
 // worker, así funciona igual si la app está en la raíz del dominio o en una

@@ -487,9 +487,15 @@ export async function setInitialBalance(value) {
   await setMeta("initialBalance", round2(n));
 }
 
-/** ¿Este ingreso es de Barbería/Uñas (dinero para gastar entre los dos, fuera del disponible)? */
+/**
+ * ¿Este movimiento va por fuera del dinero disponible?
+ *  · Entradas de Barbería/Uñas: dinero para repartirse entre los dos.
+ *  · Pagos del local (renta, luz, agua, internet): salen del fondo del local,
+ *    que se aparta de Barbería/Uñas cada semana.
+ */
 export function isOutsideAvailable(m) {
-  return m.type === "income" && OUTSIDE_AVAILABLE_BUSINESSES.includes(m.businessId);
+  if (m.type === "income") return OUTSIDE_AVAILABLE_BUSINESSES.includes(m.businessId);
+  return m.category === "local";
 }
 
 /**
@@ -505,14 +511,14 @@ export function totalReceived() {
 /** Entradas de Barbería y Uñas (histórico): se registran, pero fuera del disponible. */
 export function totalOutsideAvailable() {
   let total = 0;
-  state.movements.forEach((m) => { if (isOutsideAvailable(m)) total += m.amount; });
+  state.movements.forEach((m) => { if (m.type === "income" && isOutsideAvailable(m)) total += m.amount; });
   return round2(total);
 }
 
-/** Suma de todos los gastos/pagos realmente pagados (movimientos tipo expense), histórico completo. */
+/** Gastos/pagos que restan del disponible (no incluye los del local), histórico completo. */
 export function totalPaid() {
   let total = 0;
-  state.movements.forEach((m) => { if (m.type === "expense") total += m.amount; });
+  state.movements.forEach((m) => { if (m.type === "expense" && !isOutsideAvailable(m)) total += m.amount; });
   return round2(total);
 }
 
