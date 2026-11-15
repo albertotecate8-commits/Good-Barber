@@ -69,8 +69,12 @@ begin
 
   select coalesce((select (value #>> '{}')::numeric from public.meta where key = 'initialBalance'), 0)
        + coalesce(sum(case when type = 'income' then amount else -amount end), 0)
-    into v_before from public.movements;
-  v_after := case when v_type = 'income' then v_before + v_amount else v_before - v_amount end;
+    into v_before from public.movements
+   where not (type = 'income' and coalesce(business_id, '') in ('barberia', 'unas'));
+  -- Barbería y Uñas son dinero para gastar entre los dos: no mueven el disponible.
+  v_after := case when v_type = 'expense' then v_before - v_amount
+                  when v_business in ('barberia', 'unas') then v_before
+                  else v_before + v_amount end;
 
   insert into public.movements (id, type, concept, category, kind, amount, date, status, note,
                                 partial, balance_before, balance_after, business_id, created_by)

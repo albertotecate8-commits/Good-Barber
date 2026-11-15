@@ -5,7 +5,7 @@
 
 import * as db from "./db.js";
 import {
-  KIND, STATUS, DEFAULT_CATEGORIES, DEFAULT_BUSINESSES,
+  KIND, STATUS, DEFAULT_CATEGORIES, DEFAULT_BUSINESSES, OUTSIDE_AVAILABLE_BUSINESSES,
   makeItem, makeOccurrence, makeMovement, makeProfile, signedAmount,
 } from "./model.js";
 import { buildSeed, CUT_BASED_ITEM_IDS } from "./seed.js";
@@ -478,10 +478,25 @@ export async function setInitialBalance(value) {
   await setMeta("initialBalance", round2(n));
 }
 
-/** Suma de todos los ingresos realmente recibidos (movimientos tipo income), histórico completo. */
+/** ¿Este ingreso es de Barbería/Uñas (dinero para gastar entre los dos, fuera del disponible)? */
+export function isOutsideAvailable(m) {
+  return m.type === "income" && OUTSIDE_AVAILABLE_BUSINESSES.includes(m.businessId);
+}
+
+/**
+ * Suma de los ingresos que cuentan para el disponible (Afore y otros), histórico
+ * completo. Las entradas de Barbería y Uñas no cuentan.
+ */
 export function totalReceived() {
   let total = 0;
-  state.movements.forEach((m) => { if (m.type === "income") total += m.amount; });
+  state.movements.forEach((m) => { if (m.type === "income" && !isOutsideAvailable(m)) total += m.amount; });
+  return round2(total);
+}
+
+/** Entradas de Barbería y Uñas (histórico): se registran, pero fuera del disponible. */
+export function totalOutsideAvailable() {
+  let total = 0;
+  state.movements.forEach((m) => { if (isOutsideAvailable(m)) total += m.amount; });
   return round2(total);
 }
 
@@ -493,8 +508,8 @@ export function totalPaid() {
 }
 
 /**
- * Dinero disponible real = saldo inicial + ingresos realmente recibidos −
- * gastos realmente pagados (histórico completo). Los pendientes NUNCA se
+ * Dinero disponible real = saldo inicial + ingresos que cuentan (Afore y otros;
+ * no Barbería ni Uñas) − gastos realmente pagados (histórico completo). Los pendientes NUNCA se
  * suman ni se restan aquí — aparecen aparte, como dinero comprometido o
  * esperado. Cada cifra de esta fórmula puede auditarse con Store.moneyBreakdown().
  */
@@ -507,7 +522,7 @@ export function moneyBreakdown() {
   const initial = initialBalance();
   const received = totalReceived();
   const paid = totalPaid();
-  return { initial, received, paid, total: round2(initial + received - paid) };
+  return { initial, received, paid, outside: totalOutsideAvailable(), total: round2(initial + received - paid) };
 }
 
 /* ================================================== Altas y ediciones ==== */
@@ -642,7 +657,9 @@ export async function setOccurrenceDate(occId, dueDate) {
 function buildMovement(data) {
   const before = availableMoney();
   const amount = round2(data.amount);
-  const after = round2(data.type === "income" ? before + amount : before - amount);
+  const after = isOutsideAvailable(data)
+    ? before // Barbería/Uñas: se registra, pero no mueve el disponible
+    : round2(data.type === "income" ? before + amount : before - amount);
   return makeMovement({
     ...data, id: uid("mv"), amount, balanceBefore: before, balanceAfter: after,
     createdBy: data.createdBy || currentUserId(),

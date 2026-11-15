@@ -29,6 +29,13 @@ export const DEFAULT_BUSINESSES = [
  */
 export const PARTNER_SHARE = { barberia: 0.5, unas: 0.5 };
 
+/**
+ * Barbería y Uñas son dinero para gastar entre los dos: se registran (con su
+ * división) pero NO suman al dinero disponible. El disponible es el dinero
+ * del Afore (y otros ingresos) menos los gastos.
+ */
+export const OUTSIDE_AVAILABLE_BUSINESSES = ["barberia", "unas"];
+
 /** Lo que hay que apartar cada semana para cubrir los gastos del local. */
 export const LOCAL_WEEKLY_RESERVE = 1100;
 

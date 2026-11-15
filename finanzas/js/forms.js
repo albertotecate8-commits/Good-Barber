@@ -925,13 +925,14 @@ export function showAvailableBreakdown() {
     body: `
       <div class="card">
         <div class="kv"><span class="k">Saldo inicial</span><span class="v num">${esc(money(b.initial))}</span></div>
-        <div class="kv"><span class="k">Ingresos recibidos (total)</span><span class="v num pos">+${esc(money(b.received))}</span></div>
+        <div class="kv"><span class="k">Afore y otros ingresos</span><span class="v num pos">+${esc(money(b.received))}</span></div>
         <div class="kv"><span class="k">Gastos/pagos realizados (total)</span><span class="v num">−${esc(money(b.paid))}</span></div>
         <div class="kv" style="border-top:1px solid rgba(19,19,19,.08);margin-top:6px;padding-top:10px">
           <span class="k" style="font-weight:700">Dinero disponible</span>
           <span class="v num" style="font-weight:700">${esc(money(b.total))}</span>
         </div>
       </div>
+      ${b.outside ? `<p class="tiny muted mt-14">Barbería y Uñas (${esc(money(b.outside))} en total) no cuentan aquí: es dinero que se reparten para gastar.</p>` : ""}
       <p class="tiny muted mt-14">
         No incluye ingresos esperados que aún no has recibido ni pagos pendientes que aún no haces —
         esos se muestran aparte, en "Próximos 7 días" y en cada sección.
