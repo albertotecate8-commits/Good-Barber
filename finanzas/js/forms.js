@@ -285,7 +285,7 @@ export function newBusinessEntry(businessId) {
 
   sheet({
     title: `Entrada ${name}`,
-    subtitle: shared ? "Escribe el total — se divide entre tú y tu socia" : "Escribe el total",
+    subtitle: shared ? "Escribe el total — se descuenta lo del local y el resto se reparte" : "Escribe el total",
     body: `
       ${fieldAmount("", "Total")}
       ${shared ? `<div class="card" data-split style="margin:-4px 0 14px"></div>` : ""}
@@ -298,10 +298,12 @@ export function newBusinessEntry(businessId) {
       const preview = panel.querySelector("[data-split]");
       const paint = () => {
         if (!preview) return;
-        const split = splitTotal(businessId, parseMoney(input.value)) || { mine: 0, theirs: 0 };
+        const w = Finance.partnerWeek(todayISO(), parseMoney(input.value) || 0);
         preview.innerHTML = `
-          <div class="kv"><span class="k">Tu parte</span><span class="v num pos">${esc(money(split.mine))}</span></div>
-          <div class="kv"><span class="k">Tu socia</span><span class="v num">${esc(money(split.theirs))}</span></div>`;
+          <div class="kv"><span class="k">Entradas de la semana</span><span class="v num">${esc(money(w.total))}</span></div>
+          <div class="kv"><span class="k">Local (se descuenta solo)</span><span class="v num">−${esc(money(w.local))}</span></div>
+          <div class="kv"><span class="k">Tu parte</span><span class="v num pos">${esc(money(w.mine))}</span></div>
+          <div class="kv"><span class="k">${esc(Store.partnerName())}</span><span class="v num">${esc(money(w.theirs))}</span></div>`;
       };
       input.addEventListener("input", paint);
       paint();
@@ -309,7 +311,6 @@ export function newBusinessEntry(businessId) {
       wire(panel, close, async (raw) => {
         const data = validate(panel, raw);
         if (!data) return;
-        const split = splitTotal(businessId, data.amount);
         await Store.addQuickMovement({
           type: "income",
           concept: `Entrada ${name}`,
@@ -317,7 +318,7 @@ export function newBusinessEntry(businessId) {
           date: data.date,
           category: ENTRY_CATEGORY[businessId] || "otros-ingresos",
           businessId,
-          note: split ? `Tu parte ${money(split.mine)} · Tu socia ${money(split.theirs)}` : "",
+          note: "",
         });
         close();
         celebrate(`Entrada ${name}`, money(data.amount));

@@ -36,6 +36,11 @@ declare
   v_business text;
   v_note text := '';
   v_today date := (now() at time zone 'America/Tijuana')::date;
+  v_week_start date;
+  v_week_total numeric;
+  v_local numeric;
+  v_split numeric;
+  v_partner text;
 begin
   select user_id into v_user from public.quick_tokens
    where token_hash = encode(extensions.digest(coalesce(p_token, ''), 'sha256'), 'hex');
@@ -62,10 +67,6 @@ begin
     raise exception 'Tipo no válido' using errcode = '22023';
   end if;
 
-  if v_type = 'income' then
-    v_note := 'Tu parte ' || to_char(round(v_amount / 2, 2), 'FM$999,999,990.00')
-           || ' · Tu socia ' || to_char(v_amount - round(v_amount / 2, 2), 'FM$999,999,990.00');
-  end if;
 
   select coalesce((select (value #>> '{}')::numeric from public.meta where key = 'initialBalance'), 0)
        + coalesce(sum(case when type = 'income' then amount else -amount end), 0)
@@ -80,6 +81,24 @@ begin
                                 partial, balance_before, balance_after, business_id, created_by)
   values ('mv_' || substr(encode(extensions.gen_random_bytes(8), 'hex'), 1, 12), v_type, v_concept, v_category,
           v_type, v_amount, v_today, 'done', v_note, false, v_before, v_after, v_business, v_user);
+
+  if v_business in ('barberia', 'unas') then
+    -- Aparte del Afore: semana sábado→viernes, se descuenta el local ($1,100)
+    -- y lo que queda se reparte entre los dos.
+    v_week_start := v_today - ((extract(dow from v_today)::int + 1) % 7);
+    select coalesce(sum(amount), 0) into v_week_total from public.movements
+     where type = 'income' and business_id in ('barberia', 'unas')
+       and date between v_week_start and v_week_start + 6;
+    v_local := least(v_week_total, 1100);
+    v_split := v_week_total - v_local;
+    select initcap(name) into v_partner from public.profiles
+     where id <> v_user and is_test is not true and name <> '' limit 1;
+    return 'Guardado: ' || v_concept || ' ' || to_char(v_amount, 'FM$999,999,990.00')
+        || '. Semana: entradas ' || to_char(v_week_total, 'FM$999,999,990.00')
+        || ', local -' || to_char(v_local, 'FM$999,999,990.00')
+        || '. Tú ' || to_char(round(v_split / 2, 2), 'FM$999,999,990.00')
+        || ' · ' || coalesce(v_partner, 'Socia') || ' ' || to_char(v_split - round(v_split / 2, 2), 'FM$999,999,990.00');
+  end if;
 
   return 'Guardado: ' || v_concept || ' ' || to_char(v_amount, 'FM$999,999,990.00')
       || '. Disponible: ' || to_char(v_after, 'FM$999,999,990.00');

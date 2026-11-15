@@ -6,7 +6,7 @@
 // no resta hasta pagarse: aparece aparte como dinero comprometido.
 
 import * as Store from "./store.js";
-import { KIND, STATUS } from "./model.js";
+import { KIND, STATUS, PARTNER_SHARE, LOCAL_WEEKLY_RESERVE } from "./model.js";
 import {
   todayISO, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth,
   addMonths, parseISO, MONTHS_SHORT, DOW_SHORT, monthKey, startOfCut, endOfCut, nextDue,
@@ -146,6 +146,36 @@ export function allBusinessesSummary(from, to) {
     expectedIncome: round2(expectedIncome),
     net: round2(income - paid),
     byBusiness,
+  };
+}
+
+/**
+ * Barbería y Uñas en la semana (sábado a viernes), aparte del Afore: se suman
+ * las entradas, se descuenta automáticamente lo del local ($1,100 por semana,
+ * hasta donde alcance) y lo que queda se reparte entre los dos.
+ * `extra` permite ver cómo quedaría con una entrada que aún no se guarda.
+ */
+export function partnerWeek(iso, extra = 0) {
+  const range = weekRangeFor(iso);
+  const byBusiness = {};
+  let total = 0;
+  Object.keys(PARTNER_SHARE).forEach((id) => {
+    byBusiness[id] = summaryBetween(range.start, range.end, id).income;
+    total += byBusiness[id];
+  });
+  total = round2(total + (Number(extra) || 0));
+  const local = round2(Math.min(total, LOCAL_WEEKLY_RESERVE));
+  const toSplit = round2(total - local);
+  const mine = round2(toSplit / 2);
+  return {
+    ...range,
+    byBusiness,
+    total,
+    local,
+    localMissing: round2(LOCAL_WEEKLY_RESERVE - local),
+    toSplit,
+    mine,
+    theirs: round2(toSplit - mine),
   };
 }
 
