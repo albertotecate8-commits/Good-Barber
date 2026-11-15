@@ -10,7 +10,6 @@ import { money, moneyShort, esc, round2 } from "../format.js";
 import { todayISO, formatLong, formatCutRange, addDays, parseISO, relativeLabel, startOfMonth, endOfMonth } from "../dates.js";
 import { icon } from "../ui.js";
 import { donutChart } from "../components.js";
-import { splitTotal } from "../forms.js";
 
 const SHARED_BUSINESSES = Object.keys(PARTNER_SHARE);
 const DAY_LETTER = ["D", "L", "M", "M", "J", "V", "S"];
@@ -67,38 +66,41 @@ function banner() {
     </section>`;
 }
 
-/** Cuatro fichas: lo que entró esta semana por negocio, tu parte y lo del local. */
-function tiles(range) {
-  let mine = 0;
+/**
+ * Barbería y Uñas, aparte del Afore: lo que entró en la semana, lo que se
+ * descuenta solo para el local y lo que le toca a cada quien.
+ */
+function tiles() {
+  const w = Finance.partnerWeek(todayISO());
+  const partner = Store.partnerName();
   const tones = ["is-mint", ""];
 
-  const business = SHARED_BUSINESSES.map((id, i) => {
-    const total = Finance.businessSummary(id, range.start, range.end).income;
-    const split = splitTotal(id, total) || { mine: 0, theirs: 0 };
-    mine += split.mine;
-    return `
+  const business = SHARED_BUSINESSES.map((id, i) => `
       <button class="tile ${tones[i % tones.length]}" data-action="entrada" data-business="${esc(id)}">
         <div class="tile-ic">${icon("plus", 18, 2.4)}</div>
         <div class="k">${esc(businessName(id))}</div>
-        <div class="v num">${esc(money(total))}</div>
-        <div class="d num">Tú ${esc(moneyShort(split.mine))} · Socia ${esc(moneyShort(split.theirs))}</div>
-      </button>`;
-  }).join("");
+        <div class="v num">${esc(money(w.byBusiness[id] || 0))}</div>
+        <div class="d">Esta semana</div>
+      </button>`).join("");
 
   return `
+    <div class="between partner-head">
+      <h2 class="panel-title">Barbería y Uñas</h2>
+      <span class="tiny muted">${esc(formatCutRange(w.start, w.end))} · aparte del Afore</span>
+    </div>
     <section class="tiles">
       ${business}
-      <div class="tile is-ice">
-        <div class="tile-ic">${icon("wallet", 18)}</div>
-        <div class="k">Tu parte</div>
-        <div class="v num">${esc(money(round2(mine)))}</div>
-        <div class="d">Esta semana</div>
-      </div>
       <div class="tile is-lav">
         <div class="tile-ic">${icon("home", 18)}</div>
-        <div class="k">Apartar local</div>
-        <div class="v num">${esc(money(LOCAL_WEEKLY_RESERVE))}</div>
-        <div class="d">Cada semana</div>
+        <div class="k">Local</div>
+        <div class="v num">−${esc(money(w.local))}</div>
+        <div class="d">${w.localMissing > 0 ? `Faltan ${esc(moneyShort(w.localMissing))} para ${esc(moneyShort(LOCAL_WEEKLY_RESERVE))}` : "Ya se apartó lo de la semana"}</div>
+      </div>
+      <div class="tile is-ice">
+        <div class="tile-ic">${icon("wallet", 18)}</div>
+        <div class="k">A repartir</div>
+        <div class="v num">${esc(money(w.toSplit))}</div>
+        <div class="d num">Tú ${esc(moneyShort(w.mine))} · ${esc(partner)} ${esc(moneyShort(w.theirs))}</div>
       </div>
     </section>`;
 }
@@ -262,7 +264,7 @@ export default {
       </header>
 
       ${banner()}
-      ${tiles(range)}
+      ${tiles()}
       <div class="panel-grid">
         ${dailyExpensesCard()}
         ${paymentsCard()}

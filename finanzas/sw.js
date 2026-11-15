@@ -7,7 +7,7 @@
 // leer/guardar información — este service worker solo acelera la carga del
 // código de la app y permite que abra (sin datos) si no hay conexión.
 
-const CACHE = "finanzas-v15"; // v15: Barbería y Uñas fuera del dinero disponible
+const CACHE = "finanzas-v16"; // v16: siempre revalida con el servidor y recarga al actualizarse
 
 // Carpeta donde vive la app. Se deduce de la ubicación del propio service
 // worker, así funciona igual si la app está en la raíz del dominio o en una
@@ -85,8 +85,14 @@ self.addEventListener("fetch", (event) => {
 
   // Primero la red (así un acceso directo siempre corre la versión más
   // reciente); si no hay conexión, lo que haya en caché.
+  // "no-cache": revalida con el servidor en vez de usar la copia que el
+  // navegador guarda hasta 10 minutos (GitHub Pages).
+  const fresh = request.mode === "navigate"
+    ? new Request(request.url, { cache: "no-cache", credentials: "same-origin" })
+    : new Request(request, { cache: "no-cache" });
+
   event.respondWith(
-    fetch(request)
+    fetch(fresh)
       .then((response) => {
         if (response && response.ok && !url.search) {
           const clone = response.clone();

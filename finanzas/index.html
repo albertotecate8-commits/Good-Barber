@@ -47,7 +47,20 @@
   if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
     window.addEventListener("load", function () {
       // Mismo criterio que el panel: el sw.js nunca desde la caché.
-      navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).catch(function () {});
+      navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(function (reg) {
+        // Al volver a la app, busca si hay versión nueva.
+        document.addEventListener("visibilitychange", function () {
+          if (document.visibilityState === "visible") reg.update().catch(function () {});
+        });
+      }).catch(function () {});
+    });
+    // Cuando entra una versión nueva, recarga una vez para usarla de inmediato.
+    var hadController = !!navigator.serviceWorker.controller;
+    var reloaded = false;
+    navigator.serviceWorker.addEventListener("controllerchange", function () {
+      if (!hadController || reloaded) { hadController = true; return; }
+      reloaded = true;
+      location.reload();
     });
   }
 </script>

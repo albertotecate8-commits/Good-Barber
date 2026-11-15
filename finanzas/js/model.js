@@ -154,6 +154,7 @@ export function makeProfile(data) {
     email: data.email || "",
     name: data.name || "",
     role: data.role === "admin" ? "admin" : "collaborator",
+    isTest: !!data.isTest, // cuentas de prueba: nunca cuentan como la socia
     createdAt: data.createdAt || new Date().toISOString(),
   };
 }

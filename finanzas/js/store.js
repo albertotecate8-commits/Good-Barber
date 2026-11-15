@@ -84,6 +84,15 @@ export function isAdmin() {
   return !!p && p.role === "admin";
 }
 
+/** Nombre de la otra persona que usa la app (la socia), para mostrar su parte. */
+export function partnerName() {
+  const me = currentUserId();
+  for (const p of state.profiles.values()) {
+    if (p.id !== me && !p.isTest && p.name) return p.name.charAt(0).toLocaleUpperCase("es") + p.name.slice(1);
+  }
+  return "Socia";
+}
+
 /** Nombre a mostrar de quién registró algo ("Registrado por…"). */
 export function profileName(userId) {
   if (!userId) return "";
