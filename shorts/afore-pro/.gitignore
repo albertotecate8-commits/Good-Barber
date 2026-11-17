@@ -1,5 +1,4 @@
 node_modules/
 out/
 audio/*.wav
-audio/voces/
 audio/__pycache__/
