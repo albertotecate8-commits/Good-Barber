@@ -1,0 +1,22 @@
+{
+  "name": "afore-pro-short",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@fontsource/baloo-2": "^5.3.0",
+    "@fontsource/luckiest-guy": "^5.3.0",
+    "@react-three/fiber": "9.8.2",
+    "@react-three/postprocessing": "^3.0.4",
+    "@remotion/bundler": "4.0.522",
+    "@remotion/cli": "4.0.522",
+    "@remotion/renderer": "4.0.522",
+    "@remotion/three": "4.0.522",
+    "@types/three": "0.186.0",
+    "postprocessing": "^6.37.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "remotion": "4.0.522",
+    "three": "0.186.1",
+    "typescript": "^5.6.0"
+  }
+}
