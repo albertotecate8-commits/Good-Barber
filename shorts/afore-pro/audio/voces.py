@@ -22,7 +22,7 @@ def load(path):
 
 def segments(x, n_expected):
     """frases separadas por silencios: umbral sobre la envolvente; se queda con las n más largas en orden"""
-    env = np.sqrt(lp(x * x, 30))
+    env = np.sqrt(np.maximum(lp(x * x, 30), 0))
     thr = 0.06 * np.percentile(env, 99)
     on = env > thr
     # cierra huecos cortos (< 0.35 s) dentro de una frase
@@ -75,7 +75,7 @@ json.dump({"provisional": False, "lines": lines, "dur": dur}, open("../src/video
 boca = {}
 nf = int(round(dur * FPS))
 for who, x in track.items():
-    env = np.sqrt(lp(x * x, 12))
+    env = np.sqrt(np.maximum(lp(x * x, 12), 0))
     ref = np.percentile(env[env > 1e-4], 90) if np.any(env > 1e-4) else 1
     lv = []
     for f in range(nf):

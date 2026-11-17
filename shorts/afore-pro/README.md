@@ -6,7 +6,10 @@ Don Chuy y Ana platican en la plaza frente a la Catedral de Durango; al final ll
 - `src/videos/afore/` — mundo (`world.ts`), personajes (`personajes.ts`, `toon.ts`), tiempos y cámara (`story.ts`),
   globos de diálogo y logo (`Afore.tsx`). `lineas.json` trae los tiempos por palabra; `boca.json`, la boca por cuadro.
 - `audio/` — `musica.py` (música original y monedas), `voces.py` (arma el diálogo con las voces), `mezcla.py`.
-- Las voces se generan en ElevenLabs y se guardan en `audio/voces/chuy.wav` y `audio/voces/ana.wav`.
+- Voces: cada personaje dice sus 3 frases en un solo archivo (`audio/voces/chuy.wav`, `audio/voces/ana.wav`, 48 kHz),
+  separadas por silencios. Esta versión usa voces locales gratuitas (Piper, español de México: `es_MX-ald` para
+  Don Chuy y `es_MX-claude` para Ana, con el tono ajustado) porque ElevenLabs estaba saturado. Para cambiar a
+  ElevenLabs basta con reemplazar esos dos archivos y repetir los pasos.
 
 ## Pasos
 ```
