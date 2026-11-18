@@ -74,7 +74,8 @@ const Cierre: React.FC<{ f: number }> = ({ f }) => {
   const k1 = pop(f, CTA.a, 10), k2 = pop(f, CTA.a + 50, 10), k3 = pop(f, CTA.a + 10, 10);
   return (
     <AbsoluteFill>
-      <div style={{ position: "absolute", top: 230, width: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: 18 }}>
+      {/* acercamiento lento y constante del letrero: el cierre nunca se queda quieto */}
+      <div style={{ transform: `scale(${1 + 0.1 * Math.min(1, (f - CTA.a) / (TOTAL - CTA.a))})`, transformOrigin: "50% 30%", position: "absolute", top: 230, width: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: 18 }}>
         <div style={{ transform: `scale(${k1})`, background: "#1f9e8f", border: "8px solid #1a1010", borderRadius: 34, padding: "14px 46px 6px", boxShadow: "0 12px 0 #1a1010" }}>
           <div style={{ fontFamily: "Luckiest", fontSize: 128, color: "#ffd23f", ...outline(9), lineHeight: 1.05 }}>AFORE PRO</div>
         </div>
