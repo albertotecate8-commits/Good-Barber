@@ -73,7 +73,7 @@ const Cierre: React.FC<{ f: number }> = ({ f }) => {
   if (f < CTA.a) return null;
   const k1 = pop(f, CTA.a, 10), k2 = pop(f, CTA.a + 50, 10), k3 = pop(f, CTA.a + 10, 10);
   // acercamiento lento y constante de todo el cierre: nunca se queda quieto
-  const z = 1 + 0.12 * Math.min(1, (f - CTA.a) / (TOTAL - CTA.a));
+  const z = 0.9 + 0.22 * Math.min(1, (f - CTA.a) / (TOTAL - CTA.a));
   return (
     <AbsoluteFill style={{ transform: `scale(${z})`, transformOrigin: "50% 92%" }}>
       <div style={{ position: "absolute", top: 230, width: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: 18 }}>

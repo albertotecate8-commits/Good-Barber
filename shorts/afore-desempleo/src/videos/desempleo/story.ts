@@ -86,9 +86,9 @@ export const SHOTS: Shot[] = [
   // 7-9. Fíjate: la declaración; luego Afore Pro y los requisitos en la oficina
   { a: T4, b: T5, light: "day", keys: [
     { f: T4, pos: [OFI_X - 4.0, 1.6, 6.4], look: [OFI_X - 4.0, 1.3, -0.4], fov: 42 },
-    { f: 990, pos: [OFI_X - 4.0, 1.5, 5.0], look: [OFI_X - 4.0, 1.3, -0.4] },
+    { f: 990, pos: [OFI_X - 3.2, 1.45, 4.5], look: [OFI_X - 3.8, 1.3, -0.4] },
     { f: 1024, pos: [OFI_X + 0.4, 1.6, 4.3], look: [OFI_X + 1.9, 1.4, -0.6], glide: true },
-    { f: 1140, pos: [OFI_X + 0.8, 1.55, 3.6], look: [OFI_X + 1.9, 1.4, -0.6] },
+    { f: 1140, pos: [OFI_X + 1.05, 1.52, 3.3], look: [OFI_X + 1.9, 1.4, -0.6] },
     { f: 1170, pos: [OFI_X + 4.7, 1.0, 3.3], look: [REQ_X[0], 0.72, 0], fov: 42, glide: true },
     { f: 1210, pos: [OFI_X + 4.85, 0.98, 3.05], look: [REQ_X[0] + 0.1, 0.72, 0] },
     { f: 1236, pos: [OFI_X + 6.3, 1.0, 3.3], look: [REQ_X[1], 0.72, 0], glide: true },
