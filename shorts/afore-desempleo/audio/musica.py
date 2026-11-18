@@ -85,7 +85,7 @@ def chime(t, notes, vel=0.35, step=0.07, p=0.2):
     for i, m in enumerate(notes): place(sfx, pan(I.glock(m2f(m), vel=vel, r=rr, dur=1.0), p), t + i * step)
 chime(W(13) - 0.1, [84, 88, 91, 96, 100])                     # la lluvia de billetes de Ramiro
 place(sfx, pan(flag_flutter(1.6, rr), -0.3), W(13), gain=0.35)
-chime(W(30) + 0.05, [72], vel=0.3)                             # la moneda solitaria de Toño
+chime(F(197), [72], vel=0.3)                             # la moneda solitaria de Toño
 chime(W(62) - 0.15, [77, 81, 84, 89], vel=0.32)                # aparece el cochinito de la Afore
 place(sfx, I.timpani(m2f(41), vel=0.5, r=rr, dur=1.2), W(62) - 0.15, gain=0.6)
 chime(W(95) - 0.08, [88, 96], vel=0.4, step=0.09)              # palomita en el celular

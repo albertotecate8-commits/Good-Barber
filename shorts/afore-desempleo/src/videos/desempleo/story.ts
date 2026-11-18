@@ -235,7 +235,7 @@ export const billAt = (i: number, f: number) => {
 };
 /** la moneda solitaria de Toño: cae en "casi nada" y rebota en el suelo */
 export const coinAt = (f: number): V3 | null => {
-  const t0 = W(29) - 6; if (f < t0 || f >= T0) return null;
+  const t0 = W(28) - 4; if (f < t0 || f >= T0) return null;
   const dt = (f - t0) / FPS, g = 9.8, y0 = 2.6, tl = Math.sqrt((2 * y0) / g);
   if (dt < tl) return [SPOT.hookT[0] - 0.25, y0 - 0.5 * g * dt * dt, 0.45];
   const b = dt - tl, v = 1.6;
