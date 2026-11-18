@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>AFORE PRO — Lanzamiento</title>
+<style>
+@font-face { font-family: "Archivo"; src: url("../fonts/archivo-wdth-wght.woff2") format("woff2"); font-weight: 100 900; font-stretch: 62% 125%; }
+@font-face { font-family: "Geist"; src: url("../fonts/geist-variable.woff2") format("woff2"); font-weight: 100 900; }
+:root { --ivory: #f4efe6; --ink: #0b0b0c; }
+html, body { margin: 0; padding: 0; background: var(--ivory); }
+#stage { position: relative; width: 1440px; height: 1440px; overflow: hidden; background: var(--ivory); }
+#cam { position: absolute; left: 0; top: 0; width: 1440px; height: 1440px; transform-origin: 0 0; }
+.abs { position: absolute; }
+.wm { font-family: "Archivo"; font-weight: 800; font-stretch: 125%; letter-spacing: -0.01em; }
+.ui { font-family: "Geist"; }
+.photo { position: absolute; background-size: cover; background-position: center; }
+.glass { position: absolute; overflow: hidden; }
+.glass > .clone { position: absolute; }
+.rim { position: absolute; pointer-events: none; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute"><defs id="defs"></defs></svg>
+<div id="stage"><div id="cam"></div></div>
+<script>
+// ============================================================================
+// Todo lo visual sale de seek(t): sin transiciones CSS, sin timers, sin estado
+// entre cuadros. Este archivo arma, por ahora, los 4 cuadros de prueba.
+// ============================================================================
+const W = 1440, BEAT = 0.5;
+const SVGNS = "http://www.w3.org/2000/svg";
+const A = (p) => "../materiales/" + p;
+const IMG = {
+  logo: A("logo_afore_pro.png"),
+  retrato: A("paquete/01-mujer-catedral-retrato-iris.jpg"),
+  plaza: A("paquete/02a-mujer-catedral-plaza.jpg"),
+  hombre: A("paquete/02b-hombre-catedral-traje.jpg"),
+  oficina: A("paquete/02c-mujer-catedral-asesora-oficina.jpg"),
+  cometa: A("paquete/02e-cometa-noche-durango.jpg"),
+  puenteDia: A("paquete/03-puente-analco-durango-dia.jpg"),
+  puenteOro: A("paquete/03b-puente-analco-durango-dorado-RETOQUE.jpg"),
+  angel: A("paquete/04-angel-durango-vertical.jpg"),
+  familia: A("paquete/06-familia-casa-atardecer.jpg"),
+  pared: "assets/pared_still.jpg",
+};
+
+// ---------------------------------------------------------------- resortes ---
+// respuesta de paso cerrada de un resorte subamortiguado (0 → 1)
+function spring(t, { f = 2.2, z = 0.55 } = {}) {
+  if (t <= 0) return 0;
+  const w = 2 * Math.PI * f, wd = w * Math.sqrt(1 - z * z);
+  return 1 - Math.exp(-z * w * t) * (Math.cos(wd * t) + (z * w / wd) * Math.sin(wd * t));
+}
+// valor con muchos destinos = suma de un resorte por cambio
+function springs(t, v0, changes, opt) {
+  let v = v0, prev = v0;
+  for (const [t0, to] of changes) { v += (to - prev) * spring(t - t0, opt); prev = to; }
+  return v;
+}
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const ease = (x) => { x = clamp(x); return x * x * x * (x * (6 * x - 15) + 10); };
+
+// ------------------------------------------------------------ cristal -------
+// Mapa de desplazamiento de un rectángulo redondeado (campo de distancia):
+// cerca del borde la muestra se corre hacia fuera, como un lente.
+const mapCache = new Map();
+function roundedRectMap(w, h, r, band) {
+  const key = [w, h, r, band].join("x");
+  if (mapCache.has(key)) return mapCache.get(key);
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  const g = c.getContext("2d"), im = g.createImageData(w, h), d = im.data;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const px = x + 0.5 - w / 2, py = y + 0.5 - h / 2;
+    const qx = Math.abs(px) - (w / 2 - r), qy = Math.abs(py) - (h / 2 - r);
+    const ox = Math.max(qx, 0), oy = Math.max(qy, 0);
+    const sd = Math.hypot(ox, oy) + Math.min(Math.max(qx, qy), 0) - r; // <0 dentro
+    let nx = 0, ny = 0;
+    if (qx > 0 && qy > 0) { const l = Math.hypot(ox, oy) || 1; nx = ox / l * Math.sign(px); ny = oy / l * Math.sign(py); }
+    else if (qx > qy) nx = Math.sign(px); else ny = Math.sign(py);
+    const k = clamp(1 + sd / band), m = k * k * (3 - 2 * k);
+    const i = (y * w + x) * 4;
+    d[i] = 128 + 127 * nx * m; d[i + 1] = 128 + 127 * ny * m; d[i + 2] = 128; d[i + 3] = 255;
+  }
+  g.putImageData(im, 0, 0);
+  const url = c.toDataURL();
+  mapCache.set(key, url);
+  return url;
+}
+// filtro SVG: tres feDisplacementMap a escalas un poco distintas (bordes cromáticos)
+let filterId = 0;
+function glassFilter(mapUrl, w, h, scale) {
+  const id = "gf" + (filterId++);
+  const f = document.createElementNS(SVGNS, "filter");
+  f.setAttribute("id", id); f.setAttribute("x", "0"); f.setAttribute("y", "0");
+  f.setAttribute("width", "1"); f.setAttribute("height", "1");
+  f.setAttribute("filterUnits", "objectBoundingBox"); f.setAttribute("primitiveUnits", "userSpaceOnUse");
+  f.setAttribute("color-interpolation-filters", "sRGB");
+  const s = [scale, scale * 1.07, scale * 1.14];
+  f.innerHTML = `
+    <feImage href="${mapUrl}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="none" result="m"/>
+    ${s.map((k, i) => `<feDisplacementMap in="SourceGraphic" in2="m" scale="${k}" xChannelSelector="R" yChannelSelector="G" result="d${i}"/>`).join("")}
+    <feColorMatrix in="d0" type="matrix" values="1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0" result="r"/>
+    <feColorMatrix in="d1" type="matrix" values="0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 1 0" result="g"/>
+    <feColorMatrix in="d2" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 1 0" result="b"/>
+    <feComposite in="r" in2="g" operator="arithmetic" k2="1" k3="1" result="rg"/>
+    <feComposite in="rg" in2="b" operator="arithmetic" k2="1" k3="1" result="rgb"/>
+    <feColorMatrix in="rgb" type="saturate" values="1.25"/>`;
+  document.getElementById("defs").appendChild(f);
+  return id;
+}
+// Panel de cristal: su propia copia de la escena de atrás (bg = función que pinta el fondo)
+function glassPanel(parent, { x, y, w, h, r, bg, band = 34, scale = 46, tint = "rgba(255,255,255,0.10)", dark = false }) {
+  const el = div(parent, { left: x, top: y, width: w, height: h, borderRadius: r, overflow: "hidden" }, "glass");
+  const inner = div(el, { left: 0, top: 0, width: w, height: h }, "abs");
+  inner.style.filter = `url(#${glassFilter(roundedRectMap(w, h, r, band), w, h, scale)})`;
+  const clone = div(inner, { left: -x, top: -y, width: W, height: W }, "clone");
+  bg(clone);
+  div(el, { left: 0, top: 0, width: w, height: h, background: tint }, "abs");
+  // luz de borde: arriba-izquierda clara, abajo-derecha suave
+  div(el, {
+    left: 0, top: 0, width: w, height: h, borderRadius: r, boxSizing: "border-box",
+    border: `1.5px solid ${dark ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.55)"}`,
+    boxShadow: `inset 1.5px 2px 0 rgba(255,255,255,${dark ? 0.35 : 0.65}), inset -1px -1.5px 0 rgba(255,255,255,0.18)`,
+  }, "rim");
+  return el;
+}
+// Letras de cristal: campo de distancia por glifo en canvas → mapa, máscara y brillos
+function glassText(parent, { text, x, y, size, font = "Archivo", weight = 800, stretch = "125%", bg, band = 14, scale = 30, track = 0 }) {
+  const c = document.createElement("canvas"), g = c.getContext("2d");
+  const fnt = `${weight} ${stretch === "125%" ? "" : ""}${size}px ${font}`;
+  g.font = fnt; g.fontStretch = stretch === "125%" ? "expanded" : "normal";
+  if ("letterSpacing" in g) g.letterSpacing = track + "px";
+  const tw = Math.ceil(g.measureText(text).width) + 24, th = Math.ceil(size * 1.05) + 24;
+  c.width = tw; c.height = th;
+  g.font = fnt; g.fontStretch = stretch === "125%" ? "expanded" : "normal"; if ("letterSpacing" in g) g.letterSpacing = track + "px";
+  g.fillStyle = "#fff"; g.textBaseline = "alphabetic"; g.fillText(text, 12, 12 + size * 0.86);
+  const a = g.getImageData(0, 0, tw, th).data;
+  // distancia al borde (chamfer 3-4, dos pasadas) sólo dentro del glifo
+  const N = tw * th, D = new Float32Array(N);
+  for (let i = 0; i < N; i++) D[i] = a[i * 4 + 3] > 127 ? 1e9 : 0;
+  for (let yy = 1; yy < th - 1; yy++) for (let xx = 1; xx < tw - 1; xx++) {
+    const i = yy * tw + xx; if (!D[i]) continue;
+    D[i] = Math.min(D[i], D[i - 1] + 3, D[i - tw] + 3, D[i - tw - 1] + 4, D[i - tw + 1] + 4);
+  }
+  for (let yy = th - 2; yy > 0; yy--) for (let xx = tw - 2; xx > 0; xx--) {
+    const i = yy * tw + xx; if (!D[i]) continue;
+    D[i] = Math.min(D[i], D[i + 1] + 3, D[i + tw] + 3, D[i + tw + 1] + 4, D[i + tw - 1] + 4);
+  }
+  const map = g.createImageData(tw, th), hi = g.createImageData(tw, th), mk = g.createImageData(tw, th);
+  const L = [-0.55, -0.83];
+  for (let yy = 1; yy < th - 1; yy++) for (let xx = 1; xx < tw - 1; xx++) {
+    const i = yy * tw + xx, j = i * 4, al = a[j + 3];
+    mk.data[j] = mk.data[j + 1] = mk.data[j + 2] = 255; mk.data[j + 3] = al;
+    const dd = Math.min(D[i] / 3, band);
+    let gx = (Math.min(D[i + 1], 3 * band) - Math.min(D[i - 1], 3 * band)), gy = (Math.min(D[i + tw], 3 * band) - Math.min(D[i - tw], 3 * band));
+    const gl = Math.hypot(gx, gy) || 1; gx /= gl; gy /= gl; // apunta hacia dentro
+    const k = 1 - dd / band, m = k * k;
+    map.data[j] = 128 - 127 * gx * m; map.data[j + 1] = 128 - 127 * gy * m; map.data[j + 2] = 128; map.data[j + 3] = 255;
+    const lit = Math.max(0, -(gx * L[0] + gy * L[1])), shade = Math.max(0, gx * L[0] + gy * L[1]);
+    const rim = Math.pow(k, 3);
+    const v = clamp(lit * rim * 1.5 + 0.45 * Math.pow(k, 6)) * (al / 255);
+    hi.data[j] = hi.data[j + 1] = hi.data[j + 2] = 255; hi.data[j + 3] = 255 * clamp(v + 0.10 * (al / 255) * (k > 0.97 ? 1 : 0));
+    if (shade * rim > 0.2) { hi.data[j] = hi.data[j + 1] = hi.data[j + 2] = 20; hi.data[j + 3] = 90 * shade * rim * (al / 255); }
+  }
+  const toUrl = (imd) => { const cc = document.createElement("canvas"); cc.width = tw; cc.height = th; cc.getContext("2d").putImageData(imd, 0, 0); return cc.toDataURL(); };
+  const mapUrl = toUrl(map), maskUrl = toUrl(mk), hiUrl = toUrl(hi);
+  if (x === "center") x = (W - (tw - 24)) / 2;
+  const ox = x - 12, oy = y - 12;
+  const el = div(parent, { left: ox, top: oy, width: tw, height: th }, "abs");
+  el.style.webkitMaskImage = el.style.maskImage = `url(${maskUrl})`;
+  const inner = div(el, { left: 0, top: 0, width: tw, height: th }, "abs");
+  inner.style.filter = `url(#${glassFilter(mapUrl, tw, th, scale)})`;
+  const clone = div(inner, { left: -ox, top: -oy, width: W, height: W }, "abs");
+  bg(clone);
+  div(el, { left: 0, top: 0, width: tw, height: th, background: "linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.04))" }, "abs");
+  const h = document.createElement("img"); h.src = hiUrl; Object.assign(h.style, { position: "absolute", left: "0px", top: "0px", filter: "blur(0.7px)" });
+  el.appendChild(h);
+  return { el, w: tw - 24, h: th - 24 };
+}
+
+// --------------------------------------------------------------- iris -------
+// 6 hojas alrededor de una abertura hexagonal. Cada hoja = sus dos vértices,
+// las dos prolongaciones de arista y el arco CORTO entre ellas.
+function irisPath(cx, cy, R, open, rot) {
+  const a = open * R * 1.18, V = [];
+  for (let i = 0; i < 6; i++) { const th = rot + i * Math.PI / 3; V.push([cx + a * Math.cos(th), cy + a * Math.sin(th)]); }
+  const hit = (p, d) => { // rayo p + s·d contra el círculo
+    const fx = p[0] - cx, fy = p[1] - cy, b = fx * d[0] + fy * d[1], c = fx * fx + fy * fy - R * R;
+    const s = -b + Math.sqrt(Math.max(0, b * b - c)); return [p[0] + s * d[0], p[1] + s * d[1]];
+  };
+  const out = [];
+  for (let i = 0; i < 6; i++) {
+    const P0 = V[(i + 5) % 6], P1 = V[i], P2 = V[(i + 1) % 6];
+    let d1 = [P2[0] - P1[0], P2[1] - P1[1]], l1 = Math.hypot(...d1) || 1; d1 = [d1[0] / l1, d1[1] / l1];
+    let d0 = [P1[0] - P0[0], P1[1] - P0[1]], l0 = Math.hypot(...d0) || 1; d0 = [d0[0] / l0, d0[1] / l0];
+    if (open < 1e-3) { const th = rot + i * Math.PI / 3; d1 = [Math.cos(th + 2.1), Math.sin(th + 2.1)]; d0 = [Math.cos(th + 1.05), Math.sin(th + 1.05)]; }
+    const E = hit(P2, d1), Q = hit(P1, d0);
+    out.push(`M${P1[0]},${P1[1]} L${P2[0]},${P2[1]} L${E[0]},${E[1]} A${R},${R} 0 0 0 ${Q[0]},${Q[1]} Z`);
+  }
+  return out;
+}
+function iris(parent, { cx, cy, R, open, rot }) {
+  const s = document.createElementNS(SVGNS, "svg");
+  s.setAttribute("width", W); s.setAttribute("height", W);
+  s.style.position = "absolute"; s.style.left = "0"; s.style.top = "0"; s.style.overflow = "visible";
+  irisPath(cx, cy, R, open, rot).forEach((d, i) => {
+    const p = document.createElementNS(SVGNS, "path");
+    p.setAttribute("d", d); p.setAttribute("fill", i % 2 ? "#17171a" : "#1d1d21");
+    p.setAttribute("stroke", "#3a3a40"); p.setAttribute("stroke-width", "2"); p.setAttribute("stroke-linejoin", "round");
+    s.appendChild(p);
+  });
+  parent.appendChild(s);
+  return s;
+}
+
+// ------------------------------------------------------------- cursor -------
+function cursor(parent, x, y, k = 1, down = 0) {
+  const s = document.createElementNS(SVGNS, "svg");
+  const sz = 46 * k;
+  s.setAttribute("width", sz * 1.6); s.setAttribute("height", sz * 1.6); s.setAttribute("viewBox", "-6 -6 40 40");
+  Object.assign(s.style, { position: "absolute", left: x - 6 * k * 1.15 + "px", top: y - 6 * k * 1.15 + "px", overflow: "visible", transform: `scale(${1 - 0.12 * down})`, transformOrigin: "0 0" });
+  s.innerHTML = `<path d="M0 0 L0 24 L6.2 18.2 L10.4 27.6 L14.6 25.8 L10.4 16.6 L18.6 16.6 Z" fill="#0b0b0c" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"/>`;
+  parent.appendChild(s);
+  return s;
+}
+function clickRing(parent, x, y, p) { // onda del clic (contorno, sin brillo)
+  if (p <= 0 || p >= 1) return;
+  const r = 14 + 46 * ease(p);
+  div(parent, { left: x - r, top: y - r, width: 2 * r, height: 2 * r, borderRadius: "50%", border: `3px solid rgba(11,11,12,${0.55 * (1 - p)})`, boxSizing: "border-box" }, "abs");
+}
+
+// ------------------------------------------------------------ helpers -------
+function div(parent, style = {}, cls = "abs") {
+  const d = document.createElement("div"); d.className = cls;
+  for (const [k, v] of Object.entries(style)) d.style[k] = typeof v === "number" && !["opacity", "zIndex", "flex", "fontWeight"].includes(k) ? v + "px" : v;
+  parent.appendChild(d); return d;
+}
+function text(parent, str, style, cls = "abs") { const d = div(parent, style, cls); d.textContent = str; return d; }
+function photo(parent, src, x, y, w, h, pos = "center", extra = {}) {
+  return div(parent, { left: x, top: y, width: w, height: h, backgroundImage: `url("${src}")`, backgroundPosition: pos, ...extra }, "photo");
+}
+// texto que sube desde una línea de máscara (p 0 → 1)
+function riseText(parent, str, { x, y, h, p, style, cls = "wm" }) {
+  const m = div(parent, { left: x, top: y, height: h, overflow: "hidden", width: style.width || "1400px" }, "abs");
+  const t = text(m, str, { left: 0, top: (1 - ease(p)) * h * 1.05, whiteSpace: "nowrap", lineHeight: h + "px", ...style }, "abs " + cls);
+  return t;
+}
+// el logo se muestra tal cual; sólo se desvanece su orilla de fondo negro para que no se note el cuadro
+function softEdges(el) {
+  const m = "linear-gradient(to right, transparent, #000 4%, #000 96%, transparent), linear-gradient(to bottom, transparent, #000 4%, #000 96%, transparent)";
+  el.style.webkitMaskImage = el.style.maskImage = m;
+  el.style.webkitMaskComposite = "source-in"; el.style.maskComposite = "intersect";
+  return el;
+}
+const cam = () => document.getElementById("cam");
+function setCam(zoom, fx, fy) { // zoom tipo screen-studio: (fx, fy) queda al centro
+  cam().style.transform = `translate(${720 - fx * zoom}px, ${720 - fy * zoom}px) scale(${zoom})`;
+}
+
+// ============================================================ escenas ========
+const scenes = {};
+
+// 1. OPEN — píldora negra con el logotipo; la etiqueta sube desde la máscara; el cursor da clic
+scenes.open = (t) => {
+  const c = cam(); setCam(1.16 + 0.03 * t, 720, 740);
+  c.style.background = "var(--ivory)";
+  const pw = 1120, ph = 430, px = (W - pw) / 2, py = (W - ph) / 2;
+  const pill = div(c, { left: px, top: py, width: pw, height: ph, borderRadius: ph / 2, background: "#0b0b0b", overflow: "hidden" });
+  softEdges(photo(pill, IMG.logo, 40, 10, 410, 410, "center", { backgroundSize: "contain", backgroundRepeat: "no-repeat" }));
+  ["TU AFORE", "PUEDE", "DARTE MÁS."].forEach((s, i) =>
+    riseText(pill, s, { x: 480, y: 92 + i * 84, h: 84, p: i < 2 ? 1 : 0.8, style: { fontSize: "70px", color: "#fff", width: "600px" } }));
+  // el cursor da clic sobre la etiqueta (en el siguiente beat el iris se cierra sobre ella)
+  clickRing(c, 1180, 905, 0.35);
+  cursor(c, 1180, 905, 1.0, 0.6);
+};
+
+// 2. GLASS — la esfera ya es pantalla de bloqueo: reloj de cristal, la cifra, reproductor
+scenes.glass = (t) => {
+  const c = cam(); setCam(1.02, 720, 720);
+  const bg = (el) => photo(el, IMG.cometa, 0, 0, W, W, "50% 60%", { filter: "saturate(1.15) contrast(1.05)" });
+  bg(c);
+  div(c, { left: 0, top: 0, width: W, height: W, background: "linear-gradient(180deg, rgba(4,8,20,0.25), rgba(4,8,20,0) 40%, rgba(4,8,20,0.45))" });
+  const bgFull = (el) => { bg(el); div(el, { left: 0, top: 0, width: W, height: W, background: "linear-gradient(180deg, rgba(4,8,20,0.25), rgba(4,8,20,0) 40%, rgba(4,8,20,0.45))" }); };
+  text(c, "martes 18 de noviembre", { left: 0, top: 70, width: W, textAlign: "center", fontSize: "40px", fontWeight: 600, color: "rgba(255,255,255,0.92)" }, "abs ui");
+  glassText(c, { text: "10:30", x: "center", y: 118, size: 230, bg: bgFull, band: 26, scale: 70 });
+  text(c, "HASTA", { left: 0, top: 492, width: W, textAlign: "center", fontSize: "60px", letterSpacing: "0.32em", color: "#fff" }, "abs wm");
+  text(c, "$35,193", { left: 0, top: 548, width: W, textAlign: "center", fontSize: "262px", lineHeight: "300px", color: "#fff" }, "abs wm");
+  text(c, "PUEDES RETIRAR DINERO DE TU AFORE", { left: 0, top: 872, width: W, textAlign: "center", fontSize: "46px", fontWeight: 700, color: "#fff", letterSpacing: "0.02em" }, "abs ui");
+  text(c, "POR DESEMPLEO.", { left: 0, top: 930, width: W, textAlign: "center", fontSize: "46px", fontWeight: 700, color: "#fff", letterSpacing: "0.02em" }, "abs ui");
+  // reproductor de cristal (sale de la barra inferior)
+  const pl = glassPanel(c, { x: 250, y: 1080, w: 940, h: 230, r: 64, bg: bgFull, tint: "rgba(255,255,255,0.08)", dark: true });
+  photo(pl, IMG.plaza, 34, 34, 162, 162, "50% 25%", { borderRadius: "26px" });
+  text(pl, "Tech House Vibes", { left: 228, top: 44, fontSize: "40px", fontWeight: 700, color: "#fff" }, "abs ui");
+  text(pl, "Mixkit", { left: 228, top: 96, fontSize: "32px", fontWeight: 500, color: "rgba(255,255,255,0.7)" }, "abs ui");
+  div(pl, { left: 228, top: 160, width: 660, height: 8, borderRadius: 4, background: "rgba(255,255,255,0.28)" });
+  div(pl, { left: 228, top: 160, width: 300, height: 8, borderRadius: 4, background: "#fff" });
+  const ic = div(pl, { left: 780, top: 46, width: 110, height: 70 });
+  ic.innerHTML = `<svg width="110" height="70" viewBox="0 0 110 70"><rect x="20" y="14" width="14" height="42" rx="4" fill="#fff"/><rect x="46" y="14" width="14" height="42" rx="4" fill="#fff"/><path d="M78 16 L100 35 L78 54 Z" fill="#fff"/></svg>`;
+  div(c, { left: 560, top: 1370, width: 320, height: 10, borderRadius: 5, background: "rgba(255,255,255,0.85)" });
+};
+
+// 3. STAGE — teléfono, ventana del navegador con la foto de la asesoría como hero
+scenes.stage = (t) => {
+  const c = cam(); setCam(1.0, 720, 720);
+  c.style.background = "var(--ivory)";
+  // ventana
+  const wx = 370, wy = 120, ww = 1030, wh = 1040;
+  const win = div(c, { left: wx, top: wy, width: ww, height: wh, borderRadius: 34, background: "#fff", overflow: "hidden", boxShadow: "0 30px 60px rgba(30,20,10,0.18), 0 0 0 1.5px rgba(0,0,0,0.08)" });
+  div(win, { left: 0, top: 0, width: ww, height: 96, background: "#ece7de" });
+  [0, 1, 2].forEach((i) => div(win, { left: 30 + i * 30, top: 40, width: 16, height: 16, borderRadius: 8, background: "#c9c2b6" }));
+  const tab = div(win, { left: 150, top: 22, width: 330, height: 56, borderRadius: 16, background: "#fff" });
+  div(tab, { left: 20, top: 18, width: 20, height: 20, borderRadius: 10, background: "#0e0e0f" });
+  text(tab, "AFORE PRO", { left: 52, top: 15, fontSize: "24px", fontWeight: 700, color: "#0b0b0c" }, "abs ui");
+  text(win, "+", { left: 504, top: 22, fontSize: "40px", color: "#8b8478" }, "abs ui");
+  // hero
+  const hx = 0, hy = 96, hw = ww, hh = 640;
+  const heroBg = (el) => photo(el, IMG.oficina, wx + hx, wy + hy, hw, hh, "50% 40%");
+  photo(win, IMG.oficina, hx, hy, hw, hh, "50% 40%");
+  const navBg = (el) => heroBg(el);
+  const nav = glassPanel(c, { x: wx + 34, y: wy + hy + 30, w: ww - 68, h: 104, r: 52, bg: navBg, tint: "rgba(255,255,255,0.30)" });
+  text(nav, "AFORE PRO", { left: 40, top: 30, fontSize: "36px", color: "#0b0b0c" }, "abs wm");
+  const btn = div(nav, { left: ww - 68 - 250, top: 16, width: 230, height: 72, borderRadius: 36, background: "#0b0b0c" });
+  text(btn, "Contacto", { left: 0, top: 18, width: 230, textAlign: "center", fontSize: "30px", fontWeight: 600, color: "#fff" }, "abs ui");
+  // chips de cristal sobre la foto
+  const chips = ["ASESORÍA PERSONALIZADA", "ATENCIÓN PROFESIONAL", "ACOMPAÑAMIENTO DURANTE EL PROCESO"];
+  const mg = document.createElement("canvas").getContext("2d"); mg.font = '700 26px "Geist"';
+  chips.forEach((s, i) => {
+    const w = Math.ceil(mg.measureText(s).width + 26 * 0.01 * s.length) + 64;
+    const x = wx + ww - 34 - w, y = wy + hy + hh - 92 - (2 - i) * 86;
+    const ch = glassPanel(c, { x, y, w, h: 72, r: 36, bg: heroBg, tint: "rgba(255,255,255,0.34)", band: 22, scale: 34 });
+    text(ch, s, { left: 0, top: 21, width: w, textAlign: "center", fontSize: "26px", fontWeight: 700, color: "#0b0b0c", letterSpacing: "0.01em" }, "abs ui");
+  });
+  // titular
+  riseText(win, "TU RETIRO MERECE", { x: 54, y: hy + hh + 64, h: 76, p: 1, style: { fontSize: "64px", color: "#0b0b0c" } });
+  riseText(win, "UNA BUENA ASESORÍA.", { x: 54, y: hy + hh + 140, h: 76, p: 1, style: { fontSize: "64px", color: "#0b0b0c" } });
+  // teléfono (la pantalla de bloqueo, con su isla)
+  const fx = 40, fy = 660, fw = 300, fh = 640;
+  const ph = div(c, { left: fx, top: fy, width: fw, height: fh, borderRadius: 70, background: "#0b0b0c", boxShadow: "0 30px 60px rgba(30,20,10,0.22)" });
+  const scr = div(ph, { left: 14, top: 14, width: fw - 28, height: fh - 28, borderRadius: 58, overflow: "hidden" });
+  photo(scr, IMG.cometa, 0, 0, fw - 28, fh - 28, "48% 50%");
+  text(scr, "10:30", { left: 0, top: 96, width: fw - 28, textAlign: "center", fontSize: "80px", color: "#fff" }, "abs wm");
+  text(scr, "HASTA", { left: 0, top: 268, width: fw - 28, textAlign: "center", fontSize: "20px", letterSpacing: "0.3em", color: "#fff" }, "abs wm");
+  text(scr, "$35,193", { left: 0, top: 290, width: fw - 28, textAlign: "center", fontSize: "56px", color: "#fff" }, "abs wm");
+  div(scr, { left: (fw - 28) / 2 - 50, top: 22, width: 100, height: 30, borderRadius: 15, background: "#000" });
+  // cursor: mantiene presionada la foto y la arrastra hacia la pestaña
+  clickRing(c, 700, 560, 0.5);
+  cursor(c, 700, 560, 1.15, 1);
+};
+
+// 4. WALL — el cuadro colgado en la pared real; llamada a la acción y logotipo
+scenes.wall = (t) => {
+  const c = cam(); setCam(1.0, 720, 720);
+  photo(c, IMG.pared, 0, 0, W, W);
+  riseText(c, "¿QUIERES SABER CUÁNTO", { x: 0, y: 70, h: 92, p: 1, style: { fontSize: "78px", color: "#0b0b0c", width: W + "px", textAlign: "center" } });
+  riseText(c, "PUEDES RETIRAR?", { x: 0, y: 160, h: 92, p: 1, style: { fontSize: "78px", color: "#0b0b0c", width: W + "px", textAlign: "center" } });
+  // cuadro: moldura negra, paspartú y la foto
+  const s = 500, mat = 40, mold = 20, tot = s + 2 * (mat + mold), fx = (W - tot) / 2, fy = 280;
+  div(c, { left: fx + 18, top: fy + 26, width: tot, height: tot, background: "rgba(40,25,10,0.28)", filter: "blur(14px)" });
+  const fr = div(c, { left: fx, top: fy, width: tot, height: tot, background: "#121212" });
+  const mt = div(fr, { left: mold, top: mold, width: s + 2 * mat, height: s + 2 * mat, background: "#f6f2ea", boxShadow: "inset 0 3px 6px rgba(0,0,0,0.25)" });
+  photo(mt, IMG.familia, mat, mat, s, s, "50% 60%");
+  // botón de WhatsApp
+  const bx = 250, by = fy + tot + 34, bw = 940, bh = 140;
+  const b = div(c, { left: bx, top: by, width: bw, height: bh, borderRadius: bh / 2, background: "#0b0b0c" });
+  const ic = div(b, { left: 32, top: 28, width: 84, height: 84, borderRadius: 42, background: "#25d366" });
+  ic.innerHTML = `<svg width="84" height="84" viewBox="0 0 84 84"><path d="M42 20c-12.2 0-22 9.3-22 20.8 0 4.3 1.4 8.3 3.8 11.6L21 63l11.3-3.2c2.9 1.4 6.2 2.2 9.7 2.2 12.2 0 22-9.3 22-20.8S54.2 20 42 20z" fill="#fff"/></svg>`;
+  text(b, "CONTÁCTANOS POR WHATSAPP", { left: 146, top: 20, fontSize: "32px", fontWeight: 700, color: "rgba(255,255,255,0.85)", letterSpacing: "0.04em" }, "abs ui");
+  text(b, "618 367 7047", { left: 144, top: 54, fontSize: "68px", color: "#fff" }, "abs wm");
+  // logotipo original sobre negro + ubicación
+  const lg = div(c, { left: 610, top: by + bh + 22, width: 220, height: 220, borderRadius: 36, background: "#0b0b0b", overflow: "hidden" });
+  softEdges(photo(lg, IMG.logo, 0, 0, 220, 220, "center", { backgroundSize: "contain", backgroundRepeat: "no-repeat" }));
+  text(c, "DURANGO, DURANGO", { left: 0, top: by + bh + 254, width: W, textAlign: "center", fontSize: "28px", fontWeight: 700, letterSpacing: "0.2em", color: "#2a2117" }, "abs ui");
+  text(c, "Asesoría privada. El trámite oficial es gratuito. No se garantiza autorización ni monto. Honorarios: 30% de lo retirado.",
+    { left: 60, top: 1398, width: 1320, textAlign: "center", fontSize: "21px", fontWeight: 600, color: "rgba(42,33,23,0.9)" }, "abs ui");
+};
+
+// ------------------------------------------------------------- seek ---------
+const STILLS = { open: 1.4, glass: 6.6, stage: 19.6, wall: 25.2 };
+async function seek(t, which) {
+  await document.fonts.ready;
+  await Promise.all([document.fonts.load('800 100px "Archivo"'), document.fonts.load('600 40px "Geist"')]);
+  document.getElementById("defs").innerHTML = "";
+  const c = cam(); c.innerHTML = ""; c.style.background = "";
+  const name = which || (t < 3.5 ? "open" : t < 16.5 ? "glass" : t < 23 ? "stage" : "wall");
+  scenes[name](t);
+  // esperar a que carguen las imágenes de fondo
+  const urls = new Set();
+  c.querySelectorAll("*").forEach((n) => { const m = (n.style.backgroundImage || "").match(/url\("?(.*?)"?\)/); if (m) urls.add(m[1]); });
+  await Promise.all([...urls].map((u) => new Promise((r) => { const i = new Image(); i.onload = i.onerror = r; i.src = u; })));
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+}
+window.seek = seek; window.STILLS = STILLS;
+</script>
+</body>
+</html>
