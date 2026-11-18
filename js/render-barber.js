@@ -5,6 +5,7 @@ import { dayTotalCents, groupRecordsByDate, weekTotalCents, settlementBreakdown,
 import { startOfWeek, endOfWeek, toISODate, todayISO, weekLabel, formatDateText, DIAS, dayNameFromDate, parseISODate } from "./dates.js";
 import { updatePassword } from "./auth.js";
 import { tarjetaPushHTML, montarTarjetaPush } from "./push-ui.js";
+import { barraVentaRapidaHTML, montarBarraVentaRapida } from "./venta-rapida.js";
 
 const NAV_ITEMS = [
   { id: "home", label: "Inicio", icon: "🏠" },
@@ -414,12 +415,15 @@ async function openQuickRegister(ctx, onDone) {
 }
 
 // ---------- Servicios (registro rápido + lista del día) ----------
-export async function renderBarberServices(container, ctx) {
-  const state = { date: todayISO() };
+export async function renderBarberServices(container, ctx, opciones = {}) {
+  const state = { date: todayISO(), totalDelDia: 0 };
 
-  async function draw() {
+  // La estructura se pinta UNA vez; después solo se refresca el día. Si se
+  // volviera a pintar todo, los botoncitos flotantes se reconstruirían
+  // debajo del dedo y el «Deshacer» desaparecería a media acción.
+  function pintarEstructura() {
     container.innerHTML = `
-      <div class="services-view">
+      <div class="services-view services-view-con-barra">
         <h2 class="view-title">Servicios</h2>
         <button type="button" class="dash-quick-action" id="new-service-btn">
           <span class="dash-quick-action-icon">➕</span>
@@ -444,14 +448,17 @@ export async function renderBarberServices(container, ctx) {
 
         <div class="card card-flush" id="services-list"><div class="text-center" style="padding:30px"><div class="spinner" style="margin:auto"></div></div></div>
       </div>
+      ${barraVentaRapidaHTML()}
     `;
 
-    container.querySelector("#new-service-btn").addEventListener("click", () => openQuickRegister(ctx, draw));
+    container.querySelector("#new-service-btn").addEventListener("click", () => openQuickRegister(ctx, refrescarDia));
     container.querySelector("#services-date").addEventListener("change", (e) => {
       state.date = e.target.value;
-      draw();
+      refrescarDia();
     });
+  }
 
+  async function refrescarDia() {
     try {
       const [records, promo] = await Promise.all([
         data.listRecordsForDay(ctx.barber.id, state.date),
@@ -459,6 +466,7 @@ export async function renderBarberServices(container, ctx) {
       ]);
       const total = dayTotalCents(records, promo?.discount_cents || 0);
       animateNumberText(container.querySelector("#services-day-total-value"), 0, total, formatCents);
+      state.totalDelDia = total;
 
       const listBox = container.querySelector("#services-list");
       if (records.length === 0) {
@@ -488,7 +496,7 @@ export async function renderBarberServices(container, ctx) {
 
         listBox.querySelectorAll("[data-edit]").forEach((btn) => {
           const record = records.find((r) => r.id === btn.dataset.edit);
-          btn.addEventListener("click", () => openEditRecordForm(record, draw));
+          btn.addEventListener("click", () => openEditRecordForm(record, refrescarDia));
         });
         listBox.querySelectorAll("[data-cancel]").forEach((btn) =>
           btn.addEventListener("click", async () => {
@@ -498,7 +506,7 @@ export async function renderBarberServices(container, ctx) {
             try {
               await data.cancelServiceRecord(btn.dataset.cancel);
               toast("Servicio cancelado.", "success");
-              draw();
+              refrescarDia();
             } catch (error) {
               toast(friendlyError(error), "error");
             } finally {
@@ -512,7 +520,7 @@ export async function renderBarberServices(container, ctx) {
             try {
               await data.reopenServiceRecord(btn.dataset.reopen);
               toast("Servicio reactivado.", "success");
-              draw();
+              refrescarDia();
             } catch (error) {
               toast(friendlyError(error), "error");
             } finally {
@@ -526,7 +534,30 @@ export async function renderBarberServices(container, ctx) {
     }
   }
 
-  draw();
+  pintarEstructura();
+  await refrescarDia();
+
+  // Los botoncitos flotantes se montan DESPUÉS del primer refresco, para que
+  // su contador arranque con el total que ya lleva el día.
+  await montarBarraVentaRapida(container, {
+    barberId: ctx.barber.id,
+    totalDelDia: state.totalDelDia,
+    // La venta rápida siempre queda en el día de hoy. Si el barbero estaba
+    // mirando otro día, se vuelve a hoy: si no, acabaría de registrar algo
+    // que no ve en la lista y parecería que no se guardó.
+    onRegistrada: () => {
+      const hoy = todayISO();
+      if (state.date !== hoy) {
+        state.date = hoy;
+        const campo = container.querySelector("#services-date");
+        if (campo) campo.value = hoy;
+      }
+      return refrescarDia();
+    },
+    // Llegó tocando el icono de «Venta rápida» del teléfono: la barra se
+    // señala sola para que no haya que buscarla.
+    destacar: Boolean(opciones.destacarVentaRapida),
+  });
 }
 
 // Edición de un servicio ya registrado (propio del barbero, cualquier fecha

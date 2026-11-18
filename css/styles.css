@@ -2320,3 +2320,169 @@ tbody tr:active {
     font-size: 48px;
   }
 }
+
+/* ---------- Venta rápida: los botoncitos flotantes de Servicios ----------
+   Barra fija por encima de la navegación inferior. Un toque = una venta, así
+   que los botones son grandes de verdad (48px de alto mínimo) y se desplazan
+   en horizontal en lugar de encogerse hasta no poder atinarles. */
+.vr-barra {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + var(--nav-height) + 10px + env(safe-area-inset-bottom));
+  z-index: 60;
+  padding: 10px 12px 12px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-2xl);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  box-shadow: var(--inset-hairline), var(--shadow-lg, 0 14px 40px rgba(0, 0, 0, 0.45));
+}
+.vr-barra[hidden] {
+  display: none;
+}
+.vr-cabecera {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.vr-titulo {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.vr-total {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+.vr-total strong {
+  color: var(--accent);
+  font-size: 15px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.vr-chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.vr-chips::-webkit-scrollbar {
+  display: none;
+}
+.vr-chip {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+  min-height: 48px;
+  padding: 8px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: linear-gradient(160deg, var(--bg-card-2), var(--bg-elevated));
+  cursor: pointer;
+  text-align: left;
+  transition: transform var(--dur-fast) var(--ease-press), border-color var(--dur-base) ease,
+    background var(--dur-base) ease;
+}
+.vr-chip:active {
+  transform: scale(0.95);
+}
+.vr-chip-nombre {
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.vr-chip-precio {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+/* Mientras viaja al servidor: el botón no acepta otro toque y se ve que algo
+   está pasando. */
+.vr-chip-guardando {
+  opacity: 0.55;
+  pointer-events: none;
+}
+/* Guardada: un destello corto y vuelve a la normalidad. */
+.vr-chip-listo {
+  border-color: var(--accent);
+  background: linear-gradient(160deg, rgba(212, 162, 78, 0.22), var(--bg-elevated));
+  animation: vr-latido var(--dur-slow, 420ms) var(--ease-premium, ease);
+}
+@keyframes vr-latido {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+.vr-deshacer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.vr-deshacer[hidden] {
+  display: none;
+}
+.vr-deshacer-texto {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.vr-deshacer-btn {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 6px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm, 10px);
+  background: var(--bg-elevated);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.vr-deshacer-btn:active {
+  transform: scale(0.96);
+}
+/* Llegó desde el icono «Venta rápida» del teléfono: la barra se señala una
+   vez para no tener que buscarla. */
+.vr-destacada {
+  animation: vr-aparece 1.4s var(--ease-premium, ease) 1;
+  border-color: var(--accent);
+}
+@keyframes vr-aparece {
+  0%, 100% { box-shadow: var(--inset-hairline), var(--shadow-lg, 0 14px 40px rgba(0, 0, 0, 0.45)); }
+  40% { box-shadow: var(--inset-hairline), 0 0 0 3px rgba(212, 162, 78, 0.45); }
+}
+/* La lista no puede quedar tapada por la barra. */
+.services-view-con-barra {
+  padding-bottom: 132px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vr-chip,
+  .vr-chip-listo,
+  .vr-destacada,
+  .vr-deshacer-btn {
+    animation: none;
+    transition: none;
+  }
+  .vr-chip:active,
+  .vr-deshacer-btn:active {
+    transform: none;
+  }
+}

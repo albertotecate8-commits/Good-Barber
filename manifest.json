@@ -24,5 +24,20 @@
       "sizes": "180x180",
       "type": "image/png"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "Venta rápida",
+      "short_name": "Venta",
+      "description": "Registrar un corte con un toque",
+      "url": "./index.html?venta=rapida",
+      "icons": [
+        {
+          "src": "icons/apple-touch-icon.png",
+          "sizes": "180x180",
+          "type": "image/png"
+        }
+      ]
+    }
   ]
 }

@@ -166,7 +166,7 @@ function mountBarberShell(ctx) {
     profile: renderBarberProfile,
   };
 
-  function navigate(viewId) {
+  function navigate(viewId, opciones) {
     currentView = viewId;
     const content = mountShell(root, {
       title: "Panel de barbero",
@@ -176,15 +176,28 @@ function mountBarberShell(ctx) {
       onNavigate: navigate,
       onLogout: handleLogout,
     });
-    barberViews[viewId](content, ctx);
+    barberViews[viewId](content, ctx, opciones);
   }
+
+  const parametros = new URLSearchParams(window.location.search);
 
   // Si el barbero llegó tocando una notificación, la URL trae ?cita=<id>.
   // Se abre la agenda en vez de Inicio y se limpia el contador del icono.
   // Cualquier fallo aquí es irrelevante: se entra a Inicio como siempre.
-  const desdeNotificacion = new URLSearchParams(window.location.search).get("cita");
-  navigate(desdeNotificacion ? "agenda" : "home");
+  const desdeNotificacion = parametros.get("cita");
+
+  // Y si llegó tocando el icono «Venta rápida» de la pantalla de inicio del
+  // teléfono, la URL trae ?venta=rapida: se abre Servicios directamente, con
+  // los botoncitos flotantes señalados. Un toque en el icono, un toque en el
+  // corte, y la venta está registrada.
+  const desdeVentaRapida = parametros.get("venta") === "rapida";
+
+  if (desdeNotificacion) navigate("agenda");
+  else if (desdeVentaRapida) navigate("services", { destacarVentaRapida: true });
+  else navigate("home");
+
   if (desdeNotificacion) limpiarRastroDeNotificacion();
+  if (desdeVentaRapida) limpiarParametro("venta");
 
   // La aplicación ya estaba abierta y el barbero toca una notificación: el
   // service worker avisa por aquí y se navega sin recargar.
@@ -207,6 +220,18 @@ function mountBarberShell(ctx) {
 // Al entrar, el contador del icono se pone a cero: representa citas nuevas
 // sin mirar, y el barbero acaba de mirarlas. Mejora progresiva: si la API no
 // existe, no ocurre nada.
+// Borra un parámetro de la dirección sin recargar. Sin esto, recargar la
+// página volvería a abrir la misma pantalla una y otra vez.
+function limpiarParametro(nombre) {
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.delete(nombre);
+    window.history.replaceState({}, "", url.pathname + (url.search || "") + (url.hash || ""));
+  } catch {
+    /* si el navegador no deja reescribir la dirección, no pasa nada grave */
+  }
+}
+
 function limpiarRastroDeNotificacion() {
   import("./push.js")
     .then((push) => push.limpiarContador())
