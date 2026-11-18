@@ -3,7 +3,8 @@
 Comercial cuadrado 1440×1440, 2D, una sola toma continua, 54 beats a 120 BPM (27 s).
 Campaña: **TU AFORE PUEDE DARTE MÁS.** Wordmark animado: **RETIRA.**
 
-Estado: materiales en reunión. Falta: clip de pared de Pexels.
+Estado: materiales completos. Siguiente: 4 cuadros de prueba para aprobación.
+Clip de pared: `materiales/clip_sombra_plantas_pared.mp4` (Pexels, 1920×1080, 29.97 fps, 12.7 s, palmera sobre pared cálida).
 Después: 4 cuadros de prueba (open, glass, stage, wall) para aprobación, luego el video completo.
 
 ## Datos reales (no cambiar)
