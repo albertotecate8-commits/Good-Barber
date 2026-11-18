@@ -48,25 +48,25 @@ export const SHOTS: Shot[] = [
     { f: 0, pos: [0, 1.62, 6.6], look: [0, 1.32, 0], fov: 40 },
     { f: 74, pos: [0, 1.58, 5.6], look: [0, 1.32, 0] },
     { f: 98, pos: [-1.9, 1.5, 3.9], look: [-0.75, 1.55, 0], glide: true },
-    { f: 170, pos: [-1.65, 1.5, 3.45], look: [-0.75, 1.55, 0] },
+    { f: 170, pos: [-1.4, 1.47, 2.95], look: [-0.75, 1.55, 0] },
     { f: 196, pos: [1.75, 1.45, 3.7], look: [0.75, 1.25, 0], roll: -0.02, glide: true },
     { f: T0, pos: [1.68, 1.44, 3.55], look: [0.75, 1.25, 0], roll: -0.02 },
   ] },
   // 2-3. La fábrica; las preocupaciones; el cochinito gigante de la Afore detrás de ellos
   { a: T0, b: T1, light: "day", keys: [
     { f: T0, pos: [-0.6, 2.1, -35.2], look: [-8.5, 2.7, -41.2], fov: 46 },
-    { f: 278, pos: [-1.5, 1.9, -36.4], look: [-8.5, 2.3, -41.0], fov: 46 },
-    { f: 300, pos: [-2.0, 1.55, -42.3], look: [-5.6, 1.6, -40.6], fov: 42, glide: true },
-    { f: 326, pos: [-2.3, 1.55, -42.1], look: [-5.6, 1.6, -40.6] },
-    { f: 348, pos: [-1.9, 1.6, -36.6], look: [-5.6, 1.62, -39.2], glide: true },
+    { f: 266, pos: [-1.5, 1.9, -36.4], look: [-8.5, 2.3, -41.0], fov: 46 },
+    { f: 304, pos: [-2.0, 1.55, -42.3], look: [-5.6, 1.6, -40.6], fov: 42, glide: true },
+    { f: 318, pos: [-2.3, 1.55, -42.1], look: [-5.6, 1.6, -40.6] },
+    { f: 354, pos: [-1.9, 1.6, -36.6], look: [-5.6, 1.62, -39.2], glide: true },
     { f: 424, pos: [-2.35, 1.6, -36.9], look: [-5.6, 1.66, -39.2] },
     { f: 462, pos: [1.6, 3.6, -33.8], look: [-8.2, 2.4, -40.2], fov: 50, glide: true },
     { f: T1, pos: [1.2, 3.75, -34.2], look: [-8.2, 2.5, -40.2], fov: 50 },
   ] },
   // 4. Toño en la fila: la cámara corre a lo largo de la fila hasta él, con su sobre flaquito
   { a: T1, b: T2, light: "day", keys: [
-    { f: T1, pos: [3.0, 1.7, 14.5], look: [7.2, 1.5, 19], fov: 42 },
-    { f: 566, pos: [3.9, 1.55, 27.4], look: [6.9, 1.4, 30.6], glide: true },
+    { f: T1, pos: [3.3, 1.68, 19.5], look: [7.1, 1.5, 24], fov: 42 },
+    { f: 576, pos: [3.9, 1.55, 27.4], look: [6.9, 1.4, 30.6], glide: true },
     { f: T2, pos: [4.25, 1.5, 28.0], look: [6.9, 1.35, 30.6] },
   ] },
   // 5. Ramiro en su sala con el celular; le llega la palomita
@@ -105,7 +105,7 @@ export const SHOTS: Shot[] = [
     { f: 1530, pos: [1.4, 1.45, 3.6], look: [0.4, 1.3, 0], glide: true },
     { f: 1566, pos: [1.25, 1.45, 3.3], look: [0.3, 1.3, 0] },
     { f: 1640, pos: [0, 3.2, 9.5], look: [0, 4.2, -30], fov: 46, glide: true },
-    { f: TOTAL + 1, pos: [0, 4.0, 11.5], look: [0, 5.5, -30], fov: 46 },
+    { f: TOTAL + 1, pos: [2.0, 4.3, 12.0], look: [0.6, 5.6, -30], fov: 46 },
   ] },
 ];
 export const FLASHES = SHOTS.slice(1).map((s) => s.a);
