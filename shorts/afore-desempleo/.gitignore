@@ -1,0 +1,8 @@
+node_modules
+out/
+audio/*.mp3
+audio/voz_edge*
+audio/palabras_edge.json
+audio/music.wav
+audio/sfx.wav
+audio/__pycache__/
