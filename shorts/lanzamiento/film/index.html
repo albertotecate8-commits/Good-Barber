@@ -6,7 +6,7 @@
 <style>
 @font-face { font-family: "Archivo"; src: url("../fonts/archivo-wdth-wght.woff2") format("woff2"); font-weight: 100 900; font-stretch: 62% 125%; }
 @font-face { font-family: "Geist"; src: url("../fonts/geist-variable.woff2") format("woff2"); font-weight: 100 900; }
-:root { --ivory: #f4efe6; --ink: #0b0b0c; }
+:root { --ivory: #f2ece1; --ink: #0b0b0c; }
 html, body { margin: 0; padding: 0; background: var(--ivory); }
 #stage { position: relative; width: 1440px; height: 1440px; overflow: hidden; background: var(--ivory); }
 #cam { position: absolute; left: 0; top: 0; width: 1440px; height: 1440px; transform-origin: 0 0; }
@@ -32,6 +32,7 @@ const SVGNS = "http://www.w3.org/2000/svg";
 const A = (p) => "../materiales/" + p;
 const IMG = {
   logo: A("logo_afore_pro.png"),
+  logoSinFondo: "assets/logo_sin_fondo.png", // versión sin el fondo cuadrado, sólo sobre superficies oscuras
   retrato: A("paquete/01-mujer-catedral-retrato-iris.jpg"),
   plaza: A("paquete/02a-mujer-catedral-plaza.jpg"),
   hombre: A("paquete/02b-hombre-catedral-traje.jpg"),
@@ -172,7 +173,7 @@ function glassText(parent, { text, x, y, size, font = "Archivo", weight = 800, s
   inner.style.filter = `url(#${glassFilter(mapUrl, tw, th, scale)})`;
   const clone = div(inner, { left: -ox, top: -oy, width: W, height: W }, "abs");
   bg(clone);
-  div(el, { left: 0, top: 0, width: tw, height: th, background: "linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.04))" }, "abs");
+  div(el, { left: 0, top: 0, width: tw, height: th, background: "linear-gradient(180deg, rgba(255,255,255,0.24), rgba(255,255,255,0.06))" }, "abs");
   const h = document.createElement("img"); h.src = hiUrl; Object.assign(h.style, { position: "absolute", left: "0px", top: "0px", filter: "blur(0.7px)" });
   el.appendChild(h);
   return { el, w: tw - 24, h: th - 24 };
@@ -258,120 +259,123 @@ function setCam(zoom, fx, fy) { // zoom tipo screen-studio: (fx, fy) queda al ce
 }
 
 // ============================================================ escenas ========
+// Paleta tomada del logotipo: ónix, esmeralda, oro y plata sobre marfil cálido.
+const GOLD = "linear-gradient(180deg, #f6e7b8 0%, #e2c27a 38%, #c39a4c 70%, #9c7834 100%)";
+const EMERALD = "radial-gradient(120% 95% at 35% 30%, #1b5249 0%, #123b35 48%, #0b2421 100%)";
+const goldFill = { backgroundImage: GOLD, webkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" };
+const brandSurface = (extra = {}) => ({ background: EMERALD, boxShadow: "inset 0 0 0 1.5px rgba(222,186,110,0.42), inset 0 1.5px 0 rgba(255,255,255,0.10), 0 40px 80px -34px rgba(16,28,24,0.55), 0 14px 28px -16px rgba(0,0,0,0.30)", ...extra });
+const logo = (parent, x, y, s) => photo(parent, IMG.logoSinFondo, x, y, s, s, "center", { backgroundSize: "contain", backgroundRepeat: "no-repeat" });
+const goldRule = (parent, x, y, h) => div(parent, { left: x, top: y, width: 2, height: h, background: "linear-gradient(180deg, transparent, #d9b765 20%, #d9b765 80%, transparent)" });
 const scenes = {};
 
-// 1. OPEN — píldora negra con el logotipo; la etiqueta sube desde la máscara; el cursor da clic
+// 1. OPEN — la píldora (superficie de marca) con el logotipo y la etiqueta; el cursor da clic
 scenes.open = (t) => {
-  const c = cam(); setCam(1.16 + 0.03 * t, 720, 740);
+  const c = cam(); setCam(1.08, 720, 720);
   c.style.background = "var(--ivory)";
-  const pw = 1120, ph = 430, px = (W - pw) / 2, py = (W - ph) / 2;
-  const pill = div(c, { left: px, top: py, width: pw, height: ph, borderRadius: ph / 2, background: "#0b0b0b", overflow: "hidden" });
-  softEdges(photo(pill, IMG.logo, 40, 10, 410, 410, "center", { backgroundSize: "contain", backgroundRepeat: "no-repeat" }));
+  const pw = 1260, ph = 540, px = (W - pw) / 2, py = (W - ph) / 2;
+  const pill = div(c, { left: px, top: py, width: pw, height: ph, borderRadius: ph / 2, overflow: "hidden", ...brandSurface() });
+  logo(pill, 46, 30, 480);
+  goldRule(pill, 556, 120, 300);
   ["TU AFORE", "PUEDE", "DARTE MÁS."].forEach((s, i) =>
-    riseText(pill, s, { x: 480, y: 92 + i * 84, h: 84, p: i < 2 ? 1 : 0.8, style: { fontSize: "70px", color: "#fff", width: "600px" } }));
-  // el cursor da clic sobre la etiqueta (en el siguiente beat el iris se cierra sobre ella)
-  clickRing(c, 1180, 905, 0.35);
-  cursor(c, 1180, 905, 1.0, 0.6);
+    riseText(pill, s, { x: 606, y: 141 + i * 86, h: 86, p: 1, style: { fontSize: "72px", color: "#fff", width: "640px", ...(i === 2 ? goldFill : {}) } }));
+  clickRing(c, 1236, 930, 0.35);
+  cursor(c, 1236, 930, 1.0, 0.6);
 };
 
-// 2. GLASS — la esfera ya es pantalla de bloqueo: reloj de cristal, la cifra, reproductor
+// 2. GLASS — pantalla de bloqueo: reloj de cristal, "HASTA" en cápsula de cristal, la cifra en oro
 scenes.glass = (t) => {
   const c = cam(); setCam(1.02, 720, 720);
-  const bg = (el) => photo(el, IMG.cometa, 0, 0, W, W, "50% 60%", { filter: "saturate(1.15) contrast(1.05)" });
+  const bg = (el) => {
+    photo(el, IMG.cometa, 0, 0, W, W, "50% 62%", { filter: "saturate(1.08) contrast(1.08) brightness(0.86)" });
+    div(el, { left: 0, top: 0, width: W, height: W, background: "linear-gradient(180deg, rgba(6,12,22,0.40), rgba(6,12,22,0) 34%, rgba(7,24,22,0.55) 72%, rgba(7,24,22,0.85))" });
+  };
   bg(c);
-  div(c, { left: 0, top: 0, width: W, height: W, background: "linear-gradient(180deg, rgba(4,8,20,0.25), rgba(4,8,20,0) 40%, rgba(4,8,20,0.45))" });
-  const bgFull = (el) => { bg(el); div(el, { left: 0, top: 0, width: W, height: W, background: "linear-gradient(180deg, rgba(4,8,20,0.25), rgba(4,8,20,0) 40%, rgba(4,8,20,0.45))" }); };
-  text(c, "martes 18 de noviembre", { left: 0, top: 70, width: W, textAlign: "center", fontSize: "40px", fontWeight: 600, color: "rgba(255,255,255,0.92)" }, "abs ui");
-  glassText(c, { text: "10:30", x: "center", y: 118, size: 230, bg: bgFull, band: 26, scale: 70 });
-  text(c, "HASTA", { left: 0, top: 492, width: W, textAlign: "center", fontSize: "60px", letterSpacing: "0.32em", color: "#fff" }, "abs wm");
-  text(c, "$35,193", { left: 0, top: 548, width: W, textAlign: "center", fontSize: "262px", lineHeight: "300px", color: "#fff" }, "abs wm");
-  text(c, "PUEDES RETIRAR DINERO DE TU AFORE", { left: 0, top: 872, width: W, textAlign: "center", fontSize: "46px", fontWeight: 700, color: "#fff", letterSpacing: "0.02em" }, "abs ui");
-  text(c, "POR DESEMPLEO.", { left: 0, top: 930, width: W, textAlign: "center", fontSize: "46px", fontWeight: 700, color: "#fff", letterSpacing: "0.02em" }, "abs ui");
-  // reproductor de cristal (sale de la barra inferior)
-  const pl = glassPanel(c, { x: 250, y: 1080, w: 940, h: 230, r: 64, bg: bgFull, tint: "rgba(255,255,255,0.08)", dark: true });
-  photo(pl, IMG.plaza, 34, 34, 162, 162, "50% 25%", { borderRadius: "26px" });
-  text(pl, "Tech House Vibes", { left: 228, top: 44, fontSize: "40px", fontWeight: 700, color: "#fff" }, "abs ui");
-  text(pl, "Mixkit", { left: 228, top: 96, fontSize: "32px", fontWeight: 500, color: "rgba(255,255,255,0.7)" }, "abs ui");
-  div(pl, { left: 228, top: 160, width: 660, height: 8, borderRadius: 4, background: "rgba(255,255,255,0.28)" });
-  div(pl, { left: 228, top: 160, width: 300, height: 8, borderRadius: 4, background: "#fff" });
-  const ic = div(pl, { left: 780, top: 46, width: 110, height: 70 });
-  ic.innerHTML = `<svg width="110" height="70" viewBox="0 0 110 70"><rect x="20" y="14" width="14" height="42" rx="4" fill="#fff"/><rect x="46" y="14" width="14" height="42" rx="4" fill="#fff"/><path d="M78 16 L100 35 L78 54 Z" fill="#fff"/></svg>`;
-  div(c, { left: 560, top: 1370, width: 320, height: 10, borderRadius: 5, background: "rgba(255,255,255,0.85)" });
+  text(c, "martes 18 de noviembre", { left: 0, top: 62, width: W, textAlign: "center", fontSize: "34px", fontWeight: 600, color: "rgba(255,255,255,0.86)" }, "abs ui");
+  glassText(c, { text: "10:30", x: "center", y: 104, size: 190, bg, band: 24, scale: 64 });
+  const hw = 330, hp = glassPanel(c, { x: (W - hw) / 2, y: 462, w: hw, h: 86, r: 43, bg, tint: "rgba(255,255,255,0.10)", dark: true, band: 26, scale: 40 });
+  text(hp, "HASTA", { left: 0, top: 18, width: hw, textAlign: "center", fontSize: "44px", letterSpacing: "0.28em", textIndent: "0.28em", color: "#fff" }, "abs wm");
+  text(c, "$35,193", { left: 0, top: 560, width: W, textAlign: "center", fontSize: "262px", lineHeight: "310px", ...goldFill }, "abs wm");
+  ["PUEDES RETIRAR DINERO DE TU AFORE", "POR DESEMPLEO."].forEach((s, i) =>
+    text(c, s, { left: 0, top: 892 + i * 54, width: W, textAlign: "center", fontSize: "42px", fontWeight: 600, color: "#fff", letterSpacing: "0.02em" }, "abs ui"));
+  const pl = glassPanel(c, { x: 330, y: 1118, w: 780, h: 170, r: 54, bg, tint: "rgba(255,255,255,0.08)", dark: true });
+  photo(pl, IMG.plaza, 28, 28, 114, 114, "50% 25%", { borderRadius: "22px" });
+  text(pl, "Tech House Vibes", { left: 168, top: 34, fontSize: "32px", fontWeight: 700, color: "#fff" }, "abs ui");
+  text(pl, "Mixkit", { left: 168, top: 76, fontSize: "26px", fontWeight: 500, color: "rgba(255,255,255,0.65)" }, "abs ui");
+  div(pl, { left: 168, top: 126, width: 560, height: 6, borderRadius: 3, background: "rgba(255,255,255,0.25)" });
+  div(pl, { left: 168, top: 126, width: 250, height: 6, borderRadius: 3, background: "#e2c27a" });
+  const ic = div(pl, { left: 650, top: 36, width: 90, height: 56 });
+  ic.innerHTML = `<svg width="90" height="56" viewBox="0 0 90 56"><rect x="14" y="10" width="11" height="34" rx="3" fill="#fff"/><rect x="35" y="10" width="11" height="34" rx="3" fill="#fff"/><path d="M62 12 L80 27 L62 42 Z" fill="#fff"/></svg>`;
+  div(c, { left: 590, top: 1380, width: 260, height: 9, borderRadius: 5, background: "rgba(255,255,255,0.85)" });
 };
 
-// 3. STAGE — teléfono, ventana del navegador con la foto de la asesoría como hero
+// 3. STAGE — la ventana llena el cuadro; el teléfono entra por la orilla
 scenes.stage = (t) => {
   const c = cam(); setCam(1.0, 720, 720);
   c.style.background = "var(--ivory)";
-  // ventana
-  const wx = 370, wy = 120, ww = 1030, wh = 1040;
-  const win = div(c, { left: wx, top: wy, width: ww, height: wh, borderRadius: 34, background: "#fff", overflow: "hidden", boxShadow: "0 30px 60px rgba(30,20,10,0.18), 0 0 0 1.5px rgba(0,0,0,0.08)" });
-  div(win, { left: 0, top: 0, width: ww, height: 96, background: "#ece7de" });
-  [0, 1, 2].forEach((i) => div(win, { left: 30 + i * 30, top: 40, width: 16, height: 16, borderRadius: 8, background: "#c9c2b6" }));
-  const tab = div(win, { left: 150, top: 22, width: 330, height: 56, borderRadius: 16, background: "#fff" });
-  div(tab, { left: 20, top: 18, width: 20, height: 20, borderRadius: 10, background: "#0e0e0f" });
-  text(tab, "AFORE PRO", { left: 52, top: 15, fontSize: "24px", fontWeight: 700, color: "#0b0b0c" }, "abs ui");
-  text(win, "+", { left: 504, top: 22, fontSize: "40px", color: "#8b8478" }, "abs ui");
+  const wx = 150, wy = 70, ww = 1250, wh = 1330;
+  const win = div(c, { left: wx, top: wy, width: ww, height: wh, borderRadius: 38, background: "#fbf8f2", overflow: "hidden", boxShadow: "0 50px 90px -40px rgba(30,24,14,0.45), 0 0 0 1.5px rgba(20,16,10,0.08)" });
+  div(win, { left: 0, top: 0, width: ww, height: 86, background: "#eee8dc" });
+  [0, 1, 2].forEach((i) => div(win, { left: 34 + i * 30, top: 36, width: 15, height: 15, borderRadius: 8, background: "#cfc7b9" }));
+  const tab = div(win, { left: 160, top: 18, width: 380, height: 54, borderRadius: 16, background: "#fbf8f2" });
+  const fav = div(tab, { left: 16, top: 11, width: 32, height: 32, borderRadius: 9, overflow: "hidden", background: EMERALD });
+  logo(fav, -2, -2, 36);
+  text(tab, "AFORE PRO", { left: 60, top: 14, fontSize: "23px", fontWeight: 700, color: "#141414" }, "abs ui");
   // hero
-  const hx = 0, hy = 96, hw = ww, hh = 640;
-  const heroBg = (el) => photo(el, IMG.oficina, wx + hx, wy + hy, hw, hh, "50% 40%");
-  photo(win, IMG.oficina, hx, hy, hw, hh, "50% 40%");
-  const navBg = (el) => heroBg(el);
-  const nav = glassPanel(c, { x: wx + 34, y: wy + hy + 30, w: ww - 68, h: 104, r: 52, bg: navBg, tint: "rgba(255,255,255,0.30)" });
-  text(nav, "AFORE PRO", { left: 40, top: 30, fontSize: "36px", color: "#0b0b0c" }, "abs wm");
-  const btn = div(nav, { left: ww - 68 - 250, top: 16, width: 230, height: 72, borderRadius: 36, background: "#0b0b0c" });
-  text(btn, "Contacto", { left: 0, top: 18, width: 230, textAlign: "center", fontSize: "30px", fontWeight: 600, color: "#fff" }, "abs ui");
-  // chips de cristal sobre la foto
+  const hy = 86, hh = 760;
+  const heroBg = (el) => photo(el, IMG.oficina, wx, wy + hy, ww, hh, "50% 42%");
+  photo(win, IMG.oficina, 0, hy, ww, hh, "50% 42%");
+  const nav = glassPanel(c, { x: wx + 36, y: wy + hy + 32, w: ww - 72, h: 108, r: 54, bg: heroBg, tint: "rgba(255,255,255,0.32)" });
+  const badge = div(nav, { left: 14, top: 14, width: 80, height: 80, borderRadius: 40, overflow: "hidden", ...brandSurface({ boxShadow: "inset 0 0 0 1.5px rgba(222,186,110,0.5)" }) });
+  logo(badge, -4, -4, 88);
+  text(nav, "AFORE PRO", { left: 114, top: 32, fontSize: "38px", color: "#0d0d0e" }, "abs wm");
+  const bw = 250, btn = div(nav, { left: ww - 72 - bw - 16, top: 16, width: bw, height: 76, borderRadius: 38, background: "#0b0b0c", boxShadow: "inset 0 0 0 1.5px rgba(222,186,110,0.55)" });
+  text(btn, "Contacto", { left: 0, top: 19, width: bw, textAlign: "center", fontSize: "31px", fontWeight: 600, color: "#fff" }, "abs ui");
   const chips = ["ASESORÍA PERSONALIZADA", "ATENCIÓN PROFESIONAL", "ACOMPAÑAMIENTO DURANTE EL PROCESO"];
-  const mg = document.createElement("canvas").getContext("2d"); mg.font = '700 26px "Geist"';
+  const mg = document.createElement("canvas").getContext("2d"); mg.font = '700 27px "Geist"';
   chips.forEach((s, i) => {
-    const w = Math.ceil(mg.measureText(s).width + 26 * 0.01 * s.length) + 64;
-    const x = wx + ww - 34 - w, y = wy + hy + hh - 92 - (2 - i) * 86;
-    const ch = glassPanel(c, { x, y, w, h: 72, r: 36, bg: heroBg, tint: "rgba(255,255,255,0.34)", band: 22, scale: 34 });
-    text(ch, s, { left: 0, top: 21, width: w, textAlign: "center", fontSize: "26px", fontWeight: 700, color: "#0b0b0c", letterSpacing: "0.01em" }, "abs ui");
+    const w = Math.ceil(mg.measureText(s).width) + 120, x = wx + ww - 40 - w, y = wy + hy + hh - 100 - (2 - i) * 92;
+    const ch = glassPanel(c, { x, y, w, h: 76, r: 38, bg: heroBg, tint: "rgba(255,255,255,0.40)", band: 22, scale: 34 });
+    const ck = div(ch, { left: 14, top: 14, width: 48, height: 48, borderRadius: 24, background: "#0f2f2b" });
+    ck.innerHTML = `<svg width="48" height="48" viewBox="0 0 48 48"><path d="M14 25 L21 32 L35 17" fill="none" stroke="#e2c27a" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    text(ch, s, { left: 78, top: 22, fontSize: "27px", fontWeight: 700, color: "#0d0d0e" }, "abs ui");
   });
-  // titular
-  riseText(win, "TU RETIRO MERECE", { x: 54, y: hy + hh + 64, h: 76, p: 1, style: { fontSize: "64px", color: "#0b0b0c" } });
-  riseText(win, "UNA BUENA ASESORÍA.", { x: 54, y: hy + hh + 140, h: 76, p: 1, style: { fontSize: "64px", color: "#0b0b0c" } });
-  // teléfono (la pantalla de bloqueo, con su isla)
-  const fx = 40, fy = 660, fw = 300, fh = 640;
-  const ph = div(c, { left: fx, top: fy, width: fw, height: fh, borderRadius: 70, background: "#0b0b0c", boxShadow: "0 30px 60px rgba(30,20,10,0.22)" });
-  const scr = div(ph, { left: 14, top: 14, width: fw - 28, height: fh - 28, borderRadius: 58, overflow: "hidden" });
-  photo(scr, IMG.cometa, 0, 0, fw - 28, fh - 28, "48% 50%");
-  text(scr, "10:30", { left: 0, top: 96, width: fw - 28, textAlign: "center", fontSize: "80px", color: "#fff" }, "abs wm");
-  text(scr, "HASTA", { left: 0, top: 268, width: fw - 28, textAlign: "center", fontSize: "20px", letterSpacing: "0.3em", color: "#fff" }, "abs wm");
-  text(scr, "$35,193", { left: 0, top: 290, width: fw - 28, textAlign: "center", fontSize: "56px", color: "#fff" }, "abs wm");
-  div(scr, { left: (fw - 28) / 2 - 50, top: 22, width: 100, height: 30, borderRadius: 15, background: "#000" });
-  // cursor: mantiene presionada la foto y la arrastra hacia la pestaña
-  clickRing(c, 700, 560, 0.5);
-  cursor(c, 700, 560, 1.15, 1);
+  riseText(win, "TU RETIRO MERECE", { x: 64, y: hy + hh + 70, h: 88, p: 1, style: { fontSize: "74px", color: "#0d0d0e" } });
+  const l2 = riseText(win, "UNA BUENA ", { x: 64, y: hy + hh + 158, h: 88, p: 1, style: { fontSize: "74px", color: "#0d0d0e" } });
+  l2.innerHTML = 'UNA BUENA <span style="color:#14463f">ASESORÍA.</span>';
+  // teléfono que entra por la orilla inferior izquierda
+  const fx = 1020, fy = 1190, fw = 380, fh = 800;
+  const ph = div(c, { left: fx, top: fy, width: fw, height: fh, borderRadius: 74, background: "#0b0b0c", boxShadow: "0 40px 80px -30px rgba(30,24,14,0.5), inset 0 0 0 2px #2a2a2c" });
+  const scr = div(ph, { left: 14, top: 14, width: fw - 28, height: fh - 28, borderRadius: 62, overflow: "hidden" });
+  photo(scr, IMG.cometa, 0, 0, fw - 28, fh - 28, "48% 50%", { filter: "brightness(0.85)" });
+  text(scr, "10:30", { left: 0, top: 100, width: fw - 28, textAlign: "center", fontSize: "92px", color: "#fff" }, "abs wm");
+  text(scr, "HASTA", { left: 0, top: 290, width: fw - 28, textAlign: "center", fontSize: "22px", letterSpacing: "0.3em", textIndent: "0.3em", color: "#fff" }, "abs wm");
+  text(scr, "$35,193", { left: 0, top: 316, width: fw - 28, textAlign: "center", fontSize: "70px", ...goldFill }, "abs wm");
+  div(scr, { left: (fw - 28) / 2 - 56, top: 22, width: 112, height: 34, borderRadius: 17, background: "#000" });
+  clickRing(c, 760, 640, 0.5);
+  cursor(c, 760, 640, 1.1, 1);
 };
 
-// 4. WALL — el cuadro colgado en la pared real; llamada a la acción y logotipo
+// 4. WALL — el cuadro en la pared real; firma de marca con el logotipo y el WhatsApp
 scenes.wall = (t) => {
   const c = cam(); setCam(1.0, 720, 720);
   photo(c, IMG.pared, 0, 0, W, W);
-  riseText(c, "¿QUIERES SABER CUÁNTO", { x: 0, y: 70, h: 92, p: 1, style: { fontSize: "78px", color: "#0b0b0c", width: W + "px", textAlign: "center" } });
-  riseText(c, "PUEDES RETIRAR?", { x: 0, y: 160, h: 92, p: 1, style: { fontSize: "78px", color: "#0b0b0c", width: W + "px", textAlign: "center" } });
-  // cuadro: moldura negra, paspartú y la foto
-  const s = 500, mat = 40, mold = 20, tot = s + 2 * (mat + mold), fx = (W - tot) / 2, fy = 280;
-  div(c, { left: fx + 18, top: fy + 26, width: tot, height: tot, background: "rgba(40,25,10,0.28)", filter: "blur(14px)" });
-  const fr = div(c, { left: fx, top: fy, width: tot, height: tot, background: "#121212" });
-  const mt = div(fr, { left: mold, top: mold, width: s + 2 * mat, height: s + 2 * mat, background: "#f6f2ea", boxShadow: "inset 0 3px 6px rgba(0,0,0,0.25)" });
+  riseText(c, "¿QUIERES SABER CUÁNTO", { x: 0, y: 56, h: 88, p: 1, style: { fontSize: "74px", color: "#0d0d0e", width: W + "px", textAlign: "center" } });
+  riseText(c, "PUEDES RETIRAR?", { x: 0, y: 140, h: 88, p: 1, style: { fontSize: "74px", color: "#0d0d0e", width: W + "px", textAlign: "center" } });
+  const s = 460, mat = 40, mold = 18, tot = s + 2 * (mat + mold), fx = (W - tot) / 2, fy = 262;
+  div(c, { left: fx + 16, top: fy + 24, width: tot, height: tot, background: "rgba(48,30,10,0.32)", filter: "blur(16px)" });
+  const fr = div(c, { left: fx, top: fy, width: tot, height: tot, background: "linear-gradient(135deg, #2a2a2a, #111 40%, #0b0b0b)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.08)" });
+  const mt = div(fr, { left: mold, top: mold, width: s + 2 * mat, height: s + 2 * mat, background: "#f7f3eb", boxShadow: "inset 0 4px 8px rgba(0,0,0,0.22)" });
   photo(mt, IMG.familia, mat, mat, s, s, "50% 60%");
-  // botón de WhatsApp
-  const bx = 250, by = fy + tot + 34, bw = 940, bh = 140;
-  const b = div(c, { left: bx, top: by, width: bw, height: bh, borderRadius: bh / 2, background: "#0b0b0c" });
-  const ic = div(b, { left: 32, top: 28, width: 84, height: 84, borderRadius: 42, background: "#25d366" });
-  ic.innerHTML = `<svg width="84" height="84" viewBox="0 0 84 84"><path d="M42 20c-12.2 0-22 9.3-22 20.8 0 4.3 1.4 8.3 3.8 11.6L21 63l11.3-3.2c2.9 1.4 6.2 2.2 9.7 2.2 12.2 0 22-9.3 22-20.8S54.2 20 42 20z" fill="#fff"/></svg>`;
-  text(b, "CONTÁCTANOS POR WHATSAPP", { left: 146, top: 20, fontSize: "32px", fontWeight: 700, color: "rgba(255,255,255,0.85)", letterSpacing: "0.04em" }, "abs ui");
-  text(b, "618 367 7047", { left: 144, top: 54, fontSize: "68px", color: "#fff" }, "abs wm");
-  // logotipo original sobre negro + ubicación
-  const lg = div(c, { left: 610, top: by + bh + 22, width: 220, height: 220, borderRadius: 36, background: "#0b0b0b", overflow: "hidden" });
-  softEdges(photo(lg, IMG.logo, 0, 0, 220, 220, "center", { backgroundSize: "contain", backgroundRepeat: "no-repeat" }));
-  text(c, "DURANGO, DURANGO", { left: 0, top: by + bh + 254, width: W, textAlign: "center", fontSize: "28px", fontWeight: 700, letterSpacing: "0.2em", color: "#2a2117" }, "abs ui");
-  text(c, "Asesoría privada. El trámite oficial es gratuito. No se garantiza autorización ni monto. Honorarios: 30% de lo retirado.",
-    { left: 60, top: 1398, width: 1320, textAlign: "center", fontSize: "21px", fontWeight: 600, color: "rgba(42,33,23,0.9)" }, "abs ui");
+  // firma: superficie de marca con el logotipo, regla dorada y el WhatsApp
+  const bx = 120, by = fy + tot + 40, bw = 1200, bh = 300;
+  const bar = div(c, { left: bx, top: by, width: bw, height: bh, borderRadius: 56, overflow: "hidden", ...brandSurface() });
+  logo(bar, 18, 6, 288);
+  goldRule(bar, 330, 60, 180);
+  text(bar, "CONTÁCTANOS POR WHATSAPP", { left: 376, top: 58, fontSize: "30px", fontWeight: 700, letterSpacing: "0.1em", color: "#e2c27a" }, "abs ui");
+  text(bar, "618 367 7047", { left: 372, top: 100, fontSize: "100px", lineHeight: "110px", color: "#fff" }, "abs wm");
+  text(bar, "DURANGO, DURANGO", { left: 378, top: 222, fontSize: "26px", fontWeight: 600, letterSpacing: "0.26em", color: "rgba(226,226,222,0.75)" }, "abs ui");
+  ["Asesoría privada. El trámite oficial es gratuito. No se garantiza autorización ni monto.", "Honorarios: 30% de lo retirado."].forEach((s, i) =>
+    text(c, s, { left: 0, top: by + bh + 26 + i * 30, width: W, textAlign: "center", fontSize: "22px", fontWeight: 600, color: "rgba(40,30,18,0.9)" }, "abs ui"));
 };
 
 // ------------------------------------------------------------- seek ---------
