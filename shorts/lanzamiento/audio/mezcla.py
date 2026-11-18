@@ -43,7 +43,8 @@ for v0, s0, d in TRAMOS:
 cola = int(0.12 * SR); musica[-cola:] *= np.linspace(1, 0, cola, dtype=np.float32)[:, None]
 
 # --- voz: una toma por frase, en su lugar --------------------------------------------------------------
-VOZ = [(1, 2.40), (2, 4.87), (3, 9.05), (4, 18.55), (5, 23.35)]
+# cada frase en el segundo que calcula tts.py (su palabra ancla cae en su beat)
+VOZ = [(i + 1, l["inicio"]) for i, l in enumerate(json.load(open("voz/palabras.json")))]
 voz = np.zeros((int(DUR * SR), 1), np.float32)
 for i, t0 in VOZ:
     poner(voz, leer(f"voz/l{i}.mp3", mono=True), t0)
@@ -76,10 +77,13 @@ for t, k, g in EVENTOS:
     poner(sfx, x, t - PICO[k], g)
 
 # --- mezcla: la música baja bajo la voz ------------------------------------------------------------------
-env = np.abs(voz[:, 0])
-k = int(0.12 * SR); env = np.convolve(env, np.ones(k) / k, mode="same")
-duck = 1 - 0.45 * np.clip(env / (env.max() * 0.15 + 1e-9), 0, 1)
-mix = musica * 0.55 * duck[:, None] + voz * 1.0 + sfx * 0.32
+# la música baja cuando hay voz: actividad de voz suavizada (entra en 0.1 s, sale en 0.3 s)
+act = (np.convolve(np.abs(voz[:, 0]), np.ones(2400) / 2400, mode="same") > 0.004).astype(np.float32)
+k = int(0.3 * SR); act = np.convolve(act, np.ones(k) / k, mode="same"); act = np.clip(act * 1.6, 0, 1)
+duck = 1 - 0.76 * act
+mix = musica * 0.55 * duck[:, None] + voz * 1.0 + sfx * 0.42
+for nombre, st in [("musica", musica * 0.55 * duck[:, None]), ("voz", voz), ("efectos", sfx * 0.42)]:  # para revisar el balance
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "f32le", "-ar", str(SR), "-ac", "2", "-i", "-", f"/tmp/stem_{nombre}.wav"], input=st.astype(np.float32).tobytes(), check=True)
 subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "f32le", "-ar", str(SR), "-ac", "2", "-i", "-",
                 "-af", "loudnorm=I=-14:TP=-1.5:LRA=11", "-ar", str(SR), "mezcla.wav"], input=mix.astype(np.float32).tobytes(), check=True)
 def medir(f):
