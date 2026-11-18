@@ -105,7 +105,7 @@ export const SHOTS: Shot[] = [
     { f: 1530, pos: [1.4, 1.45, 3.6], look: [0.4, 1.3, 0], glide: true },
     { f: 1566, pos: [1.25, 1.45, 3.3], look: [0.3, 1.3, 0] },
     { f: 1640, pos: [0, 3.2, 9.5], look: [0, 4.2, -30], fov: 46, glide: true },
-    { f: TOTAL + 1, pos: [2.0, 4.3, 12.0], look: [0.6, 5.6, -30], fov: 46 },
+    { f: TOTAL + 1, pos: [2.2, 4.5, 12.8], look: [0.2, 5.6, -30], fov: 46 },
   ] },
 ];
 export const FLASHES = SHOTS.slice(1).map((s) => s.a);
