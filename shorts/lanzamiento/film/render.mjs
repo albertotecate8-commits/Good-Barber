@@ -1,20 +1,21 @@
 // Graba el comercial: 60 fps, 4 subcuadros por cuadro mezclados con ffmpeg tmix.
 // Por tramos de 120 cuadros (out/tramos/f_NNNN.mp4 + .ok); si se corta, al volver a correrlo sigue donde iba.
-// Uso: node film/render.mjs [trabajadores=2]
+// Uso: node film/render.mjs [trabajadores=2] [con_numero|sin_numero]
 import { createRequire } from "node:module"; import path from "node:path"; import fs from "node:fs"; import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url"; import { servir } from "./servidor.mjs";
 const { chromium } = createRequire(import.meta.url)("playwright");
 const dir = path.dirname(fileURLToPath(import.meta.url)), root = path.resolve(dir, "..");
-const FPS = 60, SUB = 4, TOTAL = 27.0, N = Math.round(TOTAL * FPS), CH = 120;
-const outDir = path.join(root, "out", "tramos"); fs.mkdirSync(outDir, { recursive: true });
+const FPS = 30, SUB = 4, TOTAL = 27.0, N = Math.round(TOTAL * FPS), CH = 120;
+const VAR = process.argv[3] || "con_numero"; // con_numero | sin_numero
+const outDir = path.join(root, "out", "vertical_" + VAR); fs.mkdirSync(outDir, { recursive: true });
 const tramos = []; for (let a = 0; a < N; a += CH) tramos.push([a, Math.min(N, a + CH)]);
 const pend = tramos.filter(([a]) => !fs.existsSync(path.join(outDir, `f_${String(a).padStart(4, "0")}.mp4.ok`)));
 const { s, url } = await servir(root);
 const b = await chromium.launch();
 async function trabajador(id) {
-  const p = await b.newPage({ viewport: { width: 1440, height: 1440 } });
+  const p = await b.newPage({ viewport: { width: 1080, height: 1920 } });
   p.on("pageerror", (e) => console.log(`[${id}] error`, e.message));
-  await p.goto(url + "/film/index.html");
+  await p.goto(url + "/film/index.html" + (VAR === "sin_numero" ? "?numero=0" : ""));
   const stage = p.locator("#stage");
   while (pend.length) {
     const [a, z] = pend.shift(), name = path.join(outDir, `f_${String(a).padStart(4, "0")}.mp4`);
@@ -37,5 +38,5 @@ await Promise.all(Array.from({ length: Number(process.argv[2] || 2) }, (_, i) =>
 await b.close(); s.close();
 const lista = tramos.map(([a]) => `file 'f_${String(a).padStart(4, "0")}.mp4'`).join("\n");
 fs.writeFileSync(path.join(outDir, "lista.txt"), lista);
-const cc = spawn("ffmpeg", ["-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", path.join(outDir, "lista.txt"), "-c", "copy", path.join(root, "out", "video.mp4")], { stdio: "inherit" });
+const cc = spawn("ffmpeg", ["-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", path.join(outDir, "lista.txt"), "-c", "copy", path.join(outDir, "video.mp4")], { stdio: "inherit" });
 cc.on("close", (code) => console.log(code === 0 ? `LISTO ${N} cuadros` : "FALLO al juntar"));

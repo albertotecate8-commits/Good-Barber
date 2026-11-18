@@ -5,7 +5,7 @@ import edge_tts
 VOZ = "en-US-BrianMultilingualNeural"
 # (texto, palabra ancla, segundo del video en que debe sonar esa palabra)
 LINEAS = [
-    ("¿Sin empleo?", "Sin", 3.62),
+    ("¿Sabías que existe el retiro por desempleo?", "Sabías", 2.0),
     ("Podrías retirar hasta treinta y cinco mil ciento noventa y tres pesos de tu Afore.", "treinta", 6.0),
     ("Solo tres requisitos:", "Solo", 9.6),
     ("No estar dado de alta en el IMSS.", "No", 11.22),

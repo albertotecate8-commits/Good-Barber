@@ -7,9 +7,9 @@ const out = process.argv[2] || "/tmp/cuadros"; fs.mkdirSync(out, { recursive: tr
 let ts = process.argv[3] || "beats";
 ts = ts === "beats" ? Array.from({ length: 54 }, (_, i) => i * 0.5 + 0.25) : ts.split(",").map(Number);
 const { s, url } = await servir(root);
-const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 1440, height: 1440 } });
+const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 1080, height: 1920 } });
 p.on("pageerror", (e) => console.log("[error]", e.message)); p.on("console", (m) => { if (m.type() === "error" || m.text().startsWith("sin")) console.log("[pág]", m.text()); });
-await p.goto(url + "/film/index.html");
+await p.goto(url + "/film/index.html" + (process.env.SIN_NUMERO ? "?numero=0" : ""));
 for (const t of ts) {
   const t0 = Date.now();
   await p.evaluate((t) => window.seek(t), t);

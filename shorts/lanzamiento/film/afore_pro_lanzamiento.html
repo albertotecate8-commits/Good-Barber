@@ -8,7 +8,7 @@
 @font-face { font-family: "Geist"; src: url("../fonts/geist-variable.woff2") format("woff2"); font-weight: 100 900; }
 :root { --ivory: #f2ece1; --ink: #0b0b0c; }
 html, body { margin: 0; padding: 0; background: var(--ivory); }
-#stage { position: relative; width: 1440px; height: 1440px; overflow: hidden; background: var(--ivory); }
+#stage { position: relative; width: 1080px; height: 1920px; overflow: hidden; background: var(--ivory); }
 #cam { position: absolute; left: 0; top: 0; width: 1440px; height: 1440px; transform-origin: 0 0; }
 .abs { position: absolute; }
 .wm { font-family: "Archivo"; font-weight: 800; font-stretch: 125%; letter-spacing: -0.01em; }
@@ -256,7 +256,9 @@ function softEdges(el) {
 }
 const cam = () => document.getElementById("cam");
 function setCam(zoom, fx, fy) { // zoom tipo screen-studio: (fx, fy) queda al centro
-  cam().style.transform = `translate(${720 - fx * zoom}px, ${720 - fy * zoom}px) scale(${zoom})`;
+  // escenario vertical 1080×1920: el diseño (coordenadas de 1440) se escala ×0.75 y su centro va al centro de la pantalla
+  const k = zoom * 0.75;
+  cam().style.transform = `translate(${540 - fx * k}px, ${960 - fy * k}px) scale(${k})`;
 }
 
 // ============================================================ escenas ========
@@ -275,6 +277,13 @@ const goldRule = (parent, x, y, h) => div(parent, { left: x, top: y, width: 2, h
 // guardan cálculos puros (mapas de distancia), nunca estado de animación.
 // ============================================================================
 const TOTAL = 27.0;
+// Formato vertical 9:16: en coordenadas de diseño el cuadro mide 1440 × 2560 y el cuadrado de 1440 queda centrado.
+const H = 2560, Y0 = (H - 1440) / 2;
+const BL = { x: -60, y: -Y0 - 320, w: 1440 + 120, h: H + 640 }; // fondos a sangre (cubren aunque la cámara se mueva)
+const bleed = (el, src, pos, extra = {}) => photo(el, src, BL.x, BL.y, BL.w, BL.h, pos, extra);
+// el gancho (antes «¿ESTÁS SIN EMPLEO?»)
+const SIN_NUMERO = new URLSearchParams(location.search).get("numero") === "0"; // ?numero=0 → cierre sin teléfono
+const GANCHO = "¿SABÍAS QUE EXISTE EL RETIRO POR DESEMPLEO?";
 const lerp = (a, b, u) => a + (b - a) * u;
 const seg = (t, a, b) => clamp((t - a) / (b - a));
 const easeOut = (x) => 1 - Math.pow(1 - clamp(x), 3);
@@ -384,8 +393,8 @@ const TILES = [
   { img: "familia", pos: "50% 60%", g: 7, b: [3, 2, 1, 2] },
   { img: "hombre", pos: "75% 8%", size: "260%", g: 8, b: [2, 3, 1, 1] },
 ];
-const bentoRect = ([c0, r0, cs, rs]) => { const m = 70, g = 20, s = (W - 2 * m - 3 * g) / 4; return { x: m + c0 * (s + g), y: m + r0 * (s + g), w: cs * s + (cs - 1) * g, h: rs * s + (rs - 1) * g, r: 26 }; };
-const FULL = { x: 0, y: 0, w: W, h: W, r: 0 };
+const bentoRect = ([c0, r0, cs, rs]) => { const m = 70, g = 20, s = (W - 2 * m - 3 * g) / 4, top = -170, sh = (1640 - 3 * g) / 4; return { x: m + c0 * (s + g), y: top + r0 * (sh + g), w: cs * s + (cs - 1) * g, h: rs * sh + (rs - 1) * g, r: 26 }; };
+const FULL = { x: 0, y: -Y0, w: W, h: H, r: 0 };
 const T1 = { click1: 1.5, irisClose: [1.55, 1.85], irisOpen: 2.0, square: 2.5, plus: 2.6, corners: 2.75, bento: 3.0, click2: 3.5 };
 
 function segOpen(c, t) {
@@ -445,9 +454,12 @@ function segOpen(c, t) {
     }
     // la pregunta, bajo el círculo
     if (t > 2.2 && t < 2.9) {
-      const up = seg(t, 2.2, 2.42), down = seg(t, 2.6, 2.8);
-      const m = div(c, { left: 0, top: 1050, width: W, height: 96, overflow: "hidden", zIndex: 2 });
-      text(m, "¿ESTÁS SIN EMPLEO?", { left: 0, top: (1 - easeOut(up)) * 100 + easeIn(down) * 100, width: W, textAlign: "center", fontSize: "76px", lineHeight: "96px", color: INK }, "abs wm");
+      const up = seg(t, 2.2, 2.42), down = seg(t, 2.6, 2.8), L = ["¿SABÍAS QUE EXISTE EL", "RETIRO POR DESEMPLEO?"];
+      const fs = fitSize(L, 1300, 76), lh = Math.round(fs * 1.25);
+      L.forEach((s, i) => {
+        const m = div(c, { left: 0, top: 1040 + i * lh, width: W, height: lh, overflow: "hidden", zIndex: 2 });
+        text(m, s, { left: 0, top: (1 - easeOut(up)) * lh + easeIn(down) * lh, width: W, textAlign: "center", fontSize: fs + "px", lineHeight: lh + "px", color: INK }, "abs wm");
+      });
     }
   }
   cursorOpen(c, t);
@@ -465,22 +477,23 @@ function cursorAt(t, path) { // path: [t, x, y, down?] — resortes por tramo
 }
 function cursorOpen(c, t) {
   if (t < 0.9 || t > 3.9) return;
-  const P = [[0.9, 1560, 1300], [0.9, 1210, 930], [1.65, 1240, 1240, T1.click1], [2.9, 1090, 330], [3.2, 1000, 260, T1.click2], [3.62, 1700, 900]];
+  const P = [[0.9, 1560, 1300], [0.9, 1210, 930], [1.65, 1240, 1240, T1.click1], [2.9, 900, 120], [3.2, 760, 40, T1.click2], [3.62, 1700, 900]];
   const k = cursorAt(t, P);
   if (t > T1.click1 && t < T1.click1 + 0.45) clickRing(c, 1210, 930, seg(t, T1.click1, T1.click1 + 0.45));
-  if (t > T1.click2 && t < T1.click2 + 0.45) clickRing(c, 1000, 260, seg(t, T1.click2, T1.click2 + 0.45));
+  if (t > T1.click2 && t < T1.click2 + 0.45) clickRing(c, 760, 40, seg(t, T1.click2, T1.click2 + 0.45));
   const cu = cursor(c, k.x, k.y, 1, k.down); cu.style.zIndex = 20;
 }
 
 // ------------------------------------------------------------ escena 2 ------
 // el puente a pantalla completa: MÁS de cristal → gota → barra → slider → luz dorada → lente → esfera
-const PB = (el) => photo(el, IMG.puenteDia, 0, 0, W, W, "55% 50%");
+const PB = (el) => bleed(el, IMG.puenteDia, "55% 50%");
 function puenteOverlay(el, t, r) { // la pregunta sobre la foto que crece
   if (t < 3.72 || t > 4.75) return;
   const up = seg(t, 3.72, 3.95), down = seg(t, 4.5, 4.7);
-  ["¿ESTÁS SIN", "EMPLEO?"].forEach((s, i) => {
-    const m = div(el, { left: 0, top: r.h - 330 + i * 110, width: r.w, height: 110, overflow: "hidden" });
-    text(m, s, { left: 70, top: (1 - easeOut(seg(up, i * 0.25, 1))) * 112 - easeIn(down) * 112, fontSize: "104px", lineHeight: "110px", color: WHITE, whiteSpace: "nowrap", textShadow: "0 2px 18px rgba(0,0,0,0.25)" }, "abs wm");
+  const L = ["¿SABÍAS QUE EXISTE", "EL RETIRO POR", "DESEMPLEO?"], fs = fitSize(L, W - 160, 104), lh = Math.round(fs * 1.08);
+  L.forEach((s, i) => { // en la parte baja, arriba de la zona que tapan los botones del Reel
+    const m = div(el, { left: 0, top: r.h * 0.74 - (L.length - i) * lh, width: r.w, height: lh, overflow: "hidden" });
+    text(m, s, { left: 70, top: (1 - easeOut(seg(up, i * 0.18, 1))) * (lh + 2) - easeIn(down) * (lh + 2), fontSize: fs + "px", lineHeight: lh + "px", color: WHITE, whiteSpace: "nowrap", textShadow: "0 2px 18px rgba(0,0,0,0.25)" }, "abs wm");
   });
 }
 const KNOB = { y: 1206, x0: 470, x1: 970 };
@@ -488,9 +501,9 @@ function segGlass(c, t) {
   // fondo: día, con la versión dorada que entra por barrido siguiendo la perilla
   const knob = t < 5.25 ? 0 : ease(seg(t, 5.25, 5.75));
   const wipeX = lerp(-40, W + 40, knob);
-  const bg = (el) => { PB(el); if (wipeX > 0) { const g = photo(el, IMG.puenteOro, 0, 0, W, W, "55% 50%"); g.style.clipPath = `inset(0 ${W - wipeX}px 0 0)`; } };
+  const bg = (el) => { PB(el); if (wipeX > 0) { const g = bleed(el, IMG.puenteOro, "55% 50%"); g.style.clipPath = `inset(0 ${BL.w - (wipeX - BL.x)}px 0 0)`; } };
   bg(c);
-  if (t < 4.75) puenteOverlay(c, t, FULL);
+  if (t < 4.75) puenteOverlay(div(c, { left: FULL.x, top: FULL.y, width: FULL.w, height: FULL.h }), t, FULL);
   // MÁS de cristal, letra por letra
   if (t >= 4.0 && t < 4.85) {
     const melt = easeIn(seg(t, 4.5, 4.78));
@@ -561,10 +574,10 @@ function segGlass(c, t) {
   }
   // 6.0: la esfera llena el cuadro → pantalla de bloqueo
   if (t >= 6.0) {
-    const R = lerp(210, 1100, easeIn(seg(t, 6.0, 6.24)));
-    const lk = div(c, { left: 0, top: 0, width: W, height: W });
-    lk.style.clipPath = `circle(${R}px at 720px 640px)`;
-    lockscreen(lk, t);
+    const R = lerp(210, 1800, easeIn(seg(t, 6.0, 6.24)));
+    const lk = div(c, { left: BL.x, top: BL.y, width: BL.w, height: BL.h });
+    lk.style.clipPath = `circle(${R}px at ${720 - BL.x}px ${640 - BL.y}px)`;
+    lockscreen(div(lk, { left: -BL.x, top: -BL.y, width: W, height: W }), t);
   }
   cursorGlass(c, t);
 }
@@ -579,18 +592,18 @@ function cursorGlass(c, t) {
 
 // --------------------------------------------- pantalla de bloqueo (6–18 s) --
 function lockBg(el) {
-  photo(el, IMG.cometa, 0, 0, W, W, "50% 62%", { filter: "saturate(1.08) contrast(1.08) brightness(0.86)" });
-  div(el, { left: 0, top: 0, width: W, height: W, background: "linear-gradient(180deg, rgba(6,12,22,0.40), rgba(6,12,22,0) 34%, rgba(7,24,22,0.55) 72%, rgba(7,24,22,0.85))" });
+  bleed(el, IMG.cometa, "50% 55%", { filter: "saturate(1.08) contrast(1.08) brightness(0.86)" });
+  div(el, { left: BL.x, top: BL.y, width: BL.w, height: BL.h, background: "linear-gradient(180deg, rgba(6,12,22,0.40), rgba(6,12,22,0) 34%, rgba(7,24,22,0.55) 72%, rgba(7,24,22,0.85))" });
 }
 function lockscreen(c, t, sinFondo = false) {
   if (!sinFondo) lockBg(c);
   const toUI = t > 8.0 ? spring(t - 8.0, { f: 1.9, z: 0.8 }) : 0; // 8.0: se vuelve interfaz
-  const outUp = easeIn(seg(t, 8.0, 8.3)) * 520;
+  const outUp = easeIn(seg(t, 8.0, 8.3)) * 900, LIFT = 250;
   // fecha y reloj de cristal (7.0)
-  if (t > 7.0 && outUp < 500) {
-    const d = div(c, { left: 0, top: 62 - outUp, width: W, height: 44, overflow: "hidden" });
-    text(d, "martes 18 de noviembre", { left: 0, top: (1 - easeOut(seg(t, 7.0, 7.2))) * 44, width: W, textAlign: "center", fontSize: "34px", fontWeight: 600, color: "rgba(255,255,255,0.86)" }, "abs ui");
-    const ck = glassText(c, { text: "10:30", x: "center", y: 104 - outUp, size: 190, bg: lockBg, band: 24, scale: 64 });
+  if (t > 7.0 && outUp < 880) {
+    const d = div(c, { left: 0, top: 62 - LIFT - outUp, width: W, height: 44, overflow: "hidden" });
+    text(d, "miércoles 18 de noviembre", { left: 0, top: (1 - easeOut(seg(t, 7.0, 7.2))) * 44, width: W, textAlign: "center", fontSize: "34px", fontWeight: 600, color: "rgba(255,255,255,0.86)" }, "abs ui");
+    const ck = glassText(c, { text: "10:30", x: "center", y: 104 - LIFT - outUp, size: 190, bg: lockBg, band: 24, scale: 64 });
     ck.el.style.transform = `scale(${pop(t, 7.05)})`; ck.el.style.transformOrigin = "50% 60%";
   }
   // HASTA en cápsula de cristal (6.5)
@@ -616,7 +629,7 @@ function lockscreen(c, t, sinFondo = false) {
     text(m, s, { left: 0, top: (1 - easeOut(seg(t, 6.55 + i * 0.08, 6.8 + i * 0.08))) * 54 + easeIn(seg(t, 8.0, 8.2)) * 54, width: W, textAlign: "center", fontSize: "42px", fontWeight: 600, color: WHITE, letterSpacing: "0.02em", lineHeight: "54px" }, "abs ui");
   });
   // barra de inicio → reproductor (7.5) → hoja de requisitos (8.0)
-  const bar = { x: 590, y: 1380, w: 260, h: 9, r: 5 }, player = { x: 330, y: 1118, w: 780, h: 170, r: 54 }, sheet = { x: 150, y: 250, w: 1140, h: 1080, r: 64 };
+  const bar = { x: 590, y: 1440, w: 260, h: 9, r: 5 }, player = { x: 330, y: 1230, w: 780, h: 170, r: 54 }, sheet = { x: 150, y: 250, w: 1140, h: 1080, r: 64 };
   const pg = t > 7.5 ? spring(t - 7.5, { f: 2.0, z: 0.72 }) : 0;
   let R = rectLerp(bar, player, pg);
   if (toUI > 0) R = rectLerp(R, sheet, toUI);
@@ -719,8 +732,8 @@ function phoneScreen(c, t, P, bez) {
   const ph = box(c, { x: P.x - bez, y: P.y - bez, w: P.w + 2 * bez, h: P.h + 2 * bez, r: P.r + bez }, { background: "#0b0b0c", boxShadow: bez > 4 ? "0 40px 80px -30px rgba(30,24,14,0.5), inset 0 0 0 2px #2a2a2c" : "none", zIndex: 6 });
   const scr = div(ph, { left: bez, top: bez, width: P.w, height: P.h, borderRadius: P.r, overflow: "hidden" });
   // la pantalla de bloqueo cabe completa por ancho (sin recortes); el fondo llena la pantalla alta
-  const kb = P.h / W, k = P.w / W;
-  lockBg(div(scr, { left: (P.w - W * kb) / 2, top: 0, width: W, height: W, transform: `scale(${kb})`, transformOrigin: "0 0" }));
+  const k = P.w / W;
+  lockBg(div(scr, { left: 0, top: (P.h - W * k) / 2, width: W, height: W, transform: `scale(${k})`, transformOrigin: "0 0" }));
   const inner = div(scr, { left: 0, top: (P.h - W * k) / 2, width: W, height: W, transform: `scale(${k})`, transformOrigin: "0 0" });
   lockscreen(inner, Math.min(t, 17.95), true);
   return ph;
@@ -729,8 +742,7 @@ function segStage(c, t) {
   c.style.background = "var(--ivory)";
   // 18.0–18.4: el cuadro se encoge al teléfono y el bisel crece desde la orilla
   const pb = spring(t - 18.0, { f: 1.5, z: 0.85 });
-  let P = rectLerp({ x: -W * 0.25, y: 0, w: W * 1.5, h: W, r: 0 }, PHONE, pb);
-  if (pb < 0.999) P = rectLerp({ x: 0, y: 0, w: W, h: W, r: 0 }, PHONE, pb);
+  let P = rectLerp(FULL, PHONE, pb);
   const bez = 14 * easeOut(seg(t, 18.15, 18.4));
   // 19.0–19.5: el teléfono se va a la esquina
   const corner = t > 19.0 ? spring(t - 19.0, { f: 1.8, z: 0.85 }) : 0;
@@ -923,14 +935,14 @@ async function wallFrame(t) { // cuadro del video de la pared (blob URL, se espe
   const v = window.__pared; if (!v) return null;
   const want = clamp(t - 23.9, 0, v.duration - 0.05);
   if (Math.abs(v.currentTime - want) > 1e-3) { await new Promise((r) => { v.onseeked = r; v.currentTime = want; }); }
-  const cv = document.createElement("canvas"); cv.width = W; cv.height = W; cv.getContext("2d").drawImage(v, 0, 0, W, W);
+  const cv = document.createElement("canvas"); cv.width = v.videoWidth; cv.height = v.videoHeight; cv.getContext("2d").drawImage(v, 0, 0);
   return cv.toDataURL("image/jpeg", 0.92);
 }
 function segWall(c, t, wallUrl) {
   // debajo, mientras inunda: la escena anterior
   if (t < 23.56) segOrder(c, t);
   else {
-    const wbg = (el) => { if (wallUrl) photo(el, wallUrl, 0, 0, W, W); else photo(el, IMG.pared, 0, 0, W, W); };
+    const wbg = (el) => bleed(el, wallUrl || IMG.pared, "50% 50%");
     wbg(c);
     // pregunta (24.5)
     ["¿QUIERES SABER CUÁNTO", "PUEDES RETIRAR?"].forEach((s, i) =>
@@ -958,11 +970,14 @@ function segWall(c, t, wallUrl) {
       const bar = div(m, { left: 120, top: 20 + (1 - up) * 360, width: 1200, height: 300, borderRadius: 56, overflow: "hidden", ...brandSurface() });
       const lg = logo(bar, 18, 6, 288); lg.style.transform = `scale(${pop(t, 25.25)})`;
       goldRule(bar, 330, 60, 180 * easeOut(seg(t, 25.15, 25.35)));
-      riseText(bar, "CONTÁCTANOS POR WHATSAPP", { x: 376, y: 52, h: 44, p: seg(t, 25.1, 25.3), style: { fontSize: "30px", fontWeight: 700, letterSpacing: "0.1em", color: GOLDC, lineHeight: "44px" }, cls: "ui" });
-      riseText(bar, "618 367 7047", { x: 372, y: 100, h: 112, p: seg(t, 25.15, 25.38), style: { fontSize: "100px", color: WHITE } });
+      if (!SIN_NUMERO) { // versión con número
+        riseText(bar, "CONTÁCTANOS POR WHATSAPP", { x: 376, y: 52, h: 44, p: seg(t, 25.1, 25.3), style: { fontSize: "30px", fontWeight: 700, letterSpacing: "0.1em", color: GOLDC, lineHeight: "44px" }, cls: "ui" });
+        riseText(bar, "618 367 7047", { x: 372, y: 100, h: 112, p: seg(t, 25.15, 25.38), style: { fontSize: "100px", color: WHITE } });
+      } else { // versión sin número: el mismo lugar, sólo «CONTÁCTANOS POR WHATSAPP»
+        const L = ["CONTÁCTANOS", "POR WHATSAPP"], fs = fitSize(L, 780, 84), lh = Math.round(fs * 1.12);
+        L.forEach((s, i) => riseText(bar, s, { x: 374, y: 46 + i * lh, h: lh, p: seg(t, 25.1 + i * 0.06, 25.33 + i * 0.06), style: { fontSize: fs + "px", color: i ? GOLDC : WHITE, width: "800px" } }));
+      }
       riseText(bar, "DURANGO, DURANGO", { x: 378, y: 218, h: 40, p: seg(t, 25.25, 25.45), style: { fontSize: "26px", fontWeight: 600, letterSpacing: "0.26em", color: "rgba(226,226,222,0.75)", lineHeight: "40px" }, cls: "ui" });
-      ["Asesoría privada. El trámite oficial es gratuito. No se garantiza autorización ni monto.", "Honorarios: 30% de lo retirado."].forEach((s, i) =>
-        riseText(c, s, { x: 0, y: by + 300 + 22 + i * 30, h: 30, p: seg(t, 25.5 + i * 0.06, 25.7 + i * 0.06), style: { fontSize: "22px", fontWeight: 600, color: "rgba(40,30,18,0.9)", width: W + "px", textAlign: "center", lineHeight: "30px" }, cls: "ui" }));
     }
   }
   // negro: inunda desde el botón (23.25–23.55), un beat negro, se contrae en la moldura del cuadro (24.0–24.3)
@@ -970,20 +985,20 @@ function segWall(c, t, wallUrl) {
   if (t < 24.0 && flood > 0) div(c, { left: 900 - 2100 * flood, top: 760 - 2100 * flood, width: 4200 * flood, height: 4200 * flood, borderRadius: "50%", background: "#0b0b0c", zIndex: 30 });
   if (t >= 23.98 && t < 24.36) { // el negro se contrae justo en la moldura (mismo color que la moldura)
     const u = ease(seg(t, 23.98, 24.34));
-    const R = rectLerp({ x: -60, y: -60, w: W + 120, h: W + 120 }, { x: WF.x, y: WF.y, w: WF.tot, h: WF.tot }, u);
+    const R = rectLerp({ x: BL.x, y: BL.y, w: BL.w, h: BL.h }, { x: WF.x, y: WF.y, w: WF.tot, h: WF.tot }, u);
     box(c, R, { background: MOLD, zIndex: 30 });
   }
   // regreso: el marco inunda (26.3–26.58) → píldora (–26.76) → punto (–26.86) → las letras salen (–26.98)
   if (t >= 26.3) {
     const fl = ease(seg(t, 26.3, 26.58));
-    let R = rectLerp({ x: WF.x, y: WF.y, w: WF.tot, h: WF.tot, r: 0 }, { x: -80, y: -80, w: W + 160, h: W + 160, r: 0 }, fl);
+    let R = rectLerp({ x: WF.x, y: WF.y, w: WF.tot, h: WF.tot, r: 0 }, { ...BL, r: 0 }, fl);
     let bg = "#0b0b0c";
     if (t >= 26.58) {
       c.innerHTML = ""; c.style.background = "var(--ivory)";
       const L = wordmarkLayout(), cap = WM.size * 0.72;
       const dot = { x: L.dotX - L.dot / 2, y: WM.y + cap / 2 - L.dot - 2, w: L.dot, h: L.dot, r: L.dot / 2 };
       const u1 = ease(seg(t, 26.58, 26.76)), u2 = ease(seg(t, 26.76, 26.86));
-      R = rectLerp({ x: -80, y: -80, w: W + 160, h: W + 160, r: 0 }, { ...PILL, r: PILL.h / 2 }, u1);
+      R = rectLerp({ ...BL, r: 0 }, { ...PILL, r: PILL.h / 2 }, u1);
       if (u1 >= 1) R = rectLerp({ ...PILL, r: PILL.h / 2 }, dot, u2);
       R.r = Math.min(R.r, R.h / 2);
       bg = null;
@@ -1007,7 +1022,7 @@ async function prepare() {
   await Promise.all(Object.values(IMG).map((u) => new Promise((r) => { const i = new Image(); i.onload = i.onerror = r; i.src = u; })));
   // el video de la pared: se carga como blob URL para poder buscar cuadro por cuadro
   try {
-    const b = await (await fetch("assets/pared_intra.mp4")).blob();
+    const b = await (await fetch("assets/pared_vertical.mp4")).blob();
     const v = document.createElement("video"); v.muted = true; v.preload = "auto"; v.src = URL.createObjectURL(b);
     await new Promise((r) => { v.onloadeddata = r; v.onerror = r; });
     window.__pared = v;
