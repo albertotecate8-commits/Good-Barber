@@ -3,7 +3,7 @@
 Comercial cuadrado 1440×1440, 2D, una sola toma continua, 54 beats a 120 BPM (27 s).
 Campaña: **TU AFORE PUEDE DARTE MÁS.** Wordmark animado: **RETIRA.**
 
-Estado: materiales en reunión. Falta: efectos de sonido de Mixkit y clip de pared de Pexels.
+Estado: materiales en reunión. Falta: clip de pared de Pexels.
 Después: 4 cuadros de prueba (open, glass, stage, wall) para aprobación, luego el video completo.
 
 ## Datos reales (no cambiar)
@@ -31,7 +31,25 @@ Después: 4 cuadros de prueba (open, glass, stage, wall) para aprobación, luego
 | `materiales/foto_asesora_plaza.jpg`, `materiales/foto_angel.jpg` | Cuadrícula bento (+ recortes de las demás) |
 | `audio/cancion_mixkit_tech_house_vibes.mp3` | Música (Mixkit, uso comercial) |
 
-La asesora de las fotos no se presenta como "tu asesora": sólo imagen de marca.
+Paquete completo del cliente en `materiales/paquete/` (ver `LEEME-fotos.md`): incluye además
+`02b-hombre-catedral-traje.jpg` (nuevo) y el par alineado `03-puente-analco-durango-dia.jpg` /
+`03b-puente-analco-durango-dorado-RETOQUE.jpg` (la dorada es retoque de color, avisarlo).
+
+- Personas (01, 02a, 02b, 02c) son imágenes generadas por IA: sólo imagen de marca, nunca "tu asesora".
+- La familia (06) viene de salidasegura.com: **verificar licencia de uso comercial antes de pautar**.
+
+Efectos de sonido (Mixkit, uso comercial) en `audio/sfx/`, con su pico medido:
+
+| Archivo | Pico |
+|---|---|
+| sfx-01-click-doble-mouse.wav | 0.207 s (2.º clic) |
+| sfx-02-pop-largo.wav | 0.034 s |
+| sfx-03-whoosh-aire.wav | 0.715 s |
+| sfx-04-obturador-camara.wav | 0.195 s |
+| sfx-05-gota-agua-cueva.wav | 0.128 s |
+| sfx-06-impacto-grave.mp3 | 0.563 s |
+| sfx-07-swipe-rapido.wav | 0.226 s |
+| sfx-08-tono-notificacion.wav | 0.025 s |
 
 ## Canción: análisis y recorte
 
