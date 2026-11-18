@@ -68,7 +68,7 @@ EVENTOS = [
     (20.0, "click", 0.5), (20.5, "pop", 0.4), (20.55, "whoosh", 0.35), (21.0, "pop", 0.35), (21.08, "pop", 0.3), (21.5, "pop", 0.35),
     (21.75, "swipe", 0.35), (21.85, "click", 0.3), (22.1, "click", 0.3), (22.35, "click", 0.3), (22.6, "click", 0.3),
     (23.2, "click", 0.6), (23.3, "whoosh", 0.5), (24.0, "whoosh", 0.45), (24.5, "obturador", 0.7),
-    (25.0, "swipe", 0.4), (25.25, "pop", 0.45), (26.25, "obturador", 0.6), (26.45, "whoosh", 0.45), (26.86, "impacto", 0.55),
+    (25.0, "swipe", 0.4), (25.25, "pop", 0.45), (26.15, "obturador", 0.6), (26.35, "whoosh", 0.45), (26.86, "impacto", 0.55),
 ]
 sfx = np.zeros((int(DUR * SR), 2), np.float32)
 for t, k, g in EVENTOS:

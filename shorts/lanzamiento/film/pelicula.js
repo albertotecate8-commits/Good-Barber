@@ -311,8 +311,8 @@ function lockBg(el) {
   photo(el, IMG.cometa, 0, 0, W, W, "50% 62%", { filter: "saturate(1.08) contrast(1.08) brightness(0.86)" });
   div(el, { left: 0, top: 0, width: W, height: W, background: "linear-gradient(180deg, rgba(6,12,22,0.40), rgba(6,12,22,0) 34%, rgba(7,24,22,0.55) 72%, rgba(7,24,22,0.85))" });
 }
-function lockscreen(c, t) {
-  lockBg(c);
+function lockscreen(c, t, sinFondo = false) {
+  if (!sinFondo) lockBg(c);
   const toUI = t > 8.0 ? spring(t - 8.0, { f: 1.9, z: 0.8 }) : 0; // 8.0: se vuelve interfaz
   const outUp = easeIn(seg(t, 8.0, 8.3)) * 520;
   // fecha y reloj de cristal (7.0)
@@ -447,15 +447,17 @@ const WIN = { x: 150, y: 70, w: 1250, h: 1330, r: 38 };
 function phoneScreen(c, t, P, bez) {
   const ph = box(c, { x: P.x - bez, y: P.y - bez, w: P.w + 2 * bez, h: P.h + 2 * bez, r: P.r + bez }, { background: "#0b0b0c", boxShadow: bez > 4 ? "0 40px 80px -30px rgba(30,24,14,0.5), inset 0 0 0 2px #2a2a2c" : "none", zIndex: 6 });
   const scr = div(ph, { left: bez, top: bez, width: P.w, height: P.h, borderRadius: P.r, overflow: "hidden" });
-  const k = P.h / W; // la pantalla de bloqueo cabe por alto, recortada a los lados
-  const inner = div(scr, { left: (P.w - W * k) / 2, top: 0, width: W, height: W, transform: `scale(${k})`, transformOrigin: "0 0" });
-  lockscreen(inner, Math.min(t, 17.95));
+  // la pantalla de bloqueo cabe completa por ancho (sin recortes); el fondo llena la pantalla alta
+  const kb = P.h / W, k = P.w / W;
+  lockBg(div(scr, { left: (P.w - W * kb) / 2, top: 0, width: W, height: W, transform: `scale(${kb})`, transformOrigin: "0 0" }));
+  const inner = div(scr, { left: 0, top: (P.h - W * k) / 2, width: W, height: W, transform: `scale(${k})`, transformOrigin: "0 0" });
+  lockscreen(inner, Math.min(t, 17.95), true);
   return ph;
 }
 function segStage(c, t) {
   c.style.background = "var(--ivory)";
   // 18.0–18.4: el cuadro se encoge al teléfono y el bisel crece desde la orilla
-  const pb = spring(t - 18.0, { f: 1.9, z: 0.82 });
+  const pb = spring(t - 18.0, { f: 1.5, z: 0.85 });
   let P = rectLerp({ x: -W * 0.25, y: 0, w: W * 1.5, h: W, r: 0 }, PHONE, pb);
   if (pb < 0.999) P = rectLerp({ x: 0, y: 0, w: W, h: W, r: 0 }, PHONE, pb);
   const bez = 14 * easeOut(seg(t, 18.15, 18.4));
@@ -476,36 +478,50 @@ function island(c, t, P, bez) {
   const goo = div(c, { left: 0, top: 0, width: W, height: W, zIndex: 8 }); goo.style.filter = "url(#goo)";
   const iw = lerp(110, 240, str) * (1 - pinch * 0.35);
   if (t < 19.25) div(goo, { left: cx - iw / 2, top: iy, width: iw, height: 34, borderRadius: 17, background: "#000" });
-  if (pinch > 0) { // la gota que se desprende
-    const s = lerp(34, 120, fly), bx = lerp(cx + iw * 0.3, WIN.x + 200, fly), by = lerp(iy + 4, WIN.y + 40, fly) - Math.sin(fly * Math.PI) * 180;
-    const grow = t > 19.0 ? spring(t - 19.0, { f: 2.0, z: 0.82 }) : 0;
-    if (grow < 0.98) div(goo, { left: lerp(bx - s / 2, WIN.x, grow), top: lerp(by - s / 2, WIN.y, grow), width: lerp(s, WIN.w, grow), height: lerp(s, 86, grow), borderRadius: lerp(s / 2, 38, grow), background: "#000" });
+  if (pinch > 0 && t < 19.0) { // la gota que se desprende
+    const b = blob(t, cx, iw, iy);
+    div(goo, { left: b.x, top: b.y, width: b.w, height: b.h, borderRadius: b.r, background: "#0b0b0c" });
   }
 }
+// la gota (vuela de 18.75 a 19.0); en 19.0 se estira en la barra negra del navegador
+function blob(t, cx, iw, iy) {
+  const fly = spring(t - 18.75, { f: 2.0, z: 0.8 }), s = lerp(34, 120, fly);
+  const bx = lerp(cx + iw * 0.3, WIN.x + 200, fly), by = lerp(iy + 4, WIN.y + 43, fly) - Math.sin(clamp(fly) * Math.PI) * 180;
+  return { x: bx - s / 2, y: by - s / 2, w: s, h: s, r: s / 2 };
+}
+const BLOB_END = () => blob(19.0, PHONE.x + PHONE.w / 2, 240 * (1 - 0.35), PHONE.y + 20);
 function browser(c, t) {
+  if (t < 19.0) return;
   const grow = spring(t - 19.0, { f: 2.0, z: 0.82 });
-  const R = rectLerp({ x: WIN.x + 140, y: WIN.y - 20, w: 120, h: 120, r: 60 }, WIN, grow);
-  const roll = easeOut(seg(t, 19.2, 19.6)); // persiana
-  const win = box(c, { ...R, h: Math.max(86, R.h * (0.065 + 0.935 * roll)) }, { background: "#fbf8f2", overflow: "hidden", boxShadow: "0 50px 90px -40px rgba(30,24,14,0.45), 0 0 0 1.5px rgba(20,16,10,0.08)", zIndex: 4 });
-  const k = R.w / WIN.w;
-  const inner = div(win, { left: 0, top: 0, width: WIN.w, height: WIN.h, transform: `scale(${k})`, transformOrigin: "0 0" });
-  page(inner, t);
-  if (roll > 0 && roll < 1) div(win, { left: 0, top: R.h * (0.065 + 0.935 * roll) - 14, width: R.w, height: 14, background: "linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,0.18))" });
+  const bar = rectLerp(BLOB_END(), { x: WIN.x, y: WIN.y, w: WIN.w, h: 86, r: 38 }, grow);
+  const roll = easeOut(seg(t, 19.2, 19.6)); // persiana: la página baja desde la barra
+  const k = bar.w / WIN.w;
+  const bodyH = (WIN.h - 86) * roll * k;
+  const win = box(c, { x: bar.x, y: bar.y, w: bar.w, h: bar.h + bodyH, r: Math.min(bar.r, bar.h / 2) }, { background: "#0b0b0c", overflow: "hidden", boxShadow: roll > 0 ? "0 50px 90px -40px rgba(30,24,14,0.45)" : "none", zIndex: 4 });
+  if (grow > 0.6) {
+    const inner = div(win, { left: 0, top: 0, width: WIN.w, height: WIN.h, transform: `scale(${k}, ${k})`, transformOrigin: "0 0" });
+    page(inner, t, Math.max(0, (grow - 0.6) / 0.4));
+  }
+  if (roll > 0 && roll < 1) div(win, { left: 0, top: bar.h + bodyH - 14, width: bar.w, height: 14, background: "linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,0.22))" });
+}
+function chrome(p, t, k = 1) { // barra negra del navegador (sale de la isla)
+  div(p, { left: 0, top: 0, width: WIN.w, height: 86, background: "#0b0b0c", zIndex: 3 });
+  [0, 1, 2].forEach((i) => div(p, { left: 34 + i * 30, top: 36, width: 15, height: 15, borderRadius: 8, background: "#3a3a3d", zIndex: 3, transform: `scale(${k})` }));
 }
 // la página: galería → arrastrar foto a la pestaña → la página empuja → hero
-function page(p, t) {
-  div(p, { left: 0, top: 0, width: WIN.w, height: 86, background: "#eee8dc" });
-  [0, 1, 2].forEach((i) => div(p, { left: 34 + i * 30, top: 36, width: 15, height: 15, borderRadius: 8, background: "#cfc7b9" }));
-  const tab = div(p, { left: 160, top: 18, width: 380, height: 54, borderRadius: 16, background: "#fbf8f2" });
+function page(p, t, k = 1) {
+  div(p, { left: 0, top: 86, width: WIN.w, height: WIN.h - 86, background: "#fbf8f2" });
+  chrome(p, t, k);
+  const tab = div(p, { left: 160, top: 18, width: 380 * k, height: 54, borderRadius: 16, background: "#1f1f22", overflow: "hidden", zIndex: 3 });
   const fav = div(tab, { left: 16, top: 11, width: 32, height: 32, borderRadius: 9, overflow: "hidden", background: EMERALD });
   logo(fav, -2, -2, 36);
-  text(tab, "AFORE PRO", { left: 60, top: 14, fontSize: "23px", fontWeight: 700, color: "#141414" }, "abs ui");
+  text(tab, "AFORE PRO", { left: 60, top: 14, fontSize: "23px", fontWeight: 700, color: "#f2efe8" }, "abs ui");
   const plus = { x: 572, y: 22 };
   const pushed = t > 20.5 ? spring(t - 20.5, { f: 2.0, z: 0.85 }) : 0;
   // pestaña nueva que nace al soltar
-  if (t > 20.45) { const nt = div(p, { left: 556, top: 18, width: 380 * pop(t, 20.45, { f: 2.6, z: 0.6 }), height: 54, borderRadius: 16, background: "#fff", overflow: "hidden" });
-    text(nt, "Asesoría", { left: 22, top: 14, fontSize: "23px", fontWeight: 700, color: "#141414" }, "abs ui"); }
-  else text(p, "+", { left: plus.x, top: plus.y, fontSize: "40px", color: "#8b8478" }, "abs ui");
+  if (t > 20.45) { const nt = div(p, { left: 556, top: 18, width: 380 * pop(t, 20.45, { f: 2.6, z: 0.6 }), height: 54, borderRadius: 16, background: "#2a2a2e", overflow: "hidden", zIndex: 3 });
+    text(nt, "Asesoría", { left: 22, top: 14, fontSize: "23px", fontWeight: 700, color: "#f2efe8" }, "abs ui"); }
+  else text(p, "+", { left: plus.x, top: plus.y, fontSize: "40px", color: "#8b8b90", zIndex: 3, transform: `scale(${k})` }, "abs ui");
   // página 1: galería (sale empujada a la izquierda)
   const g1 = div(p, { left: -WIN.w * pushed, top: 86, width: WIN.w, height: WIN.h - 86, overflow: "hidden" });
   text(g1, "Nuestro equipo", { left: 64, top: 56, fontSize: "64px", color: INK }, "abs wm");
@@ -582,8 +598,8 @@ function segOrder(c, t) {
   // la ventana y su página siguen; el contenido sube
   const win = box(c, WIN, { background: "#fbf8f2", overflow: "hidden", boxShadow: "0 50px 90px -40px rgba(30,24,14,0.45), 0 0 0 1.5px rgba(20,16,10,0.08)", zIndex: 4 });
   const pg = div(win, { left: 0, top: 0, width: WIN.w, height: WIN.h });
-  div(pg, { left: 0, top: 0, width: WIN.w, height: 86, background: "#eee8dc", zIndex: 3 });
-  [0, 1, 2].forEach((i) => div(pg, { left: 34 + i * 30, top: 36, width: 15, height: 15, borderRadius: 8, background: "#cfc7b9", zIndex: 3 }));
+  chrome(pg, t);
+  [[160, "AFORE PRO", "#1f1f22"], [556, "Asesoría", "#2a2a2e"]].forEach(([x, s, bg]) => { const tb = div(pg, { left: x, top: 18, width: 380, height: 54, borderRadius: 16, background: bg, zIndex: 3 }); text(tb, s, { left: 22, top: 14, fontSize: "23px", fontWeight: 700, color: "#f2efe8" }, "abs ui"); });
   const body = div(pg, { left: 0, top: -360 * sc, width: WIN.w, height: WIN.h + 400 });
   // el hero se encoge a cuadro: paspartú y moldura crecen desde la orilla de la foto
   const HERO = { x: 0, y: 86, w: WIN.w, h: 760 };
@@ -629,6 +645,7 @@ function segOrder(c, t) {
 }
 
 // ------------------------------------------------------------ escena 6 ------
+const MOLD = "#0b0b0c";
 // inunda negro → un beat negro → se contrae en el cuadro de la pared real → iris → firma → regresa
 const WF = (() => { const s = 460, mat = 40, mold = 18, tot = s + 2 * (mat + mold); return { s, mat, mold, tot, x: (W - tot) / 2, y: 262 }; })();
 async function wallFrame(t) { // cuadro del video de la pared (blob URL, se espera «seeked»)
@@ -650,16 +667,17 @@ function segWall(c, t, wallUrl) {
     // el cuadro
     const f = WF;
     div(c, { left: f.x + 16, top: f.y + 24, width: f.tot, height: f.tot, background: "rgba(48,30,10,0.32)", filter: "blur(16px)" });
-    const fr = div(c, { left: f.x, top: f.y, width: f.tot, height: f.tot, background: "linear-gradient(135deg, #2a2a2a, #111 40%, #0b0b0b)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.08)" });
-    const mg = easeOut(seg(t, 24.15, 24.4));
+    const fr = div(c, { left: f.x, top: f.y, width: f.tot, height: f.tot, background: MOLD });
+    const mg = ease(seg(t, 24.36, 24.56));
     const mt = div(fr, { left: f.mold, top: f.mold, width: f.s + 2 * f.mat, height: f.s + 2 * f.mat, background: "#f7f3eb", boxShadow: "inset 0 4px 8px rgba(0,0,0,0.22)", clipPath: `inset(${(1 - mg) * 50}% round 2px)` });
     photo(mt, IMG.familia, f.mat, f.mat, f.s, f.s, "50% 60%");
-    // iris sobre la foto: cerrado al llegar, abre en 24.5, cierra en 26.25
-    const open = t < 24.5 ? 0 : t < 26.25 ? spring(t - 24.5, { f: 2.6, z: 0.5 }) : 1 - ease(seg(t, 26.25, 26.4));
+    // iris sobre la foto: cerrado al llegar, abre en 24.5, cierra en 26.15
+    const open = t < 24.5 ? 0 : t < 26.15 ? spring(t - 24.5, { f: 2.6, z: 0.5 }) : 1 - ease(seg(t, 26.15, 26.3));
     if (open < 1.02) {
       const cl = div(c, { left: 0, top: 0, width: W, height: W });
       const px = f.x + f.mold + f.mat, py = f.y + f.mold + f.mat;
-      cl.style.clipPath = `inset(${py}px ${W - px - f.s}px ${W - py - f.s}px ${px}px)`;
+      const sh = (f.s / 2 + f.mat) * (1 - mg); // crece desde el centro junto con el paspartú
+      cl.style.clipPath = `inset(${Math.max(py, py - f.mat + sh)}px ${Math.max(W - px - f.s, W - px - f.s - f.mat + sh)}px ${Math.max(W - py - f.s, W - py - f.s - f.mat + sh)}px ${Math.max(px, px - f.mat + sh)}px)`;
       irisBrand(cl, { cx: px + f.s / 2, cy: py + f.s / 2, R: f.s * 0.72, open: Math.max(0, open), rot: 0.5 * (1 - Math.min(1, open)) });
     }
     // firma de marca (25.0): logo, regla dorada, WhatsApp y Durango
@@ -677,29 +695,31 @@ function segWall(c, t, wallUrl) {
     }
   }
   // negro: inunda desde el botón (23.25–23.55), un beat negro, se contrae en la moldura del cuadro (24.0–24.3)
-  const flood = easeIn(seg(t, 23.25, 23.55));
+  const flood = ease(seg(t, 23.22, 23.56));
   if (t < 24.0 && flood > 0) div(c, { left: 900 - 2100 * flood, top: 760 - 2100 * flood, width: 4200 * flood, height: 4200 * flood, borderRadius: "50%", background: "#0b0b0c", zIndex: 30 });
-  if (t >= 24.0 && t < 24.32) {
-    const u = easeOut(seg(t, 24.0, 24.3));
+  if (t >= 23.98 && t < 24.36) { // el negro se contrae justo en la moldura (mismo color que la moldura)
+    const u = ease(seg(t, 23.98, 24.34));
     const R = rectLerp({ x: -60, y: -60, w: W + 120, h: W + 120 }, { x: WF.x, y: WF.y, w: WF.tot, h: WF.tot }, u);
-    box(c, R, { background: "#0b0b0c", zIndex: 30 });
+    box(c, R, { background: MOLD, zIndex: 30 });
   }
-  // regreso: el marco inunda (26.4–26.62) → píldora (–26.76) → punto (–26.86) → las letras salen (–26.98)
-  if (t >= 26.4) {
-    const fl = easeIn(seg(t, 26.4, 26.62));
+  // regreso: el marco inunda (26.3–26.58) → píldora (–26.76) → punto (–26.86) → las letras salen (–26.98)
+  if (t >= 26.3) {
+    const fl = ease(seg(t, 26.3, 26.58));
     let R = rectLerp({ x: WF.x, y: WF.y, w: WF.tot, h: WF.tot, r: 0 }, { x: -80, y: -80, w: W + 160, h: W + 160, r: 0 }, fl);
     let bg = "#0b0b0c";
-    if (t >= 26.62) {
+    if (t >= 26.58) {
       c.innerHTML = ""; c.style.background = "var(--ivory)";
       const L = wordmarkLayout(), cap = WM.size * 0.72;
       const dot = { x: L.dotX - L.dot / 2, y: WM.y + cap / 2 - L.dot - 2, w: L.dot, h: L.dot, r: L.dot / 2 };
-      const u1 = ease(seg(t, 26.62, 26.76)), u2 = ease(seg(t, 26.76, 26.86));
+      const u1 = ease(seg(t, 26.58, 26.76)), u2 = ease(seg(t, 26.76, 26.86));
       R = rectLerp({ x: -80, y: -80, w: W + 160, h: W + 160, r: 0 }, { ...PILL, r: PILL.h / 2 }, u1);
       if (u1 >= 1) R = rectLerp({ ...PILL, r: PILL.h / 2 }, dot, u2);
       R.r = Math.min(R.r, R.h / 2);
       bg = null;
       if (t >= 26.86) { drawWordmark(c, backOut(seg(t, 26.86, 26.975)), 1); return; }
-      box(c, R, { ...brandSurface(), zIndex: 30 });
+      // el negro del marco se vuelve el esmeralda de la píldora mientras se contrae (sin salto de color)
+      const sh = box(c, R, { background: "#0b0b0c", overflow: "hidden", zIndex: 30, boxShadow: brandSurface().boxShadow });
+      div(sh, { left: 0, top: 0, width: R.w, height: R.h, background: EMERALD, opacity: ease(seg(t, 26.58, 26.74)) });
       return;
     }
     box(c, R, { background: bg, zIndex: 30 });
