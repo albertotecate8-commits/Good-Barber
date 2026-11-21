@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>GOOD BARBER — 15 s</title>
+<style>
+@font-face { font-family: "Cinzel"; src: url("../fonts/cinzel.woff2") format("woff2"); font-weight: 400 900; }
+@font-face { font-family: "Playfair"; src: url("../fonts/playfair.woff2") format("woff2"); font-weight: 400 900; }
+html, body { margin: 0; background: #000; }
+#stage { position: relative; width: 1080px; height: 1920px; overflow: hidden; background: #070605; }
+#cam { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; transform-origin: 540px 960px; }
+.a { position: absolute; }
+.cz { font-family: "Cinzel", serif; font-weight: 800; }
+.pf { font-family: "Playfair", serif; font-weight: 800; font-variant-numeric: lining-nums; }
+</style>
+</head>
+<body>
+<div id="stage"><div id="cam"></div><canvas id="fx" width="1080" height="1920" style="position:absolute;left:0;top:0"></canvas></div>
+<script>
+// ============================================================================
+// GOOD BARBER — comercial de 15 s (1080×1920). Todo sale de seek(t): cada estilo
+// es función del tiempo; las cachés sólo guardan cálculos puros (textura, medidas).
+// Ritmo: 120 BPM → un golpe cada 0.5 s. Escenas: logo 0–2 · arte 2–5 · precios 5–10
+// · horario 10–12 · cierre 12–15.
+// ============================================================================
+const W = 1080, H = 1920, TOTAL = 15.0;
+const M = (p) => "../materiales/" + p;
+const IMG = { logo: M("logo.png"), fade: M("corte_fade.jpg"), rizos: M("corte_rizos_recorte.jpg") };
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const lerp = (a, b, u) => a + (b - a) * u;
+const ease = (x) => { x = clamp(x); return x * x * x * (x * (6 * x - 15) + 10); };
+const easeOut = (x) => 1 - Math.pow(1 - clamp(x), 3);
+const easeIn = (x) => Math.pow(clamp(x), 3);
+const expoOut = (x) => (x >= 1 ? 1 : 1 - Math.pow(2, -10 * clamp(x)));
+function spring(t, f = 2.4, z = 0.5) { // respuesta de paso cerrada
+  if (t <= 0) return 0; const w = 2 * Math.PI * f, wd = w * Math.sqrt(1 - z * z);
+  return 1 - Math.exp(-z * w * t) * (Math.cos(wd * t) + (z * w / wd) * Math.sin(wd * t));
+}
+const hash = (n) => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+
+// ---------------------------------------------------------------- DOM -------
+function div(p, s = {}, cls = "a") {
+  const d = document.createElement("div"); d.className = cls;
+  for (const [k, v] of Object.entries(s)) d.style[k] = typeof v === "number" && !["opacity", "zIndex", "fontWeight", "flex"].includes(k) ? v + "px" : v;
+  p.appendChild(d); return d;
+}
+function txt(p, s, style, cls = "a cz") { const d = div(p, style, cls); d.textContent = s; return d; }
+function img(p, src, x, y, w, h, pos = "center", extra = {}) { return div(p, { left: x, top: y, width: w, height: h, backgroundImage: `url("${src}")`, backgroundSize: "cover", backgroundPosition: pos, ...extra }); }
+
+// oro metálico: una capa de relieve (profundidad) y encima el degradado con su reflejo que corre
+const GOLD = "linear-gradient(172deg, #fff6cf 0%, #f1d27e 22%, #c8973a 46%, #f7df98 58%, #a8792a 78%, #e9c46e 100%)";
+function gold(p, s, { x, y, w, size, family = "cz", align = "center", sheen = -1, depth = 6, track = 0, color = null, lh = 1.1, weight = 800 }) {
+  const base = { left: x, top: y, width: w, fontSize: size + "px", lineHeight: size * lh + "px", textAlign: align, whiteSpace: "nowrap", letterSpacing: track + "em", fontWeight: weight };
+  const g = div(p, { left: 0, top: 0, width: 0, height: 0 });
+  if (depth > 0 && !color) { // relieve: capas más oscuras hacia abajo
+    const sh = []; for (let i = 1; i <= depth; i++) sh.push(`0 ${i}px 0 rgb(${120 - i * 9},${84 - i * 7},${26 - i * 2})`);
+    sh.push(`0 ${depth + 6}px 18px rgba(0,0,0,0.75)`);
+    txt(g, s, { ...base, color: "#5a3f12", textShadow: sh.join(",") }, "a " + family);
+  }
+  const f = txt(g, s, { ...base, ...(color ? { color } : { backgroundImage: GOLD, webkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }) }, "a " + family);
+  if (sheen > -0.5 && sheen < 1.5) { // destello que recorre las letras
+    const sh = txt(g, s, { ...base, backgroundImage: `linear-gradient(105deg, transparent ${(sheen * 140 - 30)}%, rgba(255,250,225,0.95) ${(sheen * 140 - 18)}%, transparent ${(sheen * 140 - 6)}%)`, webkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }, "a " + family);
+    sh.style.mixBlendMode = "screen";
+  }
+  return g;
+}
+// texto que sube desde una máscara (letra por letra si stagger > 0)
+function kinetic(p, s, { x, y, w, size, t, t0, dur = 0.32, stagger = 0.025, family = "cz", align = "center", color = null, track = 0, sheenAt = null, depth = 5, out = null }) {
+  const m = div(p, { left: x, top: y, width: w, height: size * 1.25, overflow: "hidden" });
+  const meas = measure(s, size, family, track);
+  let cx = align === "center" ? (w - meas.total) / 2 : align === "right" ? w - meas.total : 0;
+  [...s].forEach((ch, i) => {
+    const u = expoOut(seg(t, t0 + i * stagger, t0 + i * stagger + dur));
+    const o = out ? easeIn(seg(t, out + i * stagger * 0.5, out + i * stagger * 0.5 + 0.22)) : 0;
+    const dy = (1 - u) * size * 1.2 - o * size * 1.25;
+    const L = div(m, { left: cx, top: dy, width: meas.w[i] + 4, height: size * 1.25 });
+    if (ch !== " ") gold(L, ch, { x: 0, y: 0, w: meas.w[i] + 4, size, family, align: "left", color, depth, sheen: sheenAt == null ? -1 : (t - sheenAt - i * 0.012) / 0.5, track: 0 });
+    cx += meas.w[i];
+  });
+  return m;
+}
+const measCache = new Map();
+function measure(s, size, family, track = 0) {
+  const k = s + size + family + track; if (measCache.has(k)) return measCache.get(k);
+  const g = document.createElement("canvas").getContext("2d");
+  g.font = `800 ${size}px ${family === "cz" ? "Cinzel" : "Playfair"}`;
+  const w = [...s].map((ch) => g.measureText(ch).width + track * size);
+  const r = { w, total: w.reduce((a, b) => a + b, 0) }; measCache.set(k, r); return r;
+}
+const fitSize = (lines, maxW, base, family = "cz", track = 0) => Math.min(base, Math.floor(base * maxW / Math.max(...lines.map((l) => measure(l, base, family, track).total))));
+
+// ---------------------------------------------------- fondo: piedra negra ---
+let stoneUrl = null;
+function stone() {
+  if (stoneUrl) return stoneUrl;
+  const c = document.createElement("canvas"); c.width = 540; c.height = 960; const g = c.getContext("2d");
+  const im = g.createImageData(540, 960), d = im.data;
+  const noise = (x, y, s) => { const xi = Math.floor(x / s), yi = Math.floor(y / s), fx = x / s - xi, fy = y / s - yi;
+    const h = (a, b) => hash(a * 57 + b * 131 + s); const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);
+    return lerp(lerp(h(xi, yi), h(xi + 1, yi), u), lerp(h(xi, yi + 1), h(xi + 1, yi + 1), u), v); };
+  for (let y = 0; y < 960; y++) for (let x = 0; x < 540; x++) {
+    const n = 0.5 * noise(x, y, 90) + 0.3 * noise(x, y, 24) + 0.2 * noise(x, y, 5);
+    const vein = Math.pow(1 - Math.abs(Math.sin((x * 0.012 + y * 0.004 + 2.2 * noise(x, y, 120)) * 3.1)), 18) * 0.5;
+    const v = 7 + n * 16 + vein * 30, i = (y * 540 + x) * 4;
+    d[i] = v * 1.08; d[i + 1] = v * 0.98; d[i + 2] = v * 0.82; d[i + 3] = 255;
+  }
+  g.putImageData(im, 0, 0); stoneUrl = c.toDataURL("image/jpeg", 0.9); return stoneUrl;
+}
+function background(c, t, glow = 0.35) {
+  const drift = t * 9;
+  div(c, { left: -60, top: -60 - drift, width: W + 120, height: H + 240, backgroundImage: `url(${stone()})`, backgroundSize: "cover" });
+  div(c, { left: 0, top: 0, width: W, height: H, background: `radial-gradient(70% 45% at 50% 42%, rgba(205,160,70,${0.10 * glow}), transparent 70%), radial-gradient(120% 80% at 50% 50%, transparent 55%, rgba(0,0,0,0.85) 100%)` });
+}
+
+// ------------------------------------------------------- ornamentos ---------
+// marco dorado doble que se dibuja (p 0→1), con rombos en las esquinas
+function frame(c, x, y, w, h, p, { inset = 16, alpha = 1 } = {}) {
+  if (p <= 0) return;
+  const per = 2 * (w + h), d = (r, k) => `<rect x="${r}" y="${r}" width="${w - 2 * r}" height="${h - 2 * r}" fill="none" stroke="url(#gl)" stroke-width="${k}" stroke-dasharray="${per}" stroke-dashoffset="${per * (1 - ease(p))}"/>`;
+  const dia = (cx, cy) => `<path d="M${cx} ${cy - 12} L${cx + 12} ${cy} L${cx} ${cy + 12} L${cx - 12} ${cy} Z" fill="#e9c46e" transform="scale(1)" opacity="${ease(seg(p, 0.7, 1))}"/>`;
+  const s = div(c, { left: x, top: y, width: w, height: h, opacity: alpha });
+  s.innerHTML = `<svg width="${w}" height="${h}" style="overflow:visible"><defs><linearGradient id="gl" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#f7df98"/><stop offset=".5" stop-color="#b8892f"/><stop offset="1" stop-color="#f1d27e"/></linearGradient></defs>
+    ${d(0, 2.5)}${d(inset, 1.2)}${dia(0, 0)}${dia(w, 0)}${dia(0, h)}${dia(w, h)}</svg>`;
+}
+// línea dorada con un rombo al centro que se dibuja desde el centro
+function rule(c, cx, y, w, p) {
+  if (p <= 0) return; const u = ease(p) * w / 2;
+  div(c, { left: cx - u, top: y, width: 2 * u, height: 2, background: "linear-gradient(90deg, transparent, #e9c46e 20%, #f7df98 50%, #e9c46e 80%, transparent)" });
+  const k = ease(seg(p, 0.4, 1)) * 10;
+  div(c, { left: cx - k, top: y + 1 - k, width: 2 * k, height: 2 * k, background: "#f1d27e", transform: "rotate(45deg)" });
+}
+// haz de luz dorado que cruza (destello)
+function streak(c, t, t0, { y = 960, angle = -18, dur = 0.55, width = 260 } = {}) {
+  const u = seg(t, t0, t0 + dur); if (u <= 0 || u >= 1) return;
+  const x = lerp(-900, W + 900, easeOut(u));
+  const s = div(c, { left: x - 1400, top: y - width / 2, width: 2800, height: width, transform: `rotate(${angle}deg)`, background: `linear-gradient(180deg, transparent, rgba(255,214,120,0.18) 40%, rgba(255,244,210,0.95) 50%, rgba(255,214,120,0.18) 60%, transparent)`, mixBlendMode: "screen", zIndex: 40 });
+  s.style.webkitMaskImage = "linear-gradient(90deg, transparent, #000 45%, #000 55%, transparent)";
+}
+
+// ------------------------------------------------------- partículas ---------
+function particles(t, amount, burst = []) {
+  const cv = document.getElementById("fx"), g = cv.getContext("2d");
+  g.clearRect(0, 0, W, H); g.globalCompositeOperation = "lighter";
+  const n = Math.round(160 * amount);
+  for (let i = 0; i < n; i++) { // polvo de oro que flota y titila
+    const sx = hash(i), sy = hash(i + 99), sp = 0.4 + hash(i + 7) * 1.2, z = 0.4 + hash(i + 3) * 1.6;
+    const x = (sx * W + Math.sin(t * 0.7 + i) * 30 * z) % W, y = ((sy * H - t * 60 * sp * z) % H + H) % H;
+    const tw = 0.45 + 0.55 * Math.sin(t * (2 + hash(i + 5) * 5) + i), r = 0.8 + z * 1.6;
+    const gr = g.createRadialGradient(x, y, 0, x, y, r * 4);
+    gr.addColorStop(0, `rgba(255,230,160,${0.85 * tw})`); gr.addColorStop(0.3, `rgba(230,180,80,${0.35 * tw})`); gr.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = gr; g.beginPath(); g.arc(x, y, r * 4, 0, 7); g.fill();
+  }
+  for (const [t0, cx, cy, k = 1] of burst) { // estallidos en los golpes
+    const u = t - t0; if (u < 0 || u > 1.1) continue;
+    for (let i = 0; i < 70 * k; i++) {
+      const a = hash(i * 3.1 + t0) * 6.283, v = (220 + hash(i + t0 * 7) * 620) * k, dr = 1 - Math.exp(-u * 3.2);
+      const x = cx + Math.cos(a) * v * dr / 3.2, y = cy + Math.sin(a) * v * dr / 3.2 + 140 * u * u, al = (1 - u / 1.1);
+      g.fillStyle = `rgba(255,${200 + hash(i) * 50},120,${al})`; g.beginPath(); g.arc(x, y, 1.2 + hash(i + 9) * 2.4, 0, 7); g.fill();
+    }
+  }
+  g.globalCompositeOperation = "source-over";
+}
+
+// ----------------------------------------------------------- cámara ---------
+// suma de movimientos pequeños continuos + empujes por escena
+function camera(t) {
+  const keys = [[0, 1.0, 0], [2.0, 1.08, 0], [2.0001, 1.12, -1.2], [5.0, 1.02, 1.0], [5.0001, 1.0, 0], [9.6, 1.08, 0], [10.0, 1.0, 0], [10.0001, 1.06, 0], [12.0, 1.0, 0], [12.0001, 1.1, 0], [15, 1.0, 0]];
+  let i = 0; while (i < keys.length - 2 && t > keys[i + 1][0]) i++;
+  const [t0, z0, r0] = keys[i], [t1, z1, r1] = keys[i + 1], u = ease(seg(t, t0, t1));
+  return { z: lerp(z0, z1, u) + 0.006 * Math.sin(t * 2.1), r: lerp(r0, r1, u) + 0.25 * Math.sin(t * 1.3), y: 6 * Math.sin(t * 1.7) };
+}
+
+// ============================================================ escenas ========
+// 1 · 0–2 s: destello, marco que se dibuja, el logotipo original se revela con profundidad
+function s1(c, t) {
+  background(c, t, ease(seg(t, 0.3, 1.2)));
+  streak(c, t, 0.0, { y: 900, angle: -14, dur: 0.6, width: 300 });
+  frame(c, 90, 470, W - 180, 980, seg(t, 0.25, 1.05));
+  const rv = seg(t, 0.45, 1.05), tilt = (1 - easeOut(seg(t, 0.45, 1.3))) * 28, k = lerp(1.18, 1.0, expoOut(seg(t, 0.45, 1.4)));
+  const fly = easeIn(seg(t, 1.62, 2.0)); // al final atraviesa la cámara
+  const lw = 880, lh = lw * 369 / 560;
+  const wrap = div(c, { left: (W - lw) / 2, top: 960 - lh / 2, width: lw, height: lh, transform: `perspective(1400px) rotateX(${tilt}deg) scale(${k * (1 + fly * 5)})`, opacity: 1 - seg(t, 1.85, 2.0) });
+  const L = img(wrap, IMG.logo, 0, 0, lw, lh, "center", { backgroundSize: "contain", backgroundRepeat: "no-repeat", filter: "drop-shadow(0 10px 18px rgba(0,0,0,0.8)) brightness(1.08) saturate(1.1)" });
+  // revelado por máscara diagonal
+  const m = `linear-gradient(115deg, #000 ${rv * 140 - 20}%, transparent ${rv * 140}%)`;
+  L.style.webkitMaskImage = L.style.maskImage = m;
+  // reflejo metálico que recorre el logo (sólo dentro de su silueta)
+  for (const [a, b] of [[0.75, 1.25], [1.3, 1.75]]) {
+    const u = seg(t, a, b); if (u <= 0 || u >= 1) continue;
+    const sh = img(wrap, IMG.logo, 0, 0, lw, lh, "center", { backgroundSize: "contain", backgroundRepeat: "no-repeat", filter: "brightness(2.6) saturate(0.6)", mixBlendMode: "screen" });
+    const mm = `url("${IMG.logo}"), linear-gradient(110deg, transparent ${u * 160 - 40}%, #000 ${u * 160 - 25}%, transparent ${u * 160 - 10}%)`;
+    sh.style.webkitMaskImage = sh.style.maskImage = mm; sh.style.webkitMaskSize = sh.style.maskSize = "contain, 100% 100%";
+    sh.style.webkitMaskRepeat = sh.style.maskRepeat = "no-repeat"; sh.style.webkitMaskPosition = sh.style.maskPosition = "center";
+    sh.style.webkitMaskComposite = "source-in"; sh.style.maskComposite = "intersect";
+  }
+  return [[0.62, 540, 960, 1.2]];
+}
+
+// 2 · 2–5 s: el arte de la barbería — paneles editoriales, cortes reales, tipografía cinética
+const CROPS = [
+  ["fade", "60% 40%", "205%"], ["fade", "55% 62%", "300%"], ["rizos", "55% 35%", "165%"], ["rizos", "62% 52%", "260%"], ["fade", "44% 45%", "240%"],
+];
+function panel(c, r, src, pos, size, t0, t, dir = 1) {
+  const u = expoOut(seg(t, t0, t0 + 0.45));
+  const clip = dir > 0 ? `inset(${(1 - u) * 100}% 0 0 0)` : `inset(0 0 ${(1 - u) * 100}% 0)`;
+  const el = div(c, { left: r.x, top: r.y, width: r.w, height: r.h, overflow: "hidden", clipPath: clip, boxShadow: "0 30px 60px rgba(0,0,0,0.6)" });
+  const kb = 1.12 - 0.08 * seg(t, t0, t0 + 3); // acercamiento lento
+  img(el, IMG[src], -r.w * (kb - 1) / 2, -r.h * (kb - 1) / 2 + (t - t0) * 14 * dir, r.w * kb, r.h * kb, pos, { backgroundSize: size || "cover", filter: "contrast(1.08) saturate(1.05)" });
+  div(el, { left: 0, top: 0, width: r.w, height: r.h, boxShadow: "inset 0 0 0 2px rgba(233,196,110,0.85), inset 0 0 0 10px rgba(0,0,0,0.0), inset 0 -160px 120px -60px rgba(0,0,0,0.7)" });
+  return el;
+}
+function s2(c, t) {
+  background(c, t, 0.6);
+  const bursts = [];
+  // A · 2.0–3.0: TU ESTILO. — corte fade, panel alto, parallax
+  if (t < 3.15) {
+    const out = easeIn(seg(t, 2.95, 3.15));
+    const g = div(c, { left: -out * W * 0.6, top: 0, width: W, height: H });
+    panel(g, { x: 150, y: 250, w: 780, h: 1150 }, "fade", "58% 42%", "cover", 2.0, t, 1);
+    panel(g, { x: 70, y: 1180, w: 360, h: 360 }, "fade", "56% 64%", "290%", 2.25, t, -1);
+    kinetic(g, "TU ESTILO.", { x: 40, y: 1430, w: W - 80, size: 124, t, t0: 2.1, sheenAt: 2.45 });
+    bursts.push([2.05, 540, 1500, 0.8]);
+  }
+  // B · 3.0–4.0: TU PERSONALIDAD. — corte con rizos, dividido en tiras
+  if (t > 2.95 && t < 4.15) {
+    const inn = 1 - expoOut(seg(t, 2.95, 3.3)), out = easeIn(seg(t, 3.95, 4.15));
+    const g = div(c, { left: inn * W * 0.6 - out * W * 0.6, top: 0, width: W, height: H });
+    const strips = 3, sw = 300, gap = 20, x0 = (W - strips * sw - (strips - 1) * gap) / 2;
+    for (let i = 0; i < strips; i++) {
+      const r = { x: x0 + i * (sw + gap), y: 300 + (i - 1) * 60, w: sw, h: 1050 };
+      const el = panel(g, r, "rizos", "50% 40%", "auto 100%", 3.0 + i * 0.08, t, i % 2 ? -1 : 1);
+      el.firstChild.style.backgroundSize = `${(strips * sw + 2 * gap) * 1.12}px auto`;
+      el.firstChild.style.backgroundPosition = `${-(r.x - x0) * 1.12 + 10}px 20%`;
+    }
+    const fs = fitSize(["TU PERSONALIDAD."], W - 80, 110);
+    kinetic(g, "TU PERSONALIDAD.", { x: 40, y: 1430, w: W - 80, size: fs, t, t0: 3.08, stagger: 0.018, sheenAt: 3.45 });
+    bursts.push([3.05, 540, 1480, 0.8]);
+  }
+  // C · 4.0–5.0: TU MEJOR VERSIÓN. — mosaico de detalles + herramientas en trazo dorado
+  if (t > 3.95) {
+    const inn = 1 - expoOut(seg(t, 3.95, 4.3));
+    const g = div(c, { left: inn * W * 0.6, top: 0, width: W, height: H, transform: `scale(${1 + 0.06 * seg(t, 4, 5)})`, transformOrigin: "50% 45%" });
+    const cells = [{ x: 90, y: 250, w: 440, h: 560 }, { x: 550, y: 250, w: 440, h: 330 }, { x: 550, y: 600, w: 440, h: 520 }, { x: 90, y: 830, w: 440, h: 290 }];
+    cells.forEach((r, i) => panel(g, r, CROPS[i][0], CROPS[i][1], CROPS[i][2], 4.0 + i * 0.07, t, i % 2 ? -1 : 1));
+    tools(g, t, 4.25);
+    kinetic(g, "TU MEJOR", { x: 40, y: 1300, w: W - 80, size: 112, t, t0: 4.08, sheenAt: 4.4 });
+    kinetic(g, "VERSIÓN.", { x: 40, y: 1440, w: W - 80, size: 112, t, t0: 4.2, sheenAt: 4.5 });
+    bursts.push([4.05, 540, 1400, 0.9]);
+  }
+  // transición a precios: barrido dorado diagonal
+  streak(c, t, 4.72, { y: 960, angle: -24, dur: 0.45, width: 520 });
+  return bursts;
+}
+function tools(c, t, t0) { // tijera, navaja y máquina: trazos dorados que se dibujan
+  const p = (k) => ease(seg(t, t0 + k * 0.1, t0 + k * 0.1 + 0.45));
+  const st = (k, L) => `stroke="url(#tg)" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="${L}" stroke-dashoffset="${L * (1 - p(k))}"`;
+  const s = div(c, { left: 90, top: 1140, width: 900, height: 140 });
+  s.innerHTML = `<svg width="900" height="140" viewBox="0 0 900 140"><defs><linearGradient id="tg" x1="0" x2="1"><stop offset="0" stop-color="#f7df98"/><stop offset="1" stop-color="#b8892f"/></linearGradient></defs>
+    <g transform="translate(60,20)"><circle cx="20" cy="80" r="18" ${st(0, 120)}/><circle cx="70" cy="80" r="18" ${st(0, 120)}/><path d="M32 66 L110 0 M58 66 L-20 0" ${st(0, 260)}/></g>
+    <g transform="translate(360,30)"><path d="M0 60 L130 60 L170 40 L170 75 L130 85 L0 85 Z M130 60 L130 85" ${st(1, 520)}/></g>
+    <g transform="translate(680,10)"><rect x="0" y="20" width="60" height="110" rx="18" ${st(2, 360)}/><path d="M-6 20 L66 20 M6 8 L54 8 M30 50 L30 100" ${st(2, 160)}/></g></svg>`;
+}
+
+// 3 · 5–10 s: servicios y precios — tablero ornamental, cada servicio en su golpe
+const MENU = [["CORTE DE CABELLO", "120"], ["ARREGLO DE BARBA", "50"], ["ARREGLO DE CEJA", "30"], ["CORTE Y BARBA", "170"], ["CORTE, BARBA Y CEJAS", "199"]];
+const ROW0 = 640, ROWH = 168, RT = (i) => 5.3 + i * 0.9;
+function s3(c, t) {
+  background(c, t, 0.5);
+  const bursts = [];
+  frame(c, 60, 260, W - 120, 1260, seg(t, 4.85, 5.4));
+  // encabezado: palabra «GOOD BARBER» del logo y «SERVICIOS»
+  const hd = expoOut(seg(t, 5.0, 5.4));
+  img(c, IMG.logo, 290, 300 - (1 - hd) * 40, 500, 330, "center", { backgroundSize: "contain", backgroundRepeat: "no-repeat", opacity: hd, filter: "drop-shadow(0 8px 14px rgba(0,0,0,.8))" });
+  const nameSize = fitSize(MENU.map((m) => m[0]), 520, 58, "pf");
+  MENU.forEach(([name, price], i) => {
+    const t0 = RT(i), y = ROW0 + i * ROWH, act = seg(t, t0, t0 + 0.2) - seg(t, t0 + 0.75, t0 + 0.95) * (i < 4 ? 1 : 0);
+    if (t < t0 - 0.05) return;
+    // resaltado del renglón activo
+    if (act > 0) div(c, { left: 80, top: y - 18, width: W - 160, height: ROWH - 14, background: `linear-gradient(90deg, transparent, rgba(233,196,110,${0.10 * act}) 30%, rgba(233,196,110,${0.10 * act}) 70%, transparent)` });
+    kinetic(c, name, { x: 100, y: y + 60 - nameSize * 0.6, w: 620, size: nameSize, t, t0: t0, stagger: 0.012, dur: 0.28, align: "left", depth: 3, family: "pf", sheenAt: t0 + 0.25 });
+    // el precio cae con un golpe y se queda
+    const k = lerp(1.9, 1, expoOut(seg(t, t0 + 0.08, t0 + 0.38))), o = seg(t, t0 + 0.08, t0 + 0.16);
+    const pw = div(c, { left: 640, top: y, width: 290, height: 130, transform: `scale(${k})`, transformOrigin: "100% 50%", opacity: o });
+    gold(pw, "$" + price, { x: 0, y: 4, w: 222, size: 96, family: "pf", align: "right", depth: 6, sheen: (t - t0 - 0.35) / 0.5 });
+    gold(pw, "MXN", { x: 226, y: 50, w: 80, size: 30, family: "cz", align: "left", depth: 0, track: 0.05 });
+    rule(c, 540, y + ROWH - 22, W - 220, seg(t, t0 + 0.2, t0 + 0.6));
+    bursts.push([t0 + 0.1, 850, y + 60, 0.55]);
+  });
+  streak(c, t, 9.62, { y: 1000, angle: 20, dur: 0.42, width: 480 });
+  return bursts;
+}
+
+// 4 · 10–12 s: horario — reloj dorado cuyas manecillas corren de 2:00 a 8:00
+function s4(c, t) {
+  background(c, t, 0.55);
+  const inn = expoOut(seg(t, 9.95, 10.35));
+  const g = div(c, { left: 0, top: 0, width: W, height: H, transform: `scale(${lerp(0.82, 1, inn)})`, transformOrigin: "50% 40%", opacity: inn });
+  frame(g, 100, 250, W - 200, 1270, seg(t, 10.0, 10.5), { inset: 14 });
+  const cx = 540, cy = 560, R = 190, p = ease(seg(t, 10.15, 11.4));
+  const hours = lerp(2, 8, p), hA = hours / 12 * 360, mA = hours * 360;
+  const ticks = Array.from({ length: 12 }, (_, i) => { const a = i / 12 * Math.PI * 2, r1 = i % 3 ? R - 18 : R - 34; return `<line x1="${Math.sin(a) * r1}" y1="${-Math.cos(a) * r1}" x2="${Math.sin(a) * (R - 6)}" y2="${-Math.cos(a) * (R - 6)}" stroke="#f1d27e" stroke-width="${i % 3 ? 3 : 6}"/>`; }).join("");
+  const ring = 2 * Math.PI * R, rp = ease(seg(t, 10.05, 10.6));
+  // arco del horario (2 → 8) que se llena
+  const a0 = 60, a1 = lerp(60, 240, p), arc = (a) => [Math.sin(a * Math.PI / 180) * (R + 26), -Math.cos(a * Math.PI / 180) * (R + 26)];
+  const [ax0, ay0] = arc(a0), [ax1, ay1] = arc(a1);
+  const s = div(g, { left: cx - 260, top: cy - 260, width: 520, height: 520, transform: `scale(${lerp(0.6, 1, expoOut(seg(t, 10.0, 10.45)))})` });
+  s.innerHTML = `<svg width="520" height="520" viewBox="-260 -260 520 520"><defs><radialGradient id="cf"><stop offset="0" stop-color="#1a140b"/><stop offset="1" stop-color="#070605"/></radialGradient>
+    <linearGradient id="rg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff3c4"/><stop offset=".5" stop-color="#b8892f"/><stop offset="1" stop-color="#f1d27e"/></linearGradient></defs>
+    <circle r="${R}" fill="url(#cf)"/><circle r="${R}" fill="none" stroke="url(#rg)" stroke-width="8" stroke-dasharray="${ring}" stroke-dashoffset="${ring * (1 - rp)}" transform="rotate(-90)"/>
+    <g opacity="${rp}">${ticks}</g>
+    ${p > 0 ? `<path d="M${ax0} ${ay0} A${R + 26} ${R + 26} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${ax1} ${ay1}" fill="none" stroke="#e9c46e" stroke-width="6" stroke-linecap="round"/>` : ""}
+    <line x1="0" y1="0" x2="${Math.sin(hA * Math.PI / 180) * 105}" y2="${-Math.cos(hA * Math.PI / 180) * 105}" stroke="#f7df98" stroke-width="12" stroke-linecap="round"/>
+    <line x1="0" y1="0" x2="${Math.sin(mA * Math.PI / 180) * 160}" y2="${-Math.cos(mA * Math.PI / 180) * 160}" stroke="#f1d27e" stroke-width="6" stroke-linecap="round"/>
+    <circle r="14" fill="#f7df98"/></svg>`;
+  const lines = [["HORARIO DE ATENCIÓN", 48, 830, 10.25, "cz", 0.08], ["LUNES A SÁBADO", 70, 940, 10.45, "cz", 0.02], ["2:00 PM – 8:00 PM", 104, 1060, 10.62, "pf", 0], ["DOMINGO: CERRADO", 56, 1250, 10.85, "cz", 0.04]];
+  lines.forEach(([s, size, y, t0, fam, tr], i) => {
+    const fs = fitSize([s], W - 300, size, fam, tr);
+    kinetic(g, s, { x: 150, y, w: W - 300, size: fs, t, t0, stagger: 0.015, family: fam, track: tr, sheenAt: t0 + 0.3, depth: i === 2 ? 6 : 3, color: i === 3 ? "#d9c9a3" : null });
+  });
+  rule(g, 540, 1205, 560, seg(t, 10.8, 11.2));
+  streak(c, t, 11.6, { y: 960, angle: -20, dur: 0.42, width: 480 });
+  return [[10.62, 540, 1110, 0.8]];
+}
+
+// 5 · 12–15 s: cierre — rayos de luz, logo al centro, redes y frase final; destello que se apaga
+function s5(c, t) {
+  background(c, t, 1);
+  const rays = div(c, { left: -460, top: 160, width: 2000, height: 2000, opacity: 0.55 * ease(seg(t, 12.0, 12.5)) * (1 - seg(t, 14.4, 15)), transform: `rotate(${t * 6}deg)`,
+    background: "repeating-conic-gradient(from 0deg at 50% 50%, rgba(255,214,120,0.16) 0deg 4deg, transparent 4deg 15deg)", mixBlendMode: "screen" });
+  rays.style.webkitMaskImage = "radial-gradient(closest-side, #000 15%, transparent 75%)";
+  const k = lerp(0.78, 1, expoOut(seg(t, 12.0, 12.6))), lw = 860, lh = lw * 369 / 560;
+  const wrap = div(c, { left: (W - lw) / 2, top: 330, width: lw, height: lh, transform: `scale(${k})`, opacity: ease(seg(t, 12.0, 12.25)) });
+  img(wrap, IMG.logo, 0, 0, lw, lh, "center", { backgroundSize: "contain", backgroundRepeat: "no-repeat", filter: "drop-shadow(0 12px 20px rgba(0,0,0,.85)) brightness(1.1)" });
+  const u = seg(t, 12.4, 12.95);
+  if (u > 0 && u < 1) {
+    const sh = img(wrap, IMG.logo, 0, 0, lw, lh, "center", { backgroundSize: "contain", backgroundRepeat: "no-repeat", filter: "brightness(2.6) saturate(.6)", mixBlendMode: "screen" });
+    sh.style.webkitMaskImage = sh.style.maskImage = `url("${IMG.logo}"), linear-gradient(110deg, transparent ${u * 160 - 40}%, #000 ${u * 160 - 25}%, transparent ${u * 160 - 10}%)`;
+    sh.style.webkitMaskSize = sh.style.maskSize = "contain, 100% 100%"; sh.style.webkitMaskRepeat = sh.style.maskRepeat = "no-repeat";
+    sh.style.webkitMaskPosition = sh.style.maskPosition = "center"; sh.style.webkitMaskComposite = "source-in"; sh.style.maskComposite = "intersect";
+  }
+  // redes sociales
+  const soc = [["FACEBOOK", "Good barber", "fb", 12.55], ["INSTAGRAM", "@good_barber_oficial", "ig", 12.7]];
+  soc.forEach(([lab, val, ic, t0], i) => {
+    const y = 940 + i * 150, a = expoOut(seg(t, t0, t0 + 0.35));
+    const row = div(c, { left: 150 + (1 - a) * -60, top: y, width: 780, height: 130, opacity: a });
+    const icon = div(row, { left: 0, top: 18, width: 92, height: 92 });
+    icon.innerHTML = ic === "fb"
+      ? `<svg width="92" height="92" viewBox="0 0 92 92"><rect x="3" y="3" width="86" height="86" rx="20" fill="none" stroke="#e9c46e" stroke-width="5"/><path d="M52 76 V50 H62 L64 39 H52 V32 C52 28 54 26 58 26 H64 V16 C62 16 58 15 54 15 C45 15 40 21 40 30 V39 H30 V50 H40 V76" fill="#e9c46e"/></svg>`
+      : `<svg width="92" height="92" viewBox="0 0 92 92"><rect x="5" y="5" width="82" height="82" rx="24" fill="none" stroke="#e9c46e" stroke-width="6"/><circle cx="46" cy="46" r="18" fill="none" stroke="#e9c46e" stroke-width="6"/><circle cx="68" cy="24" r="5" fill="#e9c46e"/></svg>`;
+    gold(row, lab, { x: 120, y: 12, w: 600, size: 28, align: "left", depth: 0, track: 0.18 });
+    gold(row, val, { x: 118, y: 46, w: 680, size: 54, family: "pf", align: "left", depth: 4, color: "#f3ead2" });
+  });
+  rule(c, 540, 1265, 640, seg(t, 12.85, 13.25));
+  kinetic(c, "MEJORA TU ESTILO.", { x: 60, y: 1300, w: W - 120, size: fitSize(["MEJORA TU ESTILO."], W - 160, 84), t, t0: 13.0, stagger: 0.02, sheenAt: 13.4 });
+  const l2 = "TE ESPERAMOS EN GOOD BARBER.", fs2 = fitSize([l2], W - 180, 50);
+  kinetic(c, l2, { x: 60, y: 1420, w: W - 120, size: fs2, t, t0: 13.35, stagger: 0.012, color: "#f3ead2", depth: 2 });
+  // destello final que se apaga suavemente
+  const f = seg(t, 14.35, 14.6) - seg(t, 14.6, 15.0);
+  if (f > 0) div(c, { left: 0, top: 0, width: W, height: H, background: `radial-gradient(60% 40% at 50% 45%, rgba(255,236,180,${0.9 * f}), rgba(230,180,80,${0.35 * f}) 45%, rgba(0,0,0,${seg(t, 14.6, 15.0)}) 100%)`, zIndex: 50 });
+  if (t > 14.6) div(c, { left: 0, top: 0, width: W, height: H, background: `rgba(0,0,0,${ease(seg(t, 14.6, 14.98))})`, zIndex: 60 });
+  return [[12.05, 540, 600, 1.3], [13.05, 540, 1350, 0.8]];
+}
+
+// ------------------------------------------------------------- seek ---------
+let ready = null;
+async function prepare() {
+  if (!ready) ready = (async () => {
+    await document.fonts.ready;
+    await Promise.all(['800 60px "Cinzel"', '800 60px "Playfair"'].map((f) => document.fonts.load(f)));
+    await Promise.all(Object.values(IMG).map((u) => new Promise((r) => { const i = new Image(); i.onload = i.onerror = r; i.src = u; })));
+    stone();
+  })();
+  return ready;
+}
+async function seek(t) {
+  await prepare();
+  t = clamp(t, 0, TOTAL - 1e-4);
+  const c = document.getElementById("cam"); c.innerHTML = "";
+  const k = camera(t); c.style.transform = `translateY(${k.y}px) rotate(${k.r}deg) scale(${k.z})`;
+  let bursts = [];
+  if (t < 2.0) bursts = s1(c, t);
+  else if (t < 5.0) bursts = s2(c, t);
+  else if (t < 10.0) bursts = s3(c, t);
+  else if (t < 12.0) bursts = s4(c, t);
+  else bursts = s5(c, t);
+  particles(t, t < 0.5 ? seg(t, 0.2, 0.5) * 0.6 : t > 14.6 ? 1 - seg(t, 14.6, 15) : 0.7, bursts);
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+}
+window.seek = seek; window.TOTAL = TOTAL;
+</script>
+</body>
+</html>
