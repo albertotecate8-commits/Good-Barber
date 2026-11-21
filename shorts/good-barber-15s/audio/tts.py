@@ -7,16 +7,16 @@ VOZ = "en-US-BrianMultilingualNeural"
 LINEAS = [
     ("Good Barber.", "Good", 0.75),
     ("Tu estilo.", "Tu", 2.15),
-    ("Tu personalidad.", "Tu", 2.98),
+    ("Tu personalidad.", "Tu", 3.06),
     ("Tu mejor versión.", "Tu", 4.3),
     ("Conoce nuestros servicios y precios.", "Conoce", 5.55),
-    ("Lunes a sábado, de dos de la tarde a ocho de la noche.", "Lunes", 9.62),
-    ("Te esperamos en Good Barber.", "Te", 13.22),
+    ("Lunes a sábado, de dos de la tarde a ocho de la noche.", "Lunes", 9.55),
+    ("Te esperamos en Good Barber.", "Te", 13.17),
 ]
 async def una(i, txt):
     for intento in range(5):
         try:
-            c = edge_tts.Communicate(txt, VOZ, rate="+10%", boundary="WordBoundary", proxy=os.environ.get("HTTPS_PROXY"))
+            c = edge_tts.Communicate(txt, VOZ, rate="+5%", boundary="WordBoundary", proxy=os.environ.get("HTTPS_PROXY"))
             pal, audio = [], b""
             async for ch in c.stream():
                 if ch["type"] == "audio": audio += ch["data"]
