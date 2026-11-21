@@ -4,14 +4,12 @@ import asyncio, json, os
 import edge_tts
 VOZ = "en-US-BrianMultilingualNeural"
 # (texto, palabra ancla, segundo del video en que debe sonar esa palabra)
-LINEAS = [
-    ("Good Barber.", "Good", 0.75),
-    ("Tu estilo.", "Tu", 2.15),
-    ("Tu personalidad.", "Tu", 3.06),
-    ("Tu mejor versión.", "Tu", 4.3),
-    ("Conoce nuestros servicios y precios.", "Conoce", 5.55),
-    ("Lunes a sábado, de dos de la tarde a ocho de la noche.", "Lunes", 9.55),
-    ("Te esperamos en Good Barber.", "Te", 13.17),
+LINEAS = [  # frases completas en español (con frases sueltas muy cortas Brian se oye con acento en inglés)
+    ("Bienvenido a Good Barber.", "Bienvenido", 0.3),
+    ("Tu estilo, tu personalidad, tu mejor versión.", "Tu", 2.1),
+    ("Conoce nuestros servicios y precios.", "Conoce", 5.8),
+    ("Lunes a sábado, de dos de la tarde a ocho de la noche.", "Lunes", 9.45),
+    ("Te esperamos en Good Barber.", "Te", 13.15),
 ]
 async def una(i, txt):
     for intento in range(5):

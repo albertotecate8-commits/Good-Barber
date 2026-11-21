@@ -1,76 +1,74 @@
 [
  {
-  "texto": "Good Barber.",
-  "inicio": 0.69,
+  "texto": "Bienvenido a Good Barber.",
+  "inicio": 0.229,
   "palabras": [
    {
+    "w": "Bienvenido",
+    "s": 0.071416,
+    "e": 0.738082
+   },
+   {
+    "w": "a",
+    "s": 0.75,
+    "e": 0.857125
+   },
+   {
     "w": "Good",
-    "s": 0.059541,
-    "e": 0.226207
+    "s": 0.869041,
+    "e": 1.083332
    },
    {
     "w": "Barber",
-    "s": 0.238083,
-    "e": 0.749999
+    "s": 1.09525,
+    "e": 1.619041
    }
   ]
  },
  {
-  "texto": "Tu estilo.",
-  "inicio": 2.1,
-  "palabras": [
-   {
-    "w": "Tu",
-    "s": 0.05,
-    "e": 0.288083
-   },
-   {
-    "w": "estilo",
-    "s": 0.3,
-    "e": 0.907125
-   }
-  ]
- },
- {
-  "texto": "Tu personalidad.",
-  "inicio": 3.01,
-  "palabras": [
-   {
-    "w": "Tu",
-    "s": 0.05,
-    "e": 0.3
-   },
-   {
-    "w": "personalidad",
-    "s": 0.311916,
-    "e": 1.228582
-   }
-  ]
- },
- {
-  "texto": "Tu mejor versión.",
-  "inicio": 4.217,
+  "texto": "Tu estilo, tu personalidad, tu mejor versión.",
+  "inicio": 2.017,
   "palabras": [
    {
     "w": "Tu",
     "s": 0.083333,
-    "e": 0.154749
+    "e": 0.166666
+   },
+   {
+    "w": "estilo",
+    "s": 0.178583,
+    "e": 0.714291
+   },
+   {
+    "w": "tu",
+    "s": 1.083333,
+    "e": 1.178583
+   },
+   {
+    "w": "personalidad",
+    "s": 1.190458,
+    "e": 2.035708
+   },
+   {
+    "w": "tu",
+    "s": 2.428583,
+    "e": 2.511916
    },
    {
     "w": "mejor",
-    "s": 0.166666,
-    "e": 0.559541
+    "s": 2.523791,
+    "e": 2.880916
    },
    {
     "w": "versión",
-    "s": 0.571416,
-    "e": 1.214291
+    "s": 2.892875,
+    "e": 3.5
    }
   ]
  },
  {
   "texto": "Conoce nuestros servicios y precios.",
-  "inicio": 5.479,
+  "inicio": 5.729,
   "palabras": [
    {
     "w": "Conoce",
@@ -101,7 +99,7 @@
  },
  {
   "texto": "Lunes a sábado, de dos de la tarde a ocho de la noche.",
-  "inicio": 9.479,
+  "inicio": 9.379,
   "palabras": [
    {
     "w": "Lunes",
@@ -172,7 +170,7 @@
  },
  {
   "texto": "Te esperamos en Good Barber.",
-  "inicio": 13.121,
+  "inicio": 13.101,
   "palabras": [
    {
     "w": "Te",
