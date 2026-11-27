@@ -10,6 +10,7 @@ import { cameraConnection, describeCameraConnection } from "@/lib/domain/indicat
 import type { CameraOverview } from "@/lib/domain/types";
 import { TAPO_APP_STORE_URL } from "@/lib/config";
 import { BackToSettings, ReadOnlyNotice } from "@/components/settings/common";
+import { CountingLines } from "@/components/settings/CountingLines";
 import { ConfirmSheet, Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { Badge, Button, EmptyState, ErrorBlock, Field, LoadingBlock, Notice, PageHeader, Section, Select, TextInput, Toggle, FormError } from "@/components/ui/primitives";
@@ -150,6 +151,8 @@ export default function CamarasSettingsPage() {
           );
         })
       )}
+
+      {cams.data && cams.data.length > 0 && <CountingLines cameras={cams.data.filter((c) => c.active)} canManage={canManage} />}
 
       <Section title="Ver cámaras en vivo">
         <a className="btn btn-secondary btn-block" href={TAPO_APP_STORE_URL} target="_blank" rel="noopener noreferrer">

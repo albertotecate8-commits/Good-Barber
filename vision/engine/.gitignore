@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+*.onnx
+*.avi
+*.mp4
+.pytest_cache/

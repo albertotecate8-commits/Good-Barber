@@ -215,3 +215,34 @@ export async function fetchSecurityEvents(
 export async function reviewSecurityEvent(id: number, status: SecurityStatus, note: string | null) {
   unwrap(await sb().rpc("review_security_event", { p_event: id, p_status: status, p_note: note }));
 }
+
+// ------------------------------------------------------------------ geometría (zonas y líneas)
+
+export async function updateStationZone(id: string, zone: [number, number][] | null) {
+  unwrap(await sb().from("stations").update({ zone }).eq("id", id).select("id").single());
+}
+
+export type CountingLineRow = {
+  id: string;
+  camera_id: string;
+  name: string;
+  point_a: [number, number];
+  point_b: [number, number];
+  entry_side: "left" | "right";
+  active: boolean;
+};
+
+export async function fetchCountingLines(cameraIds: string[]): Promise<CountingLineRow[]> {
+  if (cameraIds.length === 0) return [];
+  return unwrap(
+    await sb().from("counting_lines").select("id, camera_id, name, point_a, point_b, entry_side, active").in("camera_id", cameraIds).order("name"),
+  ) as CountingLineRow[];
+}
+
+export async function createCountingLine(input: Omit<CountingLineRow, "id" | "active">) {
+  unwrap(await sb().from("counting_lines").insert({ ...input, active: true }).select("id").single());
+}
+
+export async function deleteCountingLine(id: string) {
+  unwrap(await sb().from("counting_lines").delete().eq("id", id).select("id").single());
+}

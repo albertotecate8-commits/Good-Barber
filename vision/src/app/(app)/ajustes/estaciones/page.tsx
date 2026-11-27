@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useSite } from "@/lib/site/SiteProvider";
 import { useAsync } from "@/lib/hooks/useAsync";
-import { createStation, deleteStation, fetchCameras, fetchStations, updateStation } from "@/lib/data/queries";
+import { createStation, deleteStation, fetchCameras, fetchStations, updateStation, updateStationZone } from "@/lib/data/queries";
+import { GeometryEditor, type NPoint } from "@/components/settings/GeometryEditor";
 import { firstIssue, stationSchema } from "@/lib/domain/validation";
 import { friendlyError } from "@/lib/domain/errors";
 import type { Station, StationKind } from "@/lib/domain/types";
@@ -39,6 +40,25 @@ export default function EstacionesSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [toDelete, setToDelete] = useState<Station | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [zoneFor, setZoneFor] = useState<Station | null>(null);
+  const [zonePts, setZonePts] = useState<NPoint[]>([]);
+  const [savingZone, setSavingZone] = useState(false);
+
+  async function saveZone(points: NPoint[] | null) {
+    if (!zoneFor) return;
+    if (points && points.length < 3) return toast.error("La zona necesita al menos 3 puntos.");
+    setSavingZone(true);
+    try {
+      await updateStationZone(zoneFor.id, points);
+      toast.success(points ? "Zona guardada." : "Zona eliminada.");
+      setZoneFor(null);
+      await data.reload();
+    } catch (e) {
+      toast.error(friendlyError(e));
+    } finally {
+      setSavingZone(false);
+    }
+  }
 
   const bizById = new Map(businesses.map((b) => [b.id, b]));
 
@@ -156,7 +176,12 @@ export default function EstacionesSettingsPage() {
                             {!s.active && <Badge tone="neutral">Inactiva</Badge>}
                           </div>
                         </div>
-                        {canManage && <Button variant="secondary" size="sm" onClick={() => edit(s)}>Editar</Button>}
+                        {canManage && (
+                          <div className="row-actions">
+                            <Button variant="ghost" size="sm" onClick={() => { setZoneFor(s); setZonePts(s.zone ?? []); }}>Zona</Button>
+                            <Button variant="secondary" size="sm" onClick={() => edit(s)}>Editar</Button>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -224,6 +249,26 @@ export default function EstacionesSettingsPage() {
             </Field>
             <Toggle label="Activa" checked={draft.active} onChange={(v) => setDraft({ ...draft, active: v })} />
             <FormError message={error} />
+          </div>
+        )}
+      </Sheet>
+
+      <Sheet
+        open={!!zoneFor}
+        onClose={() => !savingZone && setZoneFor(null)}
+        title={`Zona · ${zoneFor?.name ?? ""}`}
+        footer={
+          <>
+            {zoneFor?.zone && <Button variant="danger" onClick={() => void saveZone(null)} disabled={savingZone}>Quitar zona</Button>}
+            <Button onClick={() => void saveZone(zonePts)} loading={savingZone} disabled={zonePts.length < 3}>Guardar zona</Button>
+          </>
+        }
+      >
+        {zoneFor && (
+          <div className="stack">
+            {!zoneFor.camera_id && <Notice tone="warning">Asigna primero la cámara que observa esta estación (Editar).</Notice>}
+            <p className="muted small">Toca las esquinas del área donde se sienta o trabaja la persona (incluye el piso frente a la silla: el motor usa el punto de los pies).</p>
+            <GeometryEditor mode="polygon" points={zonePts} onChange={setZonePts} />
           </div>
         )}
       </Sheet>
