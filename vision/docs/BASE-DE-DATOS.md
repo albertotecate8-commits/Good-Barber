@@ -1,5 +1,31 @@
 # Base de datos — proyecto de Supabase propio de Smart Business Vision
 
+## 0. Estado actual del proyecto (27 nov 2026)
+
+| Dato | Valor |
+|---|---|
+| Organización | «Camaraia» (plan **Free**), cuenta independiente de Good Barber y Finanzas |
+| Proyecto | `smart-business-vision` · ref `mwyerhivkvumsepxynyq` · us-east-1 · PostgreSQL 17 |
+| URL | `https://mwyerhivkvumsepxynyq.supabase.co` |
+| Costo | Supabase lo creó sin pedir confirmación de costo ($0) |
+| Migraciones aplicadas | `vision_etapa1_base`, `vision_etapa1_datos_iniciales`, `vision_rol_motor` (aplicadas por el conector) |
+
+Verificación en el proyecto real (consultas de solo lectura y Security Advisor):
+
+- 19 tablas, **0 sin RLS**, 60 políticas.
+- `anon` sin acceso al esquema `vision`.
+- La app (`authenticated`) no puede escribir métricas ni ejecutar `bootstrap_owner`.
+- `vision_engine` no tiene login, no ve `auth`, no lee `members` y no puede borrar.
+- Datos: 1 establecimiento (`America/Mexico_City`), Good Barber con horario confirmado (7 días), Glamour Studio pendiente, 2 cámaras Tapo C100, 0 estaciones, 0 miembros, 0 usuarios de Auth.
+- **Security Advisor: sin advertencias.**
+
+Pendiente en el panel (el conector no puede hacerlo):
+
+- §3.2: desactivar el registro público.
+- §3.4: URL Configuration.
+- §3.6: agregar `vision` a *Exposed schemas*.
+- §3.7: crear tu usuario y ejecutar `bootstrap_owner`.
+
 ## 1. Decisión
 
 Smart Business Vision usa un **proyecto de Supabase nuevo e independiente**,

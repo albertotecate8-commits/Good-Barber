@@ -19,7 +19,7 @@ ni el de Finanzas.
 | Tema | Resultado | Bloquea la Etapa 2 |
 |---|---|---|
 | Interferencia con Good Barber / Finanzas | **Eliminada por diseño:** proyectos distintos, sin Auth, base ni permisos compartidos. El frontend rechaza las URL de esos dos proyectos | No |
-| Límite del plan gratuito | Ya hay 2 proyectos gratuitos activos (Good Barber y Finanzas). Hay que confirmar, al crearlo, que el tercero sea Free sin pausar otros ni pagar | **Sí**, hasta confirmarlo |
+| Proyecto de Vision | Creado en una cuenta aparte (org «Camaraia», Free, $0). Migraciones aplicadas y verificadas: 0 tablas sin RLS y Security Advisor sin advertencias | No; faltan pasos manuales en el panel |
 | Seguridad propia de Vision (RLS, roles, Auth) | Probada en PostgreSQL local: anon, cuenta ajena, viewer, admin, owner, motor y borrado desde Auth | No |
 | Credenciales del motor | Rol nuevo `vision_engine` con permisos mínimos. Ni la app ni el motor usan `service_role` | No |
 | Defecto corregido (revisión 1) | `protect_last_owner` bloqueaba el borrado en cascada desde Auth. Corregido y con prueba | Resuelto |

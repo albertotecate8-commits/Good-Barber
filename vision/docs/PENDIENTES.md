@@ -2,11 +2,11 @@
 
 ## Decisiones del propietario (bloquean pasos siguientes)
 
-1. **Proyecto de Supabase propio de Vision**: lo crea el propietario siguiendo
-   `BASE-DE-DATOS.md` §3. Hay que confirmar que sea Free y que no pida pausar
-   Good Barber ni Finanzas. Después, el propietario comparte **solo** la
-   Project URL y la clave publishable. Hasta entonces la app muestra
-   «Configuración requerida».
+1. **Proyecto de Supabase propio de Vision**: **creado y con las migraciones
+   aplicadas** (`mwyerhivkvumsepxynyq`, org «Camaraia», Free). Faltan pasos en
+   el panel: desactivar el registro público, agregar `vision` a *Exposed
+   schemas*, configurar las URL y crear el primer propietario
+   (`BASE-DE-DATOS.md` §0 y §3).
 2. **Hosting**: aprobar la creación del proyecto en Cloudflare Pages (gratis).
 3. **Modelo de detección**: YOLOX (Apache-2.0) vs. Ultralytics YOLO
    (AGPL-3.0). Ver `ARQUITECTURA.md` §3.
