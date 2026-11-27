@@ -44,7 +44,7 @@ export default function CamarasSettingsPage() {
       id: null,
       business_id: businesses[0]?.id ?? "",
       name: "",
-      model: "TP-Link Tapo C100",
+      model: "TP-Link Tapo C110",
       location_note: "",
       stream_profile: "stream2",
       analysis_enabled: false,
@@ -152,7 +152,7 @@ export default function CamarasSettingsPage() {
         })
       )}
 
-      {cams.data && cams.data.length > 0 && <CountingLines cameras={cams.data.filter((c) => c.active)} canManage={canManage} />}
+      {cams.data && cams.data.length > 0 && <CountingLines cameras={cams.data.filter((c) => c.active)} businesses={businesses} canManage={canManage} />}
 
       <Section title="Ver cámaras en vivo">
         <a className="btn btn-secondary btn-block" href={TAPO_APP_STORE_URL} target="_blank" rel="noopener noreferrer">

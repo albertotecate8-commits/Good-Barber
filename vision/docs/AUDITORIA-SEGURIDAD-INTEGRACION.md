@@ -10,6 +10,12 @@ recursos en la nube y no se activó ningún pago.
 
 ---
 
+> **Corrección posterior (27 nov 2026):** las cámaras reales son **dos Tapo C110**,
+> no C100. Lo que esta auditoría dice de la C100 (CVE-2026-75618/75619, puertos)
+> se reemplaza por la ficha de la C110 en `CONEXION-CAMARAS.md`: mismo RTSP sin
+> cifrar en el 554, solo IPv4, y la **CVE-2026-6250 en ONVIF** (puerto 2020,
+> que nunca se expone). Las conclusiones de conectividad no cambian.
+
 ## 0. Resumen ejecutivo
 
 **Decisión vigente del propietario:** Smart Business Vision usará un

@@ -1,5 +1,8 @@
 # Fase 1 — estado por entregable (27 nov 2026)
 
+> **Corrección de inventario:** dos **Tapo C110** (no C100). La primera ve los
+> espacios de ambos negocios. Ficha técnica y riesgos: `CONEXION-CAMARAS.md`.
+
 **URL de la app:** https://smart-business-vision.netlify.app (Netlify, plan
 gratuito, sitio estático; decisión del propietario ante el bloqueo de
 credenciales de Cloudflare).
@@ -32,7 +35,7 @@ credenciales de Cloudflare).
 
 ## Bloqueos (no se fingen como resueltos)
 
-1. **Cámaras → servidor de procesamiento.** Las Tapo C100 solo aceptan
+1. **Cámaras → servidor de procesamiento.** Las Tapo C110 solo aceptan
    conexiones RTSP entrantes y no hay ningún equipo en el local. La única vía
    con $0 es abrir el puerto 554 del módem de Izzi **solo** hacia la IP del
    servidor gratuito. Para eso falta:

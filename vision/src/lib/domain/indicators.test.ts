@@ -21,7 +21,7 @@ const day = (over: Partial<TrafficDaily>): TrafficDaily => ({
 });
 
 const camera = (over: Partial<CameraOverview>): CameraOverview => ({
-  id: "c", business_id: "b", name: "Cam", model: "TP-Link Tapo C100", location_note: null, stream_profile: "stream2",
+  id: "c", business_id: "b", name: "Cam", model: "TP-Link Tapo C110", location_note: null, stream_profile: "stream2",
   analysis_enabled: false, sort_order: 0, active: true, health_status: null, last_seen_at: null, last_frame_at: null,
   last_error: null, fps: null, health_updated_at: null, ...over,
 });
@@ -99,5 +99,13 @@ describe("cámaras", () => {
     expect(
       cameraStatusIndicator([camera({ health_status: "online", last_seen_at: "2026-11-27T20:59:00Z" }), camera({ id: "d", health_status: "offline" })], NOW),
     ).toMatchObject({ state: "value", display: "1 de 2" });
+  });
+});
+
+describe("cobertura compartida (C110 que ve ambos negocios)", () => {
+  it("si la cámara no mide personas de un negocio, no se muestra un número", () => {
+    const r = trafficIndicator(online, [day({ people_detected_max: null, entries: 3 })], "people_detected_max");
+    expect(r.state).toBe("no_data");
+    expect(trafficIndicator(online, [day({ people_detected_max: null, entries: 3 })], "entries")).toMatchObject({ display: "3" });
   });
 });

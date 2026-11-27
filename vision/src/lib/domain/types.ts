@@ -95,7 +95,8 @@ export type EngineNode = {
 export type TrafficDaily = {
   business_id: string;
   local_date: string;
-  people_detected_max: number;
+  /** null = ninguna cámara mide personas de este negocio en ese periodo. */
+  people_detected_max: number | null;
   entries: number;
   exits: number;
   visits_estimated: number;
@@ -108,7 +109,7 @@ export type TrafficHourlyLocal = {
   hour_start: string;
   local_date: string;
   local_hour: number;
-  people_detected_max: number;
+  people_detected_max: number | null;
   entries: number;
   exits: number;
   visits_estimated: number;

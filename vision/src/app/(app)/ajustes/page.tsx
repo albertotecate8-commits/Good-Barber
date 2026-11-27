@@ -39,7 +39,7 @@ export default function AjustesPage() {
       <Section title="Configuración">
         <div className="list">
           <Item href="/ajustes/negocios/" icon={<IconStore size={18} />} title="Negocios" desc="Nombres, colores y permanencia por defecto" />
-          <Item href="/ajustes/camaras/" icon={<IconCamera size={18} />} title="Cámaras" desc="Una Tapo C100 por negocio" />
+          <Item href="/ajustes/camaras/" icon={<IconCamera size={18} />} title="Cámaras" desc="Dos Tapo C110 del establecimiento" />
           <Item href="/ajustes/estaciones/" icon={<IconChair size={18} />} title="Estaciones" desc="Sillas, mesas y zonas de cada negocio" />
           <Item href="/ajustes/red/" icon={<IconCpu size={18} />} title="Diagnóstico de red" desc="Comprobar Izzi y CGNAT desde el local" />
           <Item href="/ajustes/horarios/" icon={<IconClock size={18} />} title="Horarios" desc="Horario comercial por negocio" />

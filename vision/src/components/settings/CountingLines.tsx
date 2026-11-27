@@ -4,18 +4,19 @@ import { useState } from "react";
 import { useAsync } from "@/lib/hooks/useAsync";
 import { createCountingLine, deleteCountingLine, fetchCountingLines, type CountingLineRow } from "@/lib/data/queries";
 import { friendlyError } from "@/lib/domain/errors";
-import type { CameraOverview } from "@/lib/domain/types";
+import type { Business, CameraOverview } from "@/lib/domain/types";
 import { ConfirmSheet, Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
-import { Button, Field, FormError, Notice, Section, Segmented, TextInput } from "../ui/primitives";
+import { Button, Field, FormError, Notice, Section, Segmented, Select, TextInput } from "../ui/primitives";
 import { GeometryEditor, type NPoint } from "./GeometryEditor";
 
 /** Líneas virtuales de entrada/salida de cada cámara (las usa el motor para contar). */
-export function CountingLines({ cameras, canManage }: { cameras: CameraOverview[]; canManage: boolean }) {
+export function CountingLines({ cameras, businesses, canManage }: { cameras: CameraOverview[]; businesses: Business[]; canManage: boolean }) {
+  const bizName = (id: string | null, cam: CameraOverview) => businesses.find((b) => b.id === (id ?? cam.business_id))?.name ?? "—";
   const toast = useToast();
   const ids = cameras.map((c) => c.id);
   const lines = useAsync(() => fetchCountingLines(ids), [ids.join(",")]);
-  const [draft, setDraft] = useState<{ camera_id: string; name: string; points: NPoint[]; entry_side: "left" | "right" } | null>(null);
+  const [draft, setDraft] = useState<{ camera_id: string; business_id: string; name: string; points: NPoint[]; entry_side: "left" | "right" } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [toDelete, setToDelete] = useState<CountingLineRow | null>(null);
@@ -28,7 +29,7 @@ export function CountingLines({ cameras, canManage }: { cameras: CameraOverview[
     if (draft.points.length !== 2) return setError("Toca los dos extremos de la línea (A y B).");
     setSaving(true);
     try {
-      await createCountingLine({ camera_id: draft.camera_id, name, point_a: draft.points[0]!, point_b: draft.points[1]!, entry_side: draft.entry_side });
+      await createCountingLine({ camera_id: draft.camera_id, business_id: draft.business_id, name, point_a: draft.points[0]!, point_b: draft.points[1]!, entry_side: draft.entry_side });
       toast.success("Línea guardada.");
       setDraft(null);
       await lines.reload();
@@ -68,14 +69,14 @@ export function CountingLines({ cameras, canManage }: { cameras: CameraOverview[
                   ) : (
                     mine.map((l) => (
                       <div key={l.id} className="line-item">
-                        <small>{l.name} · adentro: {l.entry_side === "left" ? "lado izquierdo de A→B" : "lado derecho de A→B"}</small>
+                        <small>{l.name} · cuenta para <strong>{bizName(l.business_id, c)}</strong></small>
                         {canManage && <Button variant="ghost" size="sm" onClick={() => setToDelete(l)}>Quitar</Button>}
                       </div>
                     ))
                   )}
                 </div>
                 {canManage && (
-                  <Button variant="secondary" size="sm" onClick={() => { setError(null); setDraft({ camera_id: c.id, name: "Puerta", points: [], entry_side: "left" }); }}>
+                  <Button variant="secondary" size="sm" onClick={() => { setError(null); setDraft({ camera_id: c.id, business_id: c.business_id, name: "Puerta", points: [], entry_side: "left" }); }}>
                     Agregar
                   </Button>
                 )}
@@ -95,6 +96,13 @@ export function CountingLines({ cameras, canManage }: { cameras: CameraOverview[
           <div className="stack">
             <Field label="Nombre">
               {(id) => <TextInput id={id} maxLength={40} value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />}
+            </Field>
+            <Field label="Las entradas cuentan para" hint="Si esta cámara ve la puerta del otro negocio, elige ese negocio.">
+              {(id) => (
+                <Select id={id} value={draft.business_id} onChange={(e) => setDraft({ ...draft, business_id: e.target.value })}>
+                  {businesses.filter((b) => b.active).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </Select>
+              )}
             </Field>
             <p className="muted small">Dibuja la línea a lo ancho de la puerta, por donde pasan los pies de las personas.</p>
             <GeometryEditor mode="line" points={draft.points} onChange={(points) => setDraft({ ...draft, points })} entrySide={draft.entry_side} />

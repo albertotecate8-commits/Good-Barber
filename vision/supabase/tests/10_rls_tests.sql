@@ -15,6 +15,7 @@ select vision.bootstrap_owner('owner@test.local', 'Propietario');
 do $$ begin
   if (select count(*) from vision.businesses) <> 2 then raise exception 'Se esperaban 2 negocios'; end if;
   if (select count(*) from vision.cameras) <> 2 then raise exception 'Se esperaban 2 cámaras'; end if;
+  if exists (select 1 from vision.cameras where model <> 'TP-Link Tapo C110') then raise exception 'Las cámaras deben ser Tapo C110'; end if;
   if (select count(*) from vision.stations) <> 0 then raise exception 'No deben existir estaciones inventadas'; end if;
   if (select count(*) from vision.business_hours bh join vision.businesses b on b.id = bh.business_id where b.slug = 'glamour-studio') <> 0
     then raise exception 'Glamour Studio no debe tener horario inventado'; end if;
@@ -108,12 +109,13 @@ begin
   perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a2', true);
   insert into vision.stations (business_id, name, kind) values (v_gb, 'Silla de prueba', 'silla');
   update vision.business_hours set opens_at = '14:00' where business_id = v_gb and weekday = 1;
-  -- Cámara de otro negocio en una estación: debe fallar
-  begin
-    insert into vision.stations (business_id, camera_id, name) values (v_gb, v_cam_gs, 'Cruce');
-    raise exception 'FALLO: aceptó cámara de otro negocio';
-  exception when check_violation then null;
-  end;
+  -- Una cámara puede observar estaciones del otro negocio del MISMO establecimiento (C110 que ve ambos espacios)
+  insert into vision.stations (business_id, camera_id, name) values (v_gb, v_cam_gs, 'Cruce mismo sitio');
+  delete from vision.stations where name = 'Cruce mismo sitio';
+  -- Línea de conteo de una cámara de Glamour que cuenta para Good Barber
+  insert into vision.counting_lines (camera_id, business_id, name, point_a, point_b, entry_side)
+  values (v_cam_gs, v_gb, 'Puerta GB vista por cámara GS', '[0.1,0.5]', '[0.4,0.5]', 'left');
+  delete from vision.counting_lines where name = 'Puerta GB vista por cámara GS';
   -- Zona inválida
   begin
     insert into vision.stations (business_id, name, zone) values (v_gb, 'Zona mala', '[[0,0],[2,0],[0,1]]');
@@ -246,6 +248,28 @@ do $$ begin
   end if;
 end $$;
 
+-- ---------- Cámara de OTRO establecimiento: nunca ----------
+do $$
+declare v_site2 uuid; v_biz2 uuid; v_gb uuid := (select id from vision.businesses where slug = 'good-barber'); v_cam2 uuid;
+begin
+  insert into vision.sites (name) values ('Otro local') returning id into v_site2;
+  insert into vision.businesses (site_id, slug, name) values (v_site2, 'otro', 'Otro') returning id into v_biz2;
+  insert into vision.cameras (business_id, name) values (v_biz2, 'Cámara otro local') returning id into v_cam2;
+  begin
+    insert into vision.stations (business_id, camera_id, name) values (v_gb, v_cam2, 'Cruce de sitios');
+    raise exception 'FALLO: aceptó cámara de otro establecimiento';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into vision.counting_lines (camera_id, business_id, name, point_a, point_b, entry_side) values (v_cam2, v_gb, 'x', '[0.1,0.5]', '[0.4,0.5]', 'left');
+    raise exception 'FALLO: línea con negocio de otro establecimiento';
+  exception when check_violation then null;
+  end;
+  delete from vision.cameras where id = v_cam2;
+  delete from vision.businesses where id = v_biz2;
+  delete from vision.sites where id = v_site2;
+end $$;
+
 -- ---------- Motor de visión: usuario con permisos mínimos (nunca service_role) ----------
 do $$ begin
   if not exists (select 1 from pg_roles where rolname = 'vision_engine_prueba') then
@@ -274,7 +298,7 @@ begin
   values (v_gb, v_cam, 'line_entry', now(), 't-1', 0.9);
   insert into vision.traffic_hourly (camera_id, business_id, hour_start, entries, observed_seconds)
   values (v_cam, v_gb, '2026-11-28 18:00:00+00', 1, 600)
-  on conflict (camera_id, hour_start) do update set entries = vision.traffic_hourly.entries + 1;
+  on conflict (camera_id, business_id, hour_start) do update set entries = vision.traffic_hourly.entries + 1;
   insert into vision.security_events (business_id, camera_id, category, kind, occurred_at)
   values (v_gb, v_cam, 'unconfirmed', 'after_hours_motion', now());
   -- Prohibido: miembros, configuración, borrar, revisar eventos, auth
@@ -371,3 +395,4 @@ do $$ begin
 end $$;
 
 select 'RLS OK' as resultado;
+-- (fin)

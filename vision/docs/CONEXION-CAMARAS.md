@@ -1,7 +1,28 @@
-# Conexión de las dos Tapo C100 — procedimiento y criterios (Fase 1)
+# Conexión de las dos Tapo C110 — procedimiento y criterios (Fase 1)
 
-Condiciones: $0, sin equipos en el local, una red Izzi, dos Tapo C100 (Good
-Barber y Glamour Studio). Primero una cámara y luego la segunda.
+Condiciones: $0, sin equipos en el local, una red Izzi y **dos Tapo C110**
+(corrección del propietario: no son C100). **La primera C110 ve los espacios
+de ambos negocios.** Primero una cámara y luego la segunda.
+
+## Ficha técnica verificada de la Tapo C110
+
+| Aspecto | Dato | Fuente |
+|---|---|---|
+| Resolución | 3 MP, 2304 × 1296 (16:9), H.264 | Ficha técnica de TP-Link |
+| RTSP | Puerto **554**: `/stream1` (alta) y `/stream2` (baja) | FAQ 2680 de TP-Link |
+| ONVIF | Profile S, puerto **2020** | FAQ 2680 y comparador de TP-Link |
+| Requisito | Crear la «Cuenta de cámara» en la app Tapo (y activar ONVIF si se usara) | Guías de RTSP de Tapo |
+| Límite | Solo **2 de 3** a la vez: Tapo Care, grabación en microSD y NVR/RTSP/ONVIF | FAQ de TP-Link |
+| Seguridad | **CVE-2026-6250** (alta): inyección en el servicio **ONVIF** de la C110 v2; corregida desde el firmware **1.5.4 Build 260428**. ONVIF **no** se expone nunca y el motor no lo usa | Aviso de seguridad 5128 de TP-Link |
+| Estabilidad | Hay reportes de `stream1` (HD) lento o inestable por RTSP; el motor usa **`stream2`** | Comunidad TP-Link |
+| IPv6 / cifrado | Las cámaras Tapo solo usan **IPv4**; no hay **RTSPS** | FAQ de Tapo; no hay evidencia de lo contrario |
+
+Para la C110 no se encontraron avisos de RTSP; las fallas RTSP de 2026
+(CVE-2026-75618/75619) eran de la C100/C101 y **no aplican**.
+
+Una cámara puede observar estaciones y puertas de **cualquiera de los dos
+negocios** (Ajustes → Cámaras → «Líneas de entrada y salida» → «Las
+entradas cuentan para»). Las métricas se guardan por cámara **y** por negocio.
 
 ## Paso 0 · Diagnóstico de red (desde el iPhone, en el local)
 
@@ -30,7 +51,7 @@ No se abre ningún puerto ni se cambia nada en el módem.
 | **IP pública** + **no** hay filtro | Habría que abrir RTSP a todo internet | **No recomendado:** expone las cámaras a escaneos y a fallas conocidas del servicio RTSP |
 
 Datos verificados que cierran otras vías:
-- La **Tapo C100 solo admite IPv4**, así que IPv6 no es alternativa.
+- La **Tapo C110 solo admite IPv4**, así que IPv6 no es alternativa.
 - **No hay RTSP cifrado** (RTSPS).
 - La nube de Tapo no ofrece una API de video para terceros.
 - Un túnel o VPN necesita software corriendo en un equipo del local, y esos
@@ -41,9 +62,9 @@ Datos verificados que cierran otras vías:
 - El video y la autenticación **viajan sin cifrar** entre el local y el
   servidor. Una contraseña **no** lo hace seguro. Riesgo residual: un tercero
   en la ruta podría ver el video de clientes.
-- En 2026 se publicaron fallas en el servicio RTSP de la C100 V5
-  (CVE-2026-75618 y CVE-2026-75619), corregidas en el firmware
-  **1.5.4 Build 260528**. Es requisito tener el firmware actualizado.
+- C110: **CVE-2026-6250** en el servicio **ONVIF** (puerto 2020), corregida en
+  el firmware **1.5.4 Build 260428** (C110 v2). Es requisito tener el firmware
+  actualizado, **no reenviar nunca el puerto 2020** y dejar ONVIF apagado.
 - Mitigaciones obligatorias si se continúa:
   - Filtro por IP de origen (solo la IP del servidor).
   - Puerto externo distinto por cámara (cambiar el puerto no protege; solo
@@ -70,9 +91,11 @@ Datos verificados que cierran otras vías:
 
 ## Procedimiento (solo si la decisión es «viable»)
 
-**Cámara 1 (Good Barber)**
+**Cámara 1 (la C110 que ve ambos espacios)**
 1. App Tapo → la cámara → *Ajustes avanzados → Cuenta de la cámara*: crear
-   usuario y contraseña (sin caracteres especiales). Actualizar el firmware.
+   usuario y contraseña (sin caracteres especiales). Actualizar el firmware a
+   la versión más reciente (≥ 1.5.4 Build 260428 en C110 v2). Dejar ONVIF
+   apagado. Anotar la **versión de hardware** (v1/v2) que muestra la app.
 2. Prueba local, en el Wi-Fi del local: en el iPhone, la app gratuita **VLC**
    → *Red → Abrir red* → `rtsp://USUARIO:CONTRASEÑA@IP-DE-LA-CÁMARA:554/stream2`.
    La IP de la cámara aparece en la app Tapo (información del dispositivo).
@@ -83,13 +106,14 @@ Datos verificados que cierran otras vías:
 4. Servidor: instalar el motor (`vision/engine`), crear el usuario limitado
    del motor (`BASE-DE-DATOS.md` §6) y guardar la URL RTSP **solo** como
    variable de entorno.
-5. App: dibujar la línea de la puerta y las zonas de las estaciones, y
-   activar «Solicitar análisis».
+5. App: dibujar **una línea por puerta**, eligiendo para cuál negocio cuenta
+   (Good Barber o Glamour Studio), dibujar las zonas de las estaciones de
+   ambos negocios y activar «Solicitar análisis».
 6. **Validación real:** durante 1 hora, el propietario anota a mano entradas
    y salidas, y se comparan con las del motor. Igual con la ocupación de una
    estación.
 
-**Cámara 2 (Glamour Studio):** repetir los pasos 1–5 con el puerto externo
+**Cámara 2 (segunda C110):** repetir los pasos 1–5 con el puerto externo
 55402. Después, medir CPU, memoria y estabilidad con **las dos cámaras
 simultáneas** durante al menos un día comercial.
 
@@ -111,7 +135,7 @@ proveedor y la fecha. Alternativas **sin contratar nada**:
 |---|---|
 | Red `IZZI-268F-5G`, Wi-Fi 6 | Equipo de Izzi |
 | iPhone `192.168.1.35/24`, «Router» `192.168.1.1` | Red local privada detrás del módem (normal). **No** indica por sí solo si hay CGNAT |
-| IPv6: 3 direcciones, router `fe80::1` | Izzi entrega **IPv6** en el local. No sirve para las cámaras: la Tapo C100 solo usa IPv4 |
+| IPv6: 3 direcciones, router `fe80::1` | Izzi entrega **IPv6** en el local. No sirve para las cámaras: la Tapo C110 solo usa IPv4 |
 
 Para decidir faltan **dos números**: la **IP pública IPv4** (la que ve
 internet) y la **IP WAN IPv4 del módem**. También hace falta saber si el
@@ -123,7 +147,7 @@ Una conexión **cifrada** necesita que algo dentro del local inicie un túnel
 de salida (WireGuard, Tailscale, cloudflared) o que la cámara cifre el
 video. Con las condiciones actuales nada de eso es posible:
 
-- La Tapo C100 **no cifra RTSP** (no hay RTSPS) y no puede ejecutar un túnel.
+- La Tapo C110 **no cifra RTSP** (no hay RTSPS) y no puede ejecutar un túnel.
 - El módem de Izzi no ofrece servidor ni cliente VPN para el usuario.
 - El iPhone no puede quedarse en el local, e iOS no mantiene un túnel ni
   procesa video en segundo plano.

@@ -23,6 +23,7 @@ class CountingLine:
     point_a: Point
     point_b: Point
     entry_side: str  # 'left' | 'right' de la recta dirigida A→B = interior del negocio
+    business_id: str = ""  # negocio al que cuentan las entradas/salidas (puede no ser el de la cámara)
 
 
 @dataclass

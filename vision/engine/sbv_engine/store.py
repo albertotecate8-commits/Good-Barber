@@ -54,12 +54,15 @@ class Store:
             cur2 = self.conn.cursor()
             cur2.execute("select weekday, is_closed, opens_at, closes_at from vision.business_hours where business_id = %s::uuid", (bid,))
             hours = [DayHours(*r) for r in cur2.fetchall()]
-            cur2.execute("""select id::text, point_a, point_b, entry_side from vision.counting_lines
-                            where camera_id = %s::uuid and active""", (cid,))
-            lines = [CountingLine(i, cid, tuple(a), tuple(b), side) for i, a, b, side in cur2.fetchall()]
-            cur2.execute("""select id::text, zone, coalesce(dwell_threshold_seconds, %s), release_grace_seconds
-                            from vision.stations where camera_id = %s::uuid and active and zone is not null""", (default_dwell, cid))
-            zones = [StationZone(i, bid, cid, [tuple(p) for p in z], float(d), float(g)) for i, z, d, g in cur2.fetchall()]
+            cur2.execute("""select id::text, point_a, point_b, entry_side, coalesce(business_id, %s::uuid)::text
+                            from vision.counting_lines where camera_id = %s::uuid and active""", (bid, cid))
+            lines = [CountingLine(i, cid, tuple(a), tuple(b), side, lb) for i, a, b, side, lb in cur2.fetchall()]
+            # Estaciones de CUALQUIER negocio del establecimiento que esta cámara observa.
+            cur2.execute("""select s.id::text, s.business_id::text, s.zone,
+                                   coalesce(s.dwell_threshold_seconds, b.default_dwell_seconds), s.release_grace_seconds
+                            from vision.stations s join vision.businesses b on b.id = s.business_id
+                            where s.camera_id = %s::uuid and s.active and s.zone is not null and b.active""", (cid,))
+            zones = [StationZone(i, sb, cid, [tuple(p) for p in z], float(d), float(g)) for i, sb, z, d, g in cur2.fetchall()]
             cams.append(CameraConfig(cid, bid, sid, name, profile, tz, hours, confirmed, lines, zones))
         return cams
 
@@ -106,7 +109,7 @@ class Store:
             self.conn.execute("""
                 insert into vision.traffic_hourly (camera_id, business_id, hour_start, people_detected_max, entries, exits, visits_estimated, observed_seconds, updated_at)
                 values (%s::uuid, %s::uuid, %s, %s, %s, %s, %s, %s, now())
-                on conflict (camera_id, hour_start) do update set
+                on conflict (camera_id, business_id, hour_start) do update set
                   people_detected_max = greatest(vision.traffic_hourly.people_detected_max, excluded.people_detected_max),
                   entries = vision.traffic_hourly.entries + excluded.entries,
                   exits = vision.traffic_hourly.exits + excluded.exits,

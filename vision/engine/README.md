@@ -3,6 +3,7 @@
 Python · YOLOX-Nano (Apache-2.0, solo clase «persona») · ByteTrack
 (`supervision`, MIT) · ONNX Runtime (MIT) · OpenCV (Apache-2.0).
 
+Cámaras: dos Tapo C110 (RTSP `stream2`, puerto 554; ONVIF nunca expuesto).
 Sin reconocimiento facial, sin identificar personas y sin guardar video ni
 imágenes. Escribe solo métricas y eventos en el esquema `vision`, con un
 usuario que hereda del rol limitado `vision_engine` (nunca `service_role`).

@@ -66,7 +66,7 @@ export default function EstacionesSettingsPage() {
     return {
       id: null,
       business_id: businessId,
-      camera_id: data.data?.cameras.find((c) => c.business_id === businessId && c.active)?.id ?? "",
+      camera_id: data.data?.cameras.find((c) => c.business_id === businessId && c.active)?.id ?? data.data?.cameras.find((c) => c.active)?.id ?? "",
       name: "",
       kind: "silla",
       dwell_threshold_seconds: "",
@@ -128,7 +128,8 @@ export default function EstacionesSettingsPage() {
   }
 
   const draftBiz = draft ? bizById.get(draft.business_id) : undefined;
-  const draftCameras = data.data?.cameras.filter((c) => c.business_id === draft?.business_id) ?? [];
+  // Una cámara puede observar estaciones de cualquier negocio del establecimiento (p. ej. una C110 que ve ambos espacios).
+  const draftCameras = data.data?.cameras.filter((c) => c.active) ?? [];
 
   return (
     <>
@@ -230,7 +231,7 @@ export default function EstacionesSettingsPage() {
               {(id) => (
                 <Select id={id} value={draft.camera_id} onChange={(e) => setDraft({ ...draft, camera_id: e.target.value })}>
                   <option value="">Sin asignar</option>
-                  {draftCameras.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  {draftCameras.map((c) => <option key={c.id} value={c.id}>{c.name}{c.business_id !== draft.business_id ? ` (de ${bizById.get(c.business_id)?.name ?? "otro negocio"})` : ""}</option>)}
                 </Select>
               )}
             </Field>

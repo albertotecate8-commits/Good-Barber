@@ -6,7 +6,7 @@
  *   - mode "polygon": zona de una estación (3 a 32 puntos).
  *   - mode "line":    línea de conteo A→B; el lado de entrada se elige aparte.
  * Mientras no exista una captura real de la cámara se dibuja sobre una
- * cuadrícula 16:9 (el encuadre de la Tapo C100).
+ * cuadrícula 16:9 (el encuadre de la Tapo C110: 2304 × 1296).
  */
 import { useRef } from "react";
 import { Button } from "../ui/primitives";

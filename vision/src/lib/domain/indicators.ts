@@ -115,13 +115,16 @@ export function trafficIndicator(engine: EngineStatus, rows: TrafficDaily[], fie
   if (engine.kind === "never") return { state: "pending", reason: PENDING_ENGINE };
   const observed = rows.filter((r) => r.observed_seconds > 0);
   if (observed.length === 0) return { state: "no_data", reason: "Sin datos registrados hoy." };
-  const value =
-    field === "people_detected_max"
-      ? Math.max(...observed.map((r) => r.people_detected_max))
-      : observed.reduce((acc, r) => acc + r[field], 0);
+  if (field === "people_detected_max") {
+    const measured = observed.map((r) => r.people_detected_max).filter((v): v is number => v !== null);
+    if (measured.length === 0) {
+      return { state: "no_data", reason: "Ninguna cámara mide las personas de este negocio (solo sus entradas y salidas)." };
+    }
+    return { state: "value", display: String(Math.max(...measured)), quality: "real", detail: "Máximo simultáneo del día", stale: stale(engine) };
+  }
+  const value = observed.reduce((acc, r) => acc + r[field], 0);
   const quality = field === "visits_estimated" ? "estimated" : "real";
-  const detail = field === "people_detected_max" ? "Máximo simultáneo del día" : undefined;
-  return { state: "value", display: String(value), quality, detail, stale: stale(engine) };
+  return { state: "value", display: String(value), quality, stale: stale(engine) };
 }
 
 export function peopleInsideIndicator(engine: EngineStatus, live: BusinessLiveState[]): Indicator {

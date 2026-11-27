@@ -18,7 +18,11 @@ create role motor_prueba login in role vision_engine;
 -- Configuración que haría el propietario desde la app:
 update vision.cameras set analysis_enabled = true where name = 'Cámara Good Barber';
 insert into vision.counting_lines (camera_id, name, point_a, point_b, entry_side)
-select id, 'Puerta (prueba)', '[0.5, 0.2]', '[0.5, 0.95]', 'left' from vision.cameras where name = 'Cámara Good Barber';
+select id, 'Puerta GB (prueba)', '[0.5, 0.2]', '[0.5, 0.95]', 'left' from vision.cameras where name = 'Cámara Good Barber';
+-- Cobertura compartida: la misma cámara ve también la puerta de Glamour Studio.
+insert into vision.counting_lines (camera_id, business_id, name, point_a, point_b, entry_side)
+select c.id, b.id, 'Puerta GS (prueba)', '[0.05, 0.4]', '[0.95, 0.4]', 'left'
+from vision.cameras c, vision.businesses b where c.name = 'Cámara Good Barber' and b.slug = 'glamour-studio';
 insert into vision.stations (business_id, camera_id, name, kind, zone, dwell_threshold_seconds, release_grace_seconds)
 select business_id, id, 'Zona de prueba', 'otro', '[[0.0,0.25],[0.45,0.25],[0.45,0.45],[0.0,0.45]]', 5, 3
 from vision.cameras where name = 'Cámara Good Barber';
@@ -31,7 +35,7 @@ from sbv_engine.detector import YoloxPersonDetector
 model, video, dsn = sys.argv[1:4]
 store = Store(dsn)
 cams = store.load_cameras()
-assert len(cams) == 1 and len(cams[0].lines) == 1 and len(cams[0].zones) == 1, cams
+assert len(cams) == 1 and len(cams[0].lines) == 2 and len(cams[0].zones) == 1, cams
 cam = cams[0]
 base = time.time()
 w = CameraWorker(cam, store, YoloxPersonDetector(model), analysis_fps=5, source=video, clock=lambda: base)
@@ -50,10 +54,11 @@ store.heartbeat("motor-prueba", cam.site_id, "0.1.0", base, {"camaras": {cam.nam
 print("procesado:", n, "cuadros")
 PY
 echo "--- Resultados en la base (escritos por motor_prueba, rol vision_engine):"
-"${Q[@]}" -A -F' | ' -c "select 'traffic_hourly', sum(entries) entradas, sum(exits) salidas, sum(visits_estimated) visitas, max(people_detected_max) max_personas, sum(observed_seconds) seg_observados from vision.traffic_hourly" \
-  -c "select 'vision_events', event_type, count(*) from vision.vision_events group by event_type order by 2" \
+"${Q[@]}" -A -F' | ' -c "select 'traffic_hourly', b.name, sum(entries), sum(exits), sum(visits_estimated), max(people_detected_max), sum(observed_seconds) from vision.traffic_hourly t join vision.businesses b on b.id = t.business_id group by b.name order by b.name" \
+  -c "select 'modelo', model, count(*) from vision.cameras group by model" \
+  -c "select 'vision_events', b.name, event_type, count(*) from vision.vision_events e join vision.businesses b on b.id = e.business_id group by b.name, event_type order by 2, 3" \
   -c "select 'ocupacion', sum(occupied_seconds), sum(observed_seconds), sum(sessions) from vision.station_occupancy_hourly" \
   -c "select 'estado_estacion', state from vision.station_live_state" \
-  -c "select 'personas_dentro_est', people_inside_estimate from vision.business_live_state" \
+  -c "select 'personas_dentro_est', b.name, people_inside_estimate from vision.business_live_state l join vision.businesses b on b.id = l.business_id order by 2" \
   -c "select 'camara', status, fps is not null from vision.camera_health" \
   -c "select 'latido', id, last_heartbeat_at is not null from vision.engine_nodes"

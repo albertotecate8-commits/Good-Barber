@@ -113,3 +113,15 @@ def test_agregado_por_hora_incremental_y_huecos():
     second = ag.drain()
     assert second[0].entries == 0 and second[0].exits == 1 and second[0].observed_seconds == 0
     assert first[0].visits_estimated == 1 and hour_start(t0) == first[0].hour
+
+
+def test_agregador_secundario_no_inventa_personas():
+    t0 = datetime(2026, 11, 27, 20, 0, tzinfo=timezone.utc).timestamp()
+    prim = TrafficAggregator("C1", "GB", measures_people=True)
+    sec = TrafficAggregator("C1", "GS", measures_people=False)
+    for i in range(0, 60, 2):
+        prim.observe(t0 + i, 3); sec.observe(t0 + i, 3)
+    sec.crossing(t0 + 10, "line_entry")
+    p, q = prim.drain()[0], sec.drain()[0]
+    assert p.people_detected_max == 3 and q.people_detected_max is None
+    assert q.entries == 1 and q.observed_seconds > 0 and p.entries == 0

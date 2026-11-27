@@ -37,7 +37,7 @@ iPhone (PWA)  ──HTTPS──►  Cloudflare Pages (archivos estáticos de vis
                                                        ├─ Auth (correo/contraseña, sin registro público)
                                                        └─ Postgres, esquema `vision` + RLS
 
-(Etapas 2+)  Motor de visión (Python) ──RTSP──► 2 cámaras Tapo C100 (una por negocio)
+(Etapas 2+)  Motor de visión (Python) ──RTSP──► 2 cámaras Tapo C110 (una ve ambos negocios)
              └──PostgreSQL/TLS (usuario limitado `vision_engine`, solo en el servidor)──► métricas y eventos
 
 Proyectos de Good Barber y Finanzas: separados; Vision no los usa ni los lee.
@@ -145,7 +145,7 @@ eligió ni descargó ningún modelo.
 
 ### El riesgo principal: llegar a las cámaras sin un equipo en el local
 
-Las Tapo C100 exponen RTSP (puerto 554) solo en la red local y **no** pueden
+Las Tapo C110 (antes registradas por error como C100) exponen RTSP (puerto 554) solo en la red local y **no** pueden
 iniciar una conexión de salida hacia un servidor. Sin un equipo en el local,
 la única vía es que el servidor entre a la red de Izzi. Antes de decidir:
 

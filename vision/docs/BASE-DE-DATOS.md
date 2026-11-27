@@ -90,11 +90,13 @@ exclusivo para esta app:
 | Orden | Archivo | Contenido |
 |---|---|---|
 | 1 | `20261127120000_vision_etapa1_base.sql` | Esquema `vision`, tablas, vistas, funciones, RLS y permisos de la app |
-| 2 | `20261127120100_vision_etapa1_datos_iniciales.sql` | Establecimiento, 2 negocios, horario confirmado de Good Barber y 2 cámaras Tapo C100 |
+| 2 | `20261127120100_vision_etapa1_datos_iniciales.sql` | Establecimiento, 2 negocios, horario confirmado de Good Barber y 2 cámaras (registradas como C100; corregidas a **C110** por la migración `…150000`) |
 | 3 | `20261127120200_vision_rol_motor.sql` | Rol `vision_engine` con permisos mínimos para el motor (sin login) |
 | 4 | `20261127130000_vision_bloqueo_registro.sql` | Trigger que bloquea el registro público y anónimo en `auth.users` |
 | 5 | `20261127130100_vision_api_esquema_expuesto.sql` | Expone `vision` en la Data API (sin dar acceso a nadie) |
 | 6 | `20261127130200_vision_politicas_e_indices.sql` | Políticas INSERT/UPDATE/DELETE separadas (mismas condiciones) e índices de llaves foráneas |
+| 7 | `20261127140000_vision_diagnostico_red.sql` | Diagnóstico de red del local (`network_checks`, solo owner/admin) |
+| 8 | `20261127150000_vision_c110_cobertura_compartida.sql` | Modelo **Tapo C110**; una cámara puede observar ambos negocios del establecimiento; métricas por cámara + negocio + hora |
 
 Todas son **idempotentes** (se pueden volver a ejecutar).
 
@@ -103,7 +105,7 @@ Datos iniciales (solo hechos confirmados):
 - Good Barber, horario **confirmado**: lunes a viernes 2:00–8:00 p. m.,
   sábado 11:00 a. m.–8:00 p. m., domingo cerrado.
 - Glamour Studio: **sin horario**, marcado como pendiente de confirmar.
-- Exactamente **una cámara TP-Link Tapo C100 por negocio**, con el análisis
+- Dos cámaras **TP-Link Tapo C110** (corrección del propietario; la primera ve ambos negocios), con el análisis
   desactivado.
 - Zona horaria `America/Mexico_City` (Durango, UTC−6).
 - **Cero** estaciones, empleados, métricas o eventos.

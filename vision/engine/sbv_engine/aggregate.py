@@ -15,7 +15,7 @@ class HourBucket:
     camera_id: str
     business_id: str
     hour: datetime
-    people_detected_max: int = 0
+    people_detected_max: int | None = 0  # None = esta cámara no mide personas de este negocio
     entries: int = 0
     exits: int = 0
     observed_seconds: float = 0.0
@@ -31,13 +31,17 @@ class HourBucket:
 class TrafficAggregator:
     camera_id: str
     business_id: str
+    # True: negocio propio de la cámara (se registra el máximo de personas).
+    # False: otro negocio cuyas puertas ve la cámara (solo entradas/salidas).
+    measures_people: bool = True
     buckets: dict[datetime, HourBucket] = field(default_factory=dict)
     _last_ts: float | None = None
 
     def _bucket(self, ts: float) -> HourBucket:
         h = hour_start(ts)
         if h not in self.buckets:
-            self.buckets[h] = HourBucket(self.camera_id, self.business_id, h)
+            self.buckets[h] = HourBucket(self.camera_id, self.business_id, h,
+                                         0 if self.measures_people else None)
         return self.buckets[h]
 
     def observe(self, ts: float, people_in_frame: int, max_gap: float = 10.0) -> None:
@@ -47,7 +51,8 @@ class TrafficAggregator:
             if hour_start(self._last_ts) == b.hour:
                 b.observed_seconds = min(3600.0, b.observed_seconds + (ts - self._last_ts))
         self._last_ts = ts
-        b.people_detected_max = max(b.people_detected_max, people_in_frame)
+        if self.measures_people:
+            b.people_detected_max = max(b.people_detected_max or 0, people_in_frame)
 
     def crossing(self, ts: float, direction: str) -> None:
         b = self._bucket(ts)

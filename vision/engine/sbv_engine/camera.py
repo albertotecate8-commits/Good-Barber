@@ -39,8 +39,10 @@ class CameraWorker:
         self.tracker = PersonTracker(analysis_fps)
         self.counters = [LineCounter(l) for l in cam.lines]
         self.zones = [ZoneTracker(z) for z in cam.zones]
-        self.agg = TrafficAggregator(cam.id, cam.business_id)
-        self.inside = 0
+        # Un agregador por negocio: el de la cámara y los de las puertas que ve.
+        biz = {cam.business_id} | {l.business_id or cam.business_id for l in cam.lines}
+        self.aggs = {b: TrafficAggregator(cam.id, b, measures_people=(b == cam.business_id)) for b in biz}
+        self.inside = {b: 0 for b in biz}
         self.status = None
         self.last_seen: float | None = None
         self._zone_obs: dict[str, float] = {}
@@ -67,21 +69,22 @@ class CameraWorker:
         tracks = self.tracker.update(det)
         alive = {tid for tid, _ in tracks}
         anchors = {tid: anchor_bottom_center(tuple(b), w, h) for tid, b in tracks}
-        self.agg.observe(ts, len(det.scores))
+        for agg in self.aggs.values():
+            agg.observe(ts, len(det.scores))
         for counter in self.counters:
             for tid, p in anchors.items():
                 c = counter.update(tid, p, ts)
                 if c:
-                    self.agg.crossing(ts, c.direction)
-                    self.inside += 1 if c.direction == "line_entry" else -1
-                    self.inside = max(0, self.inside)
-                    self.store.crossing(self.cam.business_id, self.cam.id, c.line_id, c.direction, ts, tid, None)
+                    b = counter.line.business_id or self.cam.business_id
+                    self.aggs[b].crossing(ts, c.direction)
+                    self.inside[b] = max(0, self.inside[b] + (1 if c.direction == "line_entry" else -1))
+                    self.store.crossing(b, self.cam.id, c.line_id, c.direction, ts, tid, None)
             counter.forget(alive)
         pts = list(anchors.values())
         for z in self.zones:
             e = z.update(pts, ts)
             if e:
-                self.store.zone_event(self.cam.business_id, self.cam.id, e.station_id, e.kind, ts)
+                self.store.zone_event(z.zone.business_id, self.cam.id, e.station_id, e.kind, ts)
         if self._last_zone_ts is not None and 0 < ts - self._last_zone_ts <= 10:
             for z in self.zones:
                 self._zone_obs[z.zone.station_id] = self._zone_obs.get(z.zone.station_id, 0.0) + (ts - self._last_zone_ts)
@@ -95,14 +98,17 @@ class CameraWorker:
                                 payload={"personas": int(len(det.scores)), "confianza_max": round(conf, 2)})
 
     def flush(self) -> None:
-        self.store.traffic(self.agg.drain())
+        for agg in self.aggs.values():
+            self.store.traffic(agg.drain())
         hour = hour_start(self._last_zone_ts or self.clock())
         for z in self.zones:
             occ, sessions = z.take_occupied_seconds()
             obs = self._zone_obs.pop(z.zone.station_id, 0.0)
             if obs > 0 or occ > 0:
                 self.store.occupancy(z.zone.station_id, z.zone.business_id, hour, occ, obs, sessions)
-        self.store.people_inside(self.cam.business_id, self.inside)
+        for b, n in self.inside.items():
+            if self.cam.lines:  # sin líneas no hay estimado de personas dentro
+                self.store.people_inside(b, n)
 
     def run(self, stop, flush_every: float = 30.0, max_frames: int | None = None) -> None:
         backoff = 2.0
