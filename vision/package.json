@@ -1,0 +1,31 @@
+{
+  "name": "smart-business-vision",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Smart Business Vision AI — panel de administración y análisis por cámaras para Good Barber y Glamour Studio.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "npx serve out",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "check": "npm run typecheck && npm run test && npm run build"
+  },
+  "engines": {
+    "node": ">=20.9"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.119.2",
+    "next": "16.4.6",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.7",
+    "@types/react": "19.3.3",
+    "@types/react-dom": "19.3.0",
+    "typescript": "5.9.3",
+    "vitest": "5.1.2"
+  }
+}

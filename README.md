@@ -4,6 +4,10 @@ Aplicación web estática (HTML + CSS + JavaScript, sin frameworks ni build) con
 a **Supabase** (Auth + Postgres + Row Level Security) para administrar una barbería
 con un administrador y dos barberos, cada uno con su propia cuenta y sus propios datos.
 
+> **Smart Business Vision AI** vive en [`vision/`](vision/README.md): app aparte
+> (Next.js + esquema `vision` de Supabase) para análisis por cámaras de Good
+> Barber y Glamour Studio. No modifica esta app.
+
 ## Índice
 
 1. [Arquitectura](#arquitectura)
