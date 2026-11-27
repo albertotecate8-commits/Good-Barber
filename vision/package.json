@@ -9,7 +9,9 @@
     "start": "npx serve out",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "check": "npm run typecheck && npm run test && npm run build"
+    "check": "npm run typecheck && npm run test && npm run build",
+    "secrets:check": "node scripts/revisar-secretos.mjs out",
+    "deploy:cloudflare": "npm run build && npm run secrets:check && wrangler pages deploy out --project-name smart-business-vision --branch main --commit-dirty=true"
   },
   "engines": {
     "node": ">=20.9"
@@ -26,6 +28,7 @@
     "@types/react": "19.3.3",
     "@types/react-dom": "19.3.0",
     "typescript": "5.9.3",
-    "vitest": "5.1.2"
+    "vitest": "5.1.2",
+    "wrangler": "4.159.0"
   }
 }

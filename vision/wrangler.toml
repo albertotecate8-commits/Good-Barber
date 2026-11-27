@@ -1,0 +1,6 @@
+# Cloudflare Pages (plan gratuito) — publicación por "direct upload" del
+# sitio estático ya compilado (out/). No usa Workers, Functions, KV, D1 ni
+# ningún recurso de pago.
+name = "smart-business-vision"
+pages_build_output_dir = "out"
+compatibility_date = "2026-11-01"
