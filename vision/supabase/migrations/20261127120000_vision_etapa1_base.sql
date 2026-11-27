@@ -3,14 +3,14 @@
 -- Migración: 20261127120000_vision_etapa1_base.sql
 -- =====================================================================
 -- Qué crea:
---   * Esquema propio `vision` (aislado de `public`, donde viven las tablas
---     de la app de Good Barber). Nada de esta migración lee ni modifica
---     tablas de `public`.
+--   * Esquema propio `vision` en el proyecto de Supabase EXCLUSIVO de
+--     Smart Business Vision. Nada de esta migración lee ni modifica `public`.
 --   * Tablas de configuración (sitio, miembros, negocios, horarios,
 --     cámaras, estaciones, líneas virtuales).
 --   * Tablas para resultados del motor de visión (eventos, métricas
 --     horarias, estado en vivo, salud de cámaras, latidos del motor y
---     eventos de seguridad). SOLO el motor (service_role) escribe en ellas.
+--     eventos de seguridad). SOLO el motor escribe en ellas, con el rol
+--     limitado `vision_engine` (migración 20261127120200_vision_rol_motor).
 --   * Tablas preparadas para la administración futura (empleados, tipos de
 --     servicio, registro manual de servicios). Sin interfaz en la Etapa 1.
 --   * Vistas de lectura con `security_invoker` (respetan RLS).
@@ -299,7 +299,7 @@ create trigger trg_counting_lines_updated_at before update on vision.counting_li
   for each row execute function vision.set_updated_at();
 
 -- =====================================================================
--- 3. RESULTADOS DEL MOTOR DE VISIÓN (solo escribe service_role)
+-- 3. RESULTADOS DEL MOTOR DE VISIÓN (solo escribe el rol vision_engine)
 -- =====================================================================
 
 -- Latido del motor de visión. Si no hay filas, el motor nunca se conectó y
@@ -601,9 +601,9 @@ declare
   v_remaining integer;
 begin
   -- Un DELETE en cascada (pg_trigger_depth() > 1) viene de borrar la cuenta
-  -- en Supabase Auth o el establecimiento completo. Nunca se bloquea: si
-  -- `vision` vive en un proyecto compartido, impedirlo rompería el borrado de
-  -- cuentas de la otra aplicación (detectado en la auditoría de integración).
+  -- en Supabase Auth o el establecimiento completo. Nunca se bloquea:
+  -- impedirlo rompería el borrado de cuentas en Supabase Auth (hallazgo H1
+  -- de la auditoría).
   if tg_op = 'DELETE' and pg_trigger_depth() > 1 then
     return old;
   end if;
@@ -945,9 +945,9 @@ create policy counting_lines_write on vision.counting_lines for all to authentic
   using (vision.can_manage(vision.camera_site(camera_id)))
   with check (vision.can_manage(vision.camera_site(camera_id)));
 
--- ---- Tablas del motor: lectura para miembros, escritura solo service_role
---      (service_role omite RLS; no existe política de escritura para
---      authenticated, y además no tiene GRANT de escritura). ----
+-- ---- Tablas del motor: lectura para miembros. La app (authenticated) no
+--      tiene política ni GRANT de escritura; escribe solo el rol del motor
+--      (vision_engine, ver migración 20261127120200). ----
 drop policy if exists engine_nodes_select on vision.engine_nodes;
 create policy engine_nodes_select on vision.engine_nodes for select to authenticated
   using (vision.is_member(site_id));
@@ -1052,7 +1052,8 @@ grant select on
   vision.station_occupancy_daily
 to authenticated;
 
--- El motor de visión (service_role) escribe resultados.
+-- service_role: acceso administrativo estándar de Supabase. NO lo usan ni la
+-- app ni el motor; se conserva para tareas de mantenimiento del propietario.
 grant all on all tables in schema vision to service_role;
 grant usage, select on all sequences in schema vision to service_role;
 
