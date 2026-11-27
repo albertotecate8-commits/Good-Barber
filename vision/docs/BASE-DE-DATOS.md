@@ -7,24 +7,59 @@
 | Organización | «Camaraia» (plan **Free**), cuenta independiente de Good Barber y Finanzas |
 | Proyecto | `smart-business-vision` · ref `mwyerhivkvumsepxynyq` · us-east-1 · PostgreSQL 17 |
 | URL | `https://mwyerhivkvumsepxynyq.supabase.co` |
-| Costo | Supabase lo creó sin pedir confirmación de costo ($0) |
-| Migraciones aplicadas | `vision_etapa1_base`, `vision_etapa1_datos_iniciales`, `vision_rol_motor` (aplicadas por el conector) |
+| Costo | $0 (Supabase lo creó sin pedir confirmación de costo) |
+| Propietario | `albertotecate8@gmail.com`, rol `owner`, correo confirmado |
+| Frontend | `vision/.env.local` (ignorado por git) con URL y clave **publishable** |
 
-Verificación en el proyecto real (consultas de solo lectura y Security Advisor):
+### 0.1 Configuración realizada por el conector (sin entrar al panel)
 
-- 19 tablas, **0 sin RLS**, 60 políticas.
-- `anon` sin acceso al esquema `vision`.
-- La app (`authenticated`) no puede escribir métricas ni ejecutar `bootstrap_owner`.
-- `vision_engine` no tiene login, no ve `auth`, no lee `members` y no puede borrar.
-- Datos: 1 establecimiento (`America/Mexico_City`), Good Barber con horario confirmado (7 días), Glamour Studio pendiente, 2 cámaras Tapo C100, 0 estaciones, 0 miembros, 0 usuarios de Auth.
-- **Security Advisor: sin advertencias.**
+| Tarea | Cómo se hizo | Verificación real |
+|---|---|---|
+| Esquema, RLS, datos iniciales, rol del motor | Migraciones 1–3 | 19 tablas, 0 sin RLS |
+| **Registro público bloqueado** | Migración `…130000_vision_bloqueo_registro`: un trigger en `auth.users` rechaza las cuentas creadas por `/auth/v1/signup` y los accesos anónimos | `POST /auth/v1/signup` → «Database error saving new user» y 0 filas creadas |
+| **`vision` expuesto en la Data API** | Migración `…130100_vision_api_esquema_expuesto` (`pgrst.db_schemas` del rol `authenticator`) | `anon` pasa de «Invalid schema» a «permission denied» (expuesto pero sin acceso); el propietario lee datos |
+| Políticas sin solapamiento + índices | Migración `…130200_vision_politicas_e_indices` (INSERT/UPDATE/DELETE separados, misma condición) | Pruebas locales y reales iguales; Performance Advisor solo marca «índices sin uso» (tablas vacías) |
+| Cuenta del propietario | `INSERT` en `auth.users` + `auth.identities` con hash bcrypt generado localmente (la contraseña nunca pasó por SQL, chat ni repositorio) y `vision.bootstrap_owner` | Inicio de sesión real con contraseña correcta; la incorrecta se rechaza |
+| Acceso de red para pruebas | Host `mwyerhivkvumsepxynyq.supabase.co` agregado al entorno de la sesión (aprobado por el propietario) | — |
 
-Pendiente en el panel (el conector no puede hacerlo):
+### 0.2 Pruebas reales (API de Supabase, 27 nov 2026)
 
-- §3.2: desactivar el registro público.
-- §3.4: URL Configuration.
-- §3.6: agregar `vision` a *Exposed schemas*.
-- §3.7: crear tu usuario y ejecutar `bootstrap_owner`.
+`scripts/prueba-supabase-real.mjs` (27 comprobaciones, todas correctas):
+
+- **Sin sesión:** no lee negocios, no ejecuta funciones, el registro está bloqueado y la contraseña incorrecta se rechaza.
+- **Propietario:**
+  - Inicia sesión y su rol es `owner`.
+  - Lee los 2 negocios (Good Barber con horario confirmado; Glamour Studio pendiente), los 7 días de horario y las 2 cámaras sin probar.
+  - Motor: 0 latidos. Métricas: 0 filas.
+  - Crea y borra una estación.
+  - No puede escribir métricas ni ejecutar `bootstrap_owner`.
+- **Cuenta temporal sin membresía** (creada y **borrada** después):
+  - Ve 0 negocios.
+  - No puede autoasignarse propietario ni usar `add_member_by_email`.
+  - Con rol `viewer` ve los 2 negocios, pero no edita negocios ni crea estaciones.
+  - Al quitarle el acceso vuelve a ver 0 negocios.
+- **App compilada contra el proyecto real** (Chromium emulando iPhone 14):
+  - Inicio de sesión del propietario.
+  - Inicio, Good Barber y Glamour Studio con datos reales e indicadores «Pendiente».
+  - Ajustes y Usuarios.
+  - Todas las llamadas a Supabase respondieron 200; 0 errores en la página.
+- **Security Advisor:** una sola advertencia, «Leaked Password Protection Disabled» (ver §0.3).
+
+Estado final: 1 cuenta (la del propietario), 1 miembro, 0 estaciones, 0 métricas y 0 eventos. No quedaron datos de prueba.
+
+### 0.3 No completado (y por qué)
+
+| Tarea | Motivo | Efecto actual |
+|---|---|---|
+| Apagar el interruptor «Allow new users to sign up» | Es configuración del servicio Auth: solo se cambia desde el panel o la Management API (requiere un token personal de la cuenta). El conector no tiene esa función | Ninguno en la práctica: el trigger de base de datos bloquea el registro (probado). `GET /auth/v1/settings` seguirá mostrando `disable_signup: false` |
+| Site URL y Redirect URLs | Misma razón (configuración de Auth) | Supabase usa por defecto `http://localhost:3000` como Site URL. No se verificó el enlace de recuperación porque probarlo envía un correo real |
+| Protección de contraseñas filtradas (HaveIBeenPwned) | Configuración de Auth; además, Supabase la ofrece en planes de pago | Sin cambio. La app exige al menos 10 caracteres |
+| Correos de recuperación | El SMTP por defecto de Supabase envía solo a miembros del equipo del proyecto y con un límite bajo por hora | No probado (evita enviar correos reales) |
+
+Para completar esas tres configuraciones sin entrar al panel haría falta un
+**token personal de acceso** de la cuenta «Camaraia» (Management API). Ese
+token se crea en el panel de la cuenta, así que requiere tu intervención una
+sola vez.
 
 ## 1. Decisión
 
@@ -57,8 +92,11 @@ exclusivo para esta app:
 | 1 | `20261127120000_vision_etapa1_base.sql` | Esquema `vision`, tablas, vistas, funciones, RLS y permisos de la app |
 | 2 | `20261127120100_vision_etapa1_datos_iniciales.sql` | Establecimiento, 2 negocios, horario confirmado de Good Barber y 2 cámaras Tapo C100 |
 | 3 | `20261127120200_vision_rol_motor.sql` | Rol `vision_engine` con permisos mínimos para el motor (sin login) |
+| 4 | `20261127130000_vision_bloqueo_registro.sql` | Trigger que bloquea el registro público y anónimo en `auth.users` |
+| 5 | `20261127130100_vision_api_esquema_expuesto.sql` | Expone `vision` en la Data API (sin dar acceso a nadie) |
+| 6 | `20261127130200_vision_politicas_e_indices.sql` | Políticas INSERT/UPDATE/DELETE separadas (mismas condiciones) e índices de llaves foráneas |
 
-Las tres son **idempotentes** (se pueden volver a ejecutar).
+Todas son **idempotentes** (se pueden volver a ejecutar).
 
 Datos iniciales (solo hechos confirmados):
 
@@ -181,6 +219,25 @@ Reglas comprobadas por las pruebas (`supabase/tests/10_rls_tests.sql`):
 - No se borran negocios (se desactivan). Tampoco cámaras o estaciones que
   tengan historial.
 - Se validan coordenadas de zonas y líneas, horarios y zona horaria.
+
+## 5b. Cuentas de usuario
+
+Con el registro público bloqueado, las cuentas nuevas se crean así (lo hace el
+administrador técnico; nadie más puede):
+
+1. Generar localmente una contraseña temporal y su hash bcrypt
+   (`$2a$10$…`). La contraseña no se escribe en SQL, en el chat ni en el
+   repositorio.
+2. Insertar la fila en `auth.users` (correo confirmado y
+   `raw_app_meta_data.vision_provisioned = true`) y su fila en `auth.identities`
+   (`provider = 'email'`).
+3. Darle acceso desde la app (Ajustes → Usuarios → «Dar acceso») o, para el
+   primer propietario, con `vision.bootstrap_owner(correo)`.
+4. La persona cambia la contraseña en la app: Ajustes → Mi cuenta.
+
+El botón «Add user» del panel de Supabase queda bloqueado por el trigger. Si
+algún día se usa la API de administración, debe enviar
+`app_metadata: { "vision_provisioned": true }`.
 
 ## 6. Usuario del motor de visión (Etapa 2 — no crear todavía)
 

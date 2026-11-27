@@ -72,8 +72,9 @@ export default function UsuariosSettingsPage() {
         action={isOwner ? <Button size="sm" icon={<IconPlus size={18} />} onClick={() => { setError(null); setDraft({ mode: "add", email: "", role: "viewer", display_name: "", active: true }); }}>Dar acceso</Button> : undefined}
       />
       <Notice tone="info" title="Cómo se agregan personas">
-        1) Crea la cuenta en Supabase → Authentication → Users (el registro público está desactivado). 2) Aquí, «Dar acceso» con su correo
-        y su rol. Los usuarios de la app no son empleados: los empleados se registrarán aparte (Etapa 7).
+        El registro público está bloqueado. 1) El administrador técnico crea la cuenta (ver docs/BASE-DE-DATOS.md, «Cuentas»).
+        2) Aquí, «Dar acceso» con su correo y su rol. Los usuarios de la app no son empleados: los empleados se registrarán aparte
+        (Etapa 7).
       </Notice>
       {!isOwner && <Notice tone="info">Solo el propietario puede administrar usuarios.</Notice>}
 

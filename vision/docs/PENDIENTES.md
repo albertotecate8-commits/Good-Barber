@@ -2,11 +2,11 @@
 
 ## Decisiones del propietario (bloquean pasos siguientes)
 
-1. **Proyecto de Supabase propio de Vision**: **creado y con las migraciones
-   aplicadas** (`mwyerhivkvumsepxynyq`, org «Camaraia», Free). Faltan pasos en
-   el panel: desactivar el registro público, agregar `vision` a *Exposed
-   schemas*, configurar las URL y crear el primer propietario
-   (`BASE-DE-DATOS.md` §0 y §3).
+1. **Supabase de Vision**: configurado y probado contra el servicio real
+   (`BASE-DE-DATOS.md` §0). Falta solo la configuración del servicio Auth que
+   el conector no puede cambiar (interruptor de registro, Site URL/Redirect
+   URLs y protección de contraseñas filtradas); ver §0.3. El registro ya está
+   bloqueado en la base de datos.
 2. **Hosting**: aprobar la creación del proyecto en Cloudflare Pages (gratis).
 3. **Modelo de detección**: YOLOX (Apache-2.0) vs. Ultralytics YOLO
    (AGPL-3.0). Ver `ARQUITECTURA.md` §3.

@@ -39,6 +39,8 @@ npm run typecheck            # TypeScript estricto
 npm test                     # pruebas unitarias (horarios, indicadores, validación, configuración)
 bash supabase/tests/run.sh   # migraciones + RLS + rol del motor + respaldo/restauración (PostgreSQL local)
 npm run build                # genera out/ (sitio estático)
+# Pruebas contra el Supabase real (credenciales en archivos locales, ver el encabezado del script):
+NODE_USE_ENV_PROXY=1 node --env-file=.env.local scripts/prueba-supabase-real.mjs
 npm start                    # sirve out/ para probar el build
 ```
 

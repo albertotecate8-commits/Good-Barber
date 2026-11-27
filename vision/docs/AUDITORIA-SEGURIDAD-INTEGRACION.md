@@ -19,7 +19,7 @@ ni el de Finanzas.
 | Tema | Resultado | Bloquea la Etapa 2 |
 |---|---|---|
 | Interferencia con Good Barber / Finanzas | **Eliminada por diseño:** proyectos distintos, sin Auth, base ni permisos compartidos. El frontend rechaza las URL de esos dos proyectos | No |
-| Proyecto de Vision | Creado en una cuenta aparte (org «Camaraia», Free, $0). Migraciones aplicadas y verificadas: 0 tablas sin RLS y Security Advisor sin advertencias | No; faltan pasos manuales en el panel |
+| Proyecto de Vision | Creado en una cuenta aparte (org «Camaraia», Free, $0). 6 migraciones aplicadas; registro público bloqueado en BD; `vision` expuesto; propietario creado; **27 pruebas reales correctas** y dashboard real verificado. Security Advisor: solo «Leaked Password Protection» (configuración de Auth) | No |
 | Seguridad propia de Vision (RLS, roles, Auth) | Probada en PostgreSQL local: anon, cuenta ajena, viewer, admin, owner, motor y borrado desde Auth | No |
 | Credenciales del motor | Rol nuevo `vision_engine` con permisos mínimos. Ni la app ni el motor usan `service_role` | No |
 | Defecto corregido (revisión 1) | `protect_last_owner` bloqueaba el borrado en cascada desde Auth. Corregido y con prueba | Resuelto |
@@ -298,7 +298,8 @@ sola cámara, sin abrir ningún puerto.
 | Histórico (revisión 1) | No interferencia con el esquema real de Good Barber | Script retirado (ver historial de git) | Ya no aplica: proyecto independiente |
 | **Supabase simulado** (navegador) | Login correcto y erróneo, navegación, dashboard «Pendiente» y con datos de motor simulados, alta de estación con validación, horarios, cámaras | Playwright + Chromium emulando iPhone 14; respuestas REST/Auth falsas | No es Safari ni un iPhone real; no prueba RLS real vía API ni JWT reales |
 | **Pruebas unitarias** | Horarios, indicadores («nunca inventar»), validación, errores, rechazo de `service_role` y de los proyectos de Good Barber/Finanzas | Vitest (24 pruebas) | Lógica pura |
-| **No probado en servicios reales** | Proyecto real de Supabase (Data API con `vision`, Auth, correos, PKCE, pooler con usuario del motor, Security Advisor); Cloudflare Pages; PWA instalada en iPhone; cámaras/RTSP; red izzi; Oracle; inferencia; rendimiento ARM | — | Pendiente de que crees el proyecto y de tus autorizaciones |
+| **Supabase real** (27 nov 2026) | Auth (inicio de sesión, contraseña incorrecta, registro bloqueado), lectura de datos reales, permisos de propietario, de cuenta ajena y de `viewer`, app compilada contra el proyecto (Chromium/iPhone 14) | `scripts/prueba-supabase-real.mjs` + Playwright | No se probaron correos de recuperación (envían correos reales) ni el pooler con el usuario del motor (Etapa 2) |
+| **No probado en servicios reales** | Correos/PKCE de recuperación; pooler con usuario del motor; Cloudflare Pages; PWA instalada en un iPhone real; cámaras/RTSP; red izzi; Oracle; inferencia; rendimiento ARM | — | Pendiente de autorizaciones y de las etapas siguientes |
 
 ---
 

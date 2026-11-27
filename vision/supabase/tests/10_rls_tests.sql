@@ -332,4 +332,17 @@ do $$ begin
   end if;
 end $$;
 
+-- ---------- Registro público bloqueado (GoTrue inserta como supabase_auth_admin) ----------
+do $$ begin
+  execute 'set local role supabase_auth_admin';
+  begin
+    insert into auth.users (email) values ('intruso@test.local');
+    raise exception 'FALLO: el registro público creó una cuenta';
+  exception when insufficient_privilege then null;
+  end;
+  -- La API de administración puede crear cuentas marcadas
+  insert into auth.users (email, raw_app_meta_data) values ('aprovisionado@test.local', '{"vision_provisioned": true}');
+  delete from auth.users where email = 'aprovisionado@test.local';
+end $$;
+
 select 'RLS OK' as resultado;
