@@ -1,4 +1,4 @@
-"""Mezcla del comercial AFORE PRO de 20 s: música original (musica.py), narrador (tts.py) y efectos de Mixkit por su pico medido, a -14 LUFS."""
+"""Mezcla del comercial AFORE PRO de 20 s: música original (musica.py), narrador Diego de ElevenLabs (voz_diego/) y efectos de Mixkit por su pico medido, a -14 LUFS."""
 import subprocess
 import numpy as np
 
@@ -17,8 +17,8 @@ def poner(dst, src, t0, g=1.0):
 import json
 mus = leer("musica.wav")[: int(DUR * SR)]
 voz = np.zeros_like(mus)
-for i, l in enumerate(json.load(open("voz/palabras.json"))):  # narrador (Brian), cada frase en su escena
-    poner(voz, leer(f"voz/l{i + 1}.mp3"), l["inicio"])
+for l in json.load(open("voz_diego/colocacion.json")):  # narrador: Diego (ElevenLabs), cada frase en su escena
+    poner(voz, leer(f"voz_diego/{l['archivo']}"), l["inicio"])
 act = (np.convolve(np.abs(voz[:, 0]), np.ones(2400) / 2400, mode="same") > 0.004).astype(np.float32)
 k = int(0.3 * SR); act = np.clip(np.convolve(act, np.ones(k) / k, mode="same") * 1.6, 0, 1)
 duck = (1 - 0.7 * act)[:, None]  # la música baja cuando habla

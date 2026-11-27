@@ -1,0 +1,27 @@
+[
+ {
+  "archivo": "final_l1.wav",
+  "inicio": 0.85,
+  "fin": 3.91
+ },
+ {
+  "archivo": "final_l2.wav",
+  "inicio": 4.4,
+  "fin": 6.34
+ },
+ {
+  "archivo": "final_l3.wav",
+  "inicio": 7.22,
+  "fin": 12.25
+ },
+ {
+  "archivo": "final_l4.wav",
+  "inicio": 12.42,
+  "fin": 17.97
+ },
+ {
+  "archivo": "final_l5.wav",
+  "inicio": 18.12,
+  "fin": 19.42
+ }
+]
