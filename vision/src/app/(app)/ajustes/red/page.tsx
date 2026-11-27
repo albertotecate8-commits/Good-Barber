@@ -109,7 +109,7 @@ export default function DiagnosticoRedPage() {
       <Section title="Paso 2 · La IP que muestra el módem">
         <Card>
           <ol className="steps">
-            <li>Sin salir del Wi-Fi del local, abre Safari y escribe <code>192.168.0.1</code>.</li>
+            <li>En el iPhone ve a <em>Ajustes → Wi-Fi → (i)</em> de la red del local y anota la dirección de <strong>«Router»</strong> (en el local es <code>192.168.1.1</code>). Abre esa dirección en Safari.</li>
             <li>Entra con el usuario y contraseña de la etiqueta del módem (abajo o atrás del aparato).</li>
             <li>Busca «Estado», «Status», «WAN» o «Internet» y copia la <strong>dirección IPv4 de WAN/Internet</strong>.</li>
           </ol>

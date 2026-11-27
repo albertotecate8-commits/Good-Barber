@@ -9,8 +9,9 @@ En la app: **Ajustes → Diagnóstico de red**. Hay que hacerlo con el Wi-Fi del
 local y los datos móviles apagados.
 
 1. Tocar «Medir IP pública».
-2. Abrir `192.168.0.1` en Safari, entrar con los datos de la etiqueta del
-   módem y copiar la **IP WAN**.
+2. Abrir en Safari la dirección «Router» de *Ajustes → Wi-Fi → (i)* (en el
+   local: `192.168.1.1`), entrar con los datos de la etiqueta del módem y
+   copiar la **IP WAN**.
 3. Solo mirar, sin guardar nada: ¿el reenvío de puertos tiene un campo de
    **IP de origen / IP remota**?
 4. Tocar «Guardar diagnóstico». El resultado queda en la base y lo leo
@@ -103,3 +104,34 @@ proveedor y la fecha. Alternativas **sin contratar nada**:
    automático.
 3. Que el propietario decida relajar una restricción, por ejemplo usar un
    equipo que **ya tenga** en el local. No se propone comprar nada.
+
+## Análisis con la captura del Wi-Fi del local (27 nov 2026)
+
+| Dato de la captura | Lectura |
+|---|---|
+| Red `IZZI-268F-5G`, Wi-Fi 6 | Equipo de Izzi |
+| iPhone `192.168.1.35/24`, «Router» `192.168.1.1` | Red local privada detrás del módem (normal). **No** indica por sí solo si hay CGNAT |
+| IPv6: 3 direcciones, router `fe80::1` | Izzi entrega **IPv6** en el local. No sirve para las cámaras: la Tapo C100 solo usa IPv4 |
+
+Para decidir faltan **dos números**: la **IP pública IPv4** (la que ve
+internet) y la **IP WAN IPv4 del módem**. También hace falta saber si el
+módem permite filtrar por IP de origen.
+
+## ¿Existe una conexión segura sin exponer RTSP a internet? (conclusión técnica)
+
+Una conexión **cifrada** necesita que algo dentro del local inicie un túnel
+de salida (WireGuard, Tailscale, cloudflared) o que la cámara cifre el
+video. Con las condiciones actuales nada de eso es posible:
+
+- La Tapo C100 **no cifra RTSP** (no hay RTSPS) y no puede ejecutar un túnel.
+- El módem de Izzi no ofrece servidor ni cliente VPN para el usuario.
+- El iPhone no puede quedarse en el local, e iOS no mantiene un túnel ni
+  procesa video en segundo plano.
+- La nube de Tapo (cifrada) **no tiene una API de video para terceros**; las
+  bibliotecas no oficiales violan sus términos.
+- IPv6 no aplica: las cámaras solo usan IPv4.
+
+**Resultado:** con $0 y sin equipos adicionales **no existe una vía cifrada**.
+La única vía técnica es el reenvío del puerto RTSP **restringido por IP de
+origen** a la IP del servidor, con el video **sin cifrar** en el trayecto. Y
+solo funciona si la línea tiene **IP pública sin CGNAT**.
