@@ -3,6 +3,7 @@
  * Revisa el sitio COMPILADO (por defecto `out/`) antes de publicarlo y
  * falla si encuentra cualquier credencial que no deba llegar al navegador:
  *   - claves `sb_secret_…` o JWT con role = service_role / supabase_admin
+ *   - tokens de Cloudflare (`cfut_…`, `cfat_…`) y PAT de Supabase (`sbp_…`)
  *   - cadenas de conexión de PostgreSQL con contraseña
  *   - URLs RTSP con usuario/contraseña
  *   - llaves privadas PEM
@@ -47,6 +48,8 @@ function check(file) {
   if (!TEXT.test(rel)) return;
   const s = readFileSync(file, "utf8");
   for (const m of s.matchAll(/sb_secret_[A-Za-z0-9_-]{8,}/g)) problems.push(`${rel}: clave secreta ${m[0].slice(0, 14)}…`);
+  for (const m of s.matchAll(/\b(?:cfut|cfat)_[A-Za-z0-9_-]{16,}/g)) problems.push(`${rel}: token de Cloudflare ${m[0].slice(0, 9)}…`);
+  for (const m of s.matchAll(/\bsbp_[A-Za-z0-9_]{20,}/g)) problems.push(`${rel}: token de acceso de Supabase ${m[0].slice(0, 8)}…`);
   for (const m of s.matchAll(/eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/g)) {
     const role = decodeJwtRole(m[0]);
     if (role && role !== "anon") problems.push(`${rel}: JWT con role=${role}`);
