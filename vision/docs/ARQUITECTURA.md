@@ -128,6 +128,8 @@ eligió ni descargó ningún modelo.
 
 ### Oracle Cloud Always Free (sujeto a verificación)
 
+> Actualizado en `AUDITORIA-SEGURIDAD-INTEGRACION.md` §4–5: hay reportes (sin confirmar) de que en 2026 el cupo ARM gratuito bajó a 2 OCPU/12 GB; se planifica para ese caso.
+
 - Instancias Ampere A1 (ARM) gratuitas, sujetas a **disponibilidad real**
   ("Out of capacity" es frecuente en algunas regiones).
 - El alta pide **tarjeta** para verificar identidad. La cuenta debe quedar en

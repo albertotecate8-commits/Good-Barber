@@ -35,6 +35,7 @@ finge ninguna conexión).
 npm run typecheck            # TypeScript estricto
 npm test                     # pruebas unitarias (horarios, indicadores, validación)
 bash supabase/tests/run.sh   # migraciones + RLS en un PostgreSQL local desechable
+bash supabase/tests/integracion/run.sh  # no interferencia con el esquema real de Good Barber
 npm run build                # genera out/ (sitio estático)
 npm start                    # sirve out/ para probar el build
 ```
@@ -61,3 +62,4 @@ cabeceras de seguridad.
 - [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md): auditoría técnica, decisiones, riesgos (CGNAT, RTSP, licencias, Oracle).
 - [`docs/BASE-DE-DATOS.md`](docs/BASE-DE-DATOS.md): migraciones, RLS y cómo aplicarlas.
 - [`docs/PENDIENTES.md`](docs/PENDIENTES.md): decisiones abiertas y siguientes etapas.
+- [`docs/AUDITORIA-SEGURIDAD-INTEGRACION.md`](docs/AUDITORIA-SEGURIDAD-INTEGRACION.md): auditoría previa a la Etapa 2 (integración con Good Barber, respaldo, modelos, conectividad).

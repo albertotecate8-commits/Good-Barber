@@ -10,9 +10,9 @@
    (AGPL-3.0). Ver `ARQUITECTURA.md` §3.
 4. **Oracle Cloud Always Free**: aprobar el alta (pide tarjeta para
    verificación; sin "upgrade" a pago).
-5. **Zona horaria**: se usa `America/Mexico_City` como en la app de Good
-   Barber. Si el local está en Baja California (Tecate/Tijuana), debe ser
-   `America/Tijuana` (cambia con horario de verano). Confirmar.
+5. **Zona horaria**: confirmada. El establecimiento está en Durango, México;
+   se usa `America/Mexico_City` (UTC−6, sin horario de verano desde 2022),
+   igual que la app de Good Barber.
 6. **Horario de Glamour Studio**: capturarlo y marcarlo como confirmado en
    Ajustes → Horarios.
 7. **Estaciones reales** de cada negocio: darlas de alta en Ajustes → Estaciones.

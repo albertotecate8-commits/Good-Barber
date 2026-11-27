@@ -600,6 +600,13 @@ declare
   v_site uuid := coalesce(old.site_id, new.site_id);
   v_remaining integer;
 begin
+  -- Un DELETE en cascada (pg_trigger_depth() > 1) viene de borrar la cuenta
+  -- en Supabase Auth o el establecimiento completo. Nunca se bloquea: si
+  -- `vision` vive en un proyecto compartido, impedirlo rompería el borrado de
+  -- cuentas de la otra aplicación (detectado en la auditoría de integración).
+  if tg_op = 'DELETE' and pg_trigger_depth() > 1 then
+    return old;
+  end if;
   if old.role = 'owner' and old.active and (
        tg_op = 'DELETE'
        or new.role <> 'owner'

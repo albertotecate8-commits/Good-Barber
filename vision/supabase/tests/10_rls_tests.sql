@@ -230,4 +230,20 @@ do $$ begin
   end;
 end $$;
 
+-- ---------- Borrar en Auth la cuenta del único propietario no debe fallar ----------
+do $$ begin
+  begin
+    delete from auth.users where email = 'owner@test.local';
+    if exists (select 1 from vision.members where user_id = '00000000-0000-0000-0000-0000000000a1') then
+      raise exception 'FALLO: la membresía no se borró en cascada';
+    end if;
+    raise exception 'rollback_ok';
+  exception when raise_exception then
+    if sqlerrm <> 'rollback_ok' then raise; end if;
+  end;
+  if not exists (select 1 from auth.users where email = 'owner@test.local') then
+    raise exception 'FALLO: el bloque de prueba no revirtió';
+  end if;
+end $$;
+
 select 'RLS OK' as resultado;
