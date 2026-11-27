@@ -8,7 +8,7 @@ import { ROLE_LABELS } from "@/lib/domain/types";
 import { APP_VERSION } from "@/lib/config";
 import { env } from "@/lib/env";
 import { Badge, Card, PageHeader, Section } from "@/components/ui/primitives";
-import { IconCamera, IconChair, IconChevronRight, IconClock, IconStore, IconUser, IconUsers } from "@/components/ui/icons";
+import { IconCamera, IconChair, IconChevronRight, IconClock, IconCpu, IconStore, IconUser, IconUsers } from "@/components/ui/icons";
 
 function Item({ href, icon, title, desc }: { href: string; icon: ReactNode; title: string; desc: string }) {
   return (
@@ -41,6 +41,7 @@ export default function AjustesPage() {
           <Item href="/ajustes/negocios/" icon={<IconStore size={18} />} title="Negocios" desc="Nombres, colores y permanencia por defecto" />
           <Item href="/ajustes/camaras/" icon={<IconCamera size={18} />} title="Cámaras" desc="Una Tapo C100 por negocio" />
           <Item href="/ajustes/estaciones/" icon={<IconChair size={18} />} title="Estaciones" desc="Sillas, mesas y zonas de cada negocio" />
+          <Item href="/ajustes/red/" icon={<IconCpu size={18} />} title="Diagnóstico de red" desc="Comprobar Izzi y CGNAT desde el local" />
           <Item href="/ajustes/horarios/" icon={<IconClock size={18} />} title="Horarios" desc="Horario comercial por negocio" />
           <Item href="/ajustes/usuarios/" icon={<IconUsers size={18} />} title="Usuarios" desc="Quién puede entrar y con qué rol" />
           <Item href="/ajustes/cuenta/" icon={<IconUser size={18} />} title="Mi cuenta" desc={email ?? ""} />

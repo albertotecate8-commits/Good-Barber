@@ -924,3 +924,5 @@ input[type="time"].input { padding: 0 10px; }
 
 .row-actions { display: flex; gap: 4px; flex: none; }
 .line-item { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+
+.steps { margin: 0; padding-left: 1.2rem; display: grid; gap: 6px; font-size: 0.9rem; }

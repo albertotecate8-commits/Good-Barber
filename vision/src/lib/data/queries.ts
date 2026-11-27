@@ -246,3 +246,28 @@ export async function createCountingLine(input: Omit<CountingLineRow, "id" | "ac
 export async function deleteCountingLine(id: string) {
   unwrap(await sb().from("counting_lines").delete().eq("id", id).select("id").single());
 }
+
+// ------------------------------------------------------------------ diagnóstico de red (Fase 1)
+
+export type NetworkCheckInput = {
+  site_id: string;
+  public_ipv4: string | null;
+  public_ip_any: string | null;
+  isp_org: string | null;
+  isp_asn: string | null;
+  wan_ip_modem: string | null;
+  modem_model: string | null;
+  source_ip_filter: "si" | "no" | "no_se";
+  verdict: string;
+  notes: string | null;
+};
+
+export async function insertNetworkCheck(input: NetworkCheckInput) {
+  unwrap(await sb().from("network_checks").insert(input).select("id").single());
+}
+
+export async function fetchNetworkChecks(siteId: string) {
+  return unwrap(
+    await sb().from("network_checks").select("id, created_at, public_ipv4, wan_ip_modem, isp_org, modem_model, source_ip_filter, verdict").eq("site_id", siteId).order("created_at", { ascending: false }).limit(10),
+  ) as { id: number; created_at: string; public_ipv4: string | null; wan_ip_modem: string | null; isp_org: string | null; modem_model: string | null; source_ip_filter: string; verdict: string }[];
+}

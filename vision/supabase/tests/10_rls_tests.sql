@@ -345,4 +345,29 @@ do $$ begin
   delete from auth.users where email = 'aprovisionado@test.local';
 end $$;
 
+-- ---------- Diagnóstico de red: solo owner/admin; el motor y viewer no ----------
+do $$
+declare v_site uuid := (select id from vision.sites limit 1);
+begin
+  execute 'set local role authenticated';
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a2', true);
+  insert into vision.network_checks (site_id, public_ipv4, wan_ip_modem, verdict) values (v_site, '189.200.10.5', '100.72.1.1', 'cgnat');
+  if (select count(*) from vision.network_checks) <> 1 then raise exception 'FALLO: admin no ve su diagnóstico'; end if;
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a3', true);
+  if (select count(*) from vision.network_checks) <> 0 then raise exception 'FALLO: viewer ve diagnósticos de red'; end if;
+  begin
+    insert into vision.network_checks (site_id, verdict) values (v_site, 'incompleto');
+    raise exception 'FALLO: viewer insertó diagnóstico';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+do $$ begin
+  execute 'set local role vision_engine_prueba';
+  begin
+    perform 1 from vision.network_checks;
+    raise exception 'FALLO: el motor lee diagnósticos de red';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+
 select 'RLS OK' as resultado;
