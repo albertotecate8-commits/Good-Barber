@@ -1,4 +1,4 @@
-"""Mezcla del comercial AFORE PRO de 20 s: música original (musica.py) y efectos de Mixkit por su pico medido, a -14 LUFS."""
+"""Mezcla del comercial AFORE PRO de 20 s: música original (musica.py), narrador (tts.py) y efectos de Mixkit por su pico medido, a -14 LUFS."""
 import subprocess
 import numpy as np
 
@@ -14,7 +14,14 @@ def poner(dst, src, t0, g=1.0):
     if n > 0 and i >= 0: dst[i:i + n] += src[:n] * g
 
 
+import json
 mus = leer("musica.wav")[: int(DUR * SR)]
+voz = np.zeros_like(mus)
+for i, l in enumerate(json.load(open("voz/palabras.json"))):  # narrador (Brian), cada frase en su escena
+    poner(voz, leer(f"voz/l{i + 1}.mp3"), l["inicio"])
+act = (np.convolve(np.abs(voz[:, 0]), np.ones(2400) / 2400, mode="same") > 0.004).astype(np.float32)
+k = int(0.3 * SR); act = np.clip(np.convolve(act, np.ones(k) / k, mode="same") * 1.6, 0, 1)
+duck = (1 - 0.7 * act)[:, None]  # la música baja cuando habla
 FX = {k: leer(f"sfx/{f}") for k, f in {"whoosh": "sfx-03-whoosh-aire.wav", "pop": "sfx-02-pop-largo.wav", "swipe": "sfx-07-swipe-rapido.wav",
       "brillo": "sfx-08-tono-notificacion.wav", "obturador": "sfx-04-obturador-camara.wav"}.items()}
 PICO = {k: np.argmax(np.abs(v).max(1)) / SR for k, v in FX.items()}
@@ -26,7 +33,7 @@ EVENTOS = [(0.05, "whoosh", 0.6), (1.1, "brillo", 0.25), (2.5, "swipe", 0.3), (2
 sfx = np.zeros_like(mus)
 for t, k, g in EVENTOS:
     poner(sfx, FX[k] / max(1e-6, np.abs(FX[k]).max()), t - PICO[k], g)
-mix = mus * 0.8 + sfx * 0.4
+mix = mus * 0.75 * duck + voz * 1.0 + sfx * 0.32
 subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "f32le", "-ar", str(SR), "-ac", "2", "-i", "-", "-af", "loudnorm=I=-14:TP=-1.5:LRA=11", "-ar", str(SR), "/tmp/af_mix.wav"], input=mix.astype(np.float32).tobytes(), check=True)
 
 
