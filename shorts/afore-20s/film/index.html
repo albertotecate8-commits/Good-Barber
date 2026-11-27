@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>AFORE PRO — 20 s</title>
+<style>
+@font-face { font-family: "Archivo"; src: url("../fonts/archivo-wdth-wght.woff2") format("woff2"); font-weight: 100 900; font-stretch: 62% 125%; }
+@font-face { font-family: "Geist"; src: url("../fonts/geist-variable.woff2") format("woff2"); font-weight: 100 900; }
+html, body { margin: 0; background: #000; }
+#stage { position: relative; width: 1080px; height: 1920px; overflow: hidden; background: #050807; }
+#cam { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; transform-origin: 540px 960px; }
+.a { position: absolute; }
+.ar { font-family: "Archivo", sans-serif; font-weight: 800; font-stretch: 125%; }
+.an { font-family: "Archivo", sans-serif; font-weight: 900; font-stretch: 100%; }
+.ui { font-family: "Geist", sans-serif; font-weight: 600; }
+.p3 { transform-style: preserve-3d; }
+</style>
+</head>
+<body>
+<div id="stage"><div id="cam"></div><canvas id="fx" width="1080" height="1920" style="position:absolute;left:0;top:0"></canvas></div>
+<script>
+// ============================================================================
+// AFORE PRO — comercial de 20 s (1080×1920, 120 BPM: un golpe cada 0.5 s).
+// 0–4 logo · 4–8 enero con más dinero · 8–12 la cifra · 12–16 requisitos · 16–20 WhatsApp.
+// Todo sale de seek(t): cada estilo es función del tiempo (sin estado entre cuadros).
+// ============================================================================
+const W = 1080, H = 1920, TOTAL = 20.0;
+const IMG = { logo: "../materiales/logo_sin_fondo.png" };
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const lerp = (a, b, u) => a + (b - a) * u;
+const ease = (x) => { x = clamp(x); return x * x * x * (x * (6 * x - 15) + 10); };
+const easeIn = (x) => Math.pow(clamp(x), 3);
+const expoOut = (x) => (x >= 1 ? 1 : 1 - Math.pow(2, -10 * clamp(x)));
+const backOut = (x) => { x = clamp(x); const s = 1.7; return 1 + (s + 1) * Math.pow(x - 1, 3) + s * Math.pow(x - 1, 2); };
+function spring(t, f = 2.4, z = 0.5) { if (t <= 0) return 0; const w = 2 * Math.PI * f, wd = w * Math.sqrt(1 - z * z); return 1 - Math.exp(-z * w * t) * (Math.cos(wd * t) + (z * w / wd) * Math.sin(wd * t)); }
+const hash = (n) => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+const GOLDC = "#e9c46e", EM = "#11a37f", EMD = "#0b3d33", WA = "#25d366";
+
+function div(p, s = {}, cls = "a") {
+  const d = document.createElement("div"); d.className = cls;
+  for (const [k, v] of Object.entries(s)) d.style[k] = typeof v === "number" && !["opacity", "zIndex", "fontWeight", "flex"].includes(k) ? v + "px" : v;
+  p.appendChild(d); return d;
+}
+function txt(p, s, style, cls = "a ar") { const d = div(p, style, cls); d.textContent = s; return d; }
+function img(p, src, x, y, w, h, extra = {}) { return div(p, { left: x, top: y, width: w, height: h, backgroundImage: `url("${src}")`, backgroundSize: "contain", backgroundRepeat: "no-repeat", backgroundPosition: "center", ...extra }); }
+
+// ---- tipografía dorada con relieve y destello -----------------------------
+const GOLD = "linear-gradient(175deg, #fff7d6 0%, #f3d488 25%, #c9973c 50%, #f8e1a0 62%, #a87a2c 82%, #e8c26a 100%)";
+const FAM = { ar: "800 {s}px Archivo", an: "900 {s}px Archivo", ui: "600 {s}px Geist" };
+const measCache = new Map();
+function measure(s, size, fam) {
+  const k = s + size + fam; if (measCache.has(k)) return measCache.get(k);
+  const g = document.createElement("canvas").getContext("2d"); g.font = FAM[fam].replace("{s}", size); g.fontStretch = fam === "ar" ? "expanded" : "normal";
+  const w = [...s].map((c) => g.measureText(c).width); const r = { w, total: w.reduce((a, b) => a + b, 0) }; measCache.set(k, r); return r;
+}
+const fitUi = (s, maxW, base = 60) => { const g = document.createElement("canvas").getContext("2d"); g.font = `800 ${base}px Geist`; return Math.floor(base * maxW / g.measureText(s).width); };
+const fit = (lines, maxW, base, fam = "ar") => Math.min(base, Math.floor(base * maxW / Math.max(...lines.map((l) => measure(l, base, fam).total))));
+function goldText(p, s, { x, y, w, size, fam = "ar", align = "center", depth = 7, color = null, sheen = -1, ext = "gold" }) {
+  const base = { left: x, top: y, width: w, fontSize: size + "px", lineHeight: size * 1.12 + "px", textAlign: align, whiteSpace: "nowrap" };
+  const g = div(p, { left: 0, top: 0 });
+  if (depth > 0) {
+    const sh = []; for (let i = 1; i <= depth; i++) sh.push(ext === "em" ? `0 ${i}px 0 rgb(${8 - i},${70 - i * 6},${55 - i * 4})` : `0 ${i}px 0 rgb(${125 - i * 9},${86 - i * 7},${26 - i * 2})`);
+    sh.push(`0 ${depth + 8}px 24px rgba(0,0,0,0.75)`);
+    txt(g, s, { ...base, color: ext === "em" ? "#06352b" : "#5a3f12", textShadow: sh.join(",") }, "a " + fam);
+  }
+  txt(g, s, { ...base, ...(color ? { color } : { backgroundImage: GOLD, webkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }) }, "a " + fam);
+  if (sheen > -0.4 && sheen < 1.4) {
+    const q = txt(g, s, { ...base, backgroundImage: `linear-gradient(105deg, transparent ${sheen * 140 - 30}%, rgba(255,252,235,0.95) ${sheen * 140 - 17}%, transparent ${sheen * 140 - 5}%)`, webkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }, "a " + fam);
+    q.style.mixBlendMode = "screen";
+  }
+  return g;
+}
+// palabra que entra letra por letra desde una máscara
+function kin(p, s, { x, y, w, size, t, t0, fam = "ar", align = "center", color = null, stagger = 0.018, dur = 0.3, sheenAt = null, depth = 6, out = null, ext = "gold" }) {
+  const m = div(p, { left: x, top: y - size * 0.1, width: w, height: size * 1.35, overflow: "hidden" });
+  const me = measure(s, size, fam); let cx = align === "center" ? (w - me.total) / 2 : align === "right" ? w - me.total : 0;
+  [...s].forEach((ch, i) => {
+    const u = expoOut(seg(t, t0 + i * stagger, t0 + i * stagger + dur)), o = out ? easeIn(seg(t, out + i * stagger * 0.5, out + i * stagger * 0.5 + 0.2)) : 0;
+    const L = div(m, { left: cx, top: size * 0.1 + (1 - u) * size * 1.3 - o * size * 1.35, width: me.w[i] + 6, height: size * 1.3 });
+    if (ch !== " ") goldText(L, ch, { x: 0, y: 0, w: me.w[i] + 6, size, fam, align: "left", color, depth, ext, sheen: sheenAt == null ? -1 : (t - sheenAt - i * 0.012) / 0.45 });
+    cx += me.w[i];
+  });
+  return m;
+}
+
+// ---- fondo, luces, partículas ----------------------------------------------
+function bg(c, t, { em = 0.5, gold = 0.3 } = {}) {
+  div(c, { left: -80, top: -80, width: W + 160, height: H + 160, background: `radial-gradient(60% 40% at 50% ${42 + 4 * Math.sin(t * 0.6)}%, rgba(17,163,127,${0.22 * em}), transparent 70%), radial-gradient(50% 30% at 50% 60%, rgba(233,196,110,${0.14 * gold}), transparent 70%), linear-gradient(180deg, #06100d, #030505 60%, #070b0a)` });
+  // rejilla fina en perspectiva que se mueve: profundidad
+  const g = div(c, { left: -400, top: 1180, width: W + 800, height: 1100, transform: `perspective(700px) rotateX(68deg) translateY(${(t * 120) % 90}px)`, opacity: 0.22,
+    backgroundImage: "linear-gradient(rgba(233,196,110,.35) 2px, transparent 2px), linear-gradient(90deg, rgba(233,196,110,.35) 2px, transparent 2px)", backgroundSize: "90px 90px" });
+  g.style.webkitMaskImage = "linear-gradient(180deg, transparent, #000 30%, #000 70%, transparent)";
+  div(c, { left: 0, top: 0, width: W, height: H, background: "radial-gradient(120% 80% at 50% 50%, transparent 55%, rgba(0,0,0,0.85) 100%)" });
+}
+function streak(c, t, t0, { y = 960, angle = -16, dur = 0.5, width = 320, color = "255,226,150" } = {}) {
+  const u = seg(t, t0, t0 + dur); if (u <= 0 || u >= 1) return;
+  const x = lerp(-900, W + 900, expoOut(u));
+  const s = div(c, { left: x - 1400, top: y - width / 2, width: 2800, height: width, transform: `rotate(${angle}deg)`, zIndex: 40, mixBlendMode: "screen",
+    background: `linear-gradient(180deg, transparent, rgba(${color},0.2) 40%, rgba(255,252,235,0.95) 50%, rgba(${color},0.2) 60%, transparent)` });
+  s.style.webkitMaskImage = "linear-gradient(90deg, transparent, #000 45%, #000 55%, transparent)";
+}
+function flash(c, t, t0, k = 0.8) { const u = t - t0; if (u < 0 || u > 0.35) return; div(c, { left: 0, top: 0, width: W, height: H, background: `rgba(255,245,215,${k * Math.exp(-u * 12)})`, zIndex: 45 }); }
+function particles(t, amount, bursts, frameP = 0) {
+  const g = document.getElementById("fx").getContext("2d"); g.clearRect(0, 0, W, H); g.globalCompositeOperation = "lighter";
+  const dot = (x, y, r, a) => { const gr = g.createRadialGradient(x, y, 0, x, y, r * 4); gr.addColorStop(0, `rgba(255,232,170,${a})`); gr.addColorStop(0.3, `rgba(233,180,80,${a * 0.4})`); gr.addColorStop(1, "rgba(0,0,0,0)"); g.fillStyle = gr; g.beginPath(); g.arc(x, y, r * 4, 0, 7); g.fill(); };
+  const n = Math.round(150 * amount);
+  for (let i = 0; i < n; i++) {
+    const z = 0.4 + hash(i + 3) * 1.6, x = (hash(i) * W + Math.sin(t * 0.8 + i) * 30 * z) % W, y = ((hash(i + 99) * H - t * 70 * z) % H + H) % H;
+    let px = x, py = y;
+    if (frameP > 0) { // las partículas forman un marco alrededor de la marca
+      const k = i / n, per = 2 * (860 + 760), d = k * per, fx0 = 110, fy0 = 300, fw = 860, fh = 760;
+      const [qx, qy] = d < fw ? [fx0 + d, fy0] : d < fw + fh ? [fx0 + fw, fy0 + d - fw] : d < 2 * fw + fh ? [fx0 + fw - (d - fw - fh), fy0 + fh] : [fx0, fy0 + fh - (d - 2 * fw - fh)];
+      const u = ease(frameP); px = lerp(x, qx + Math.sin(t * 3 + i) * 4, u); py = lerp(y, qy + Math.cos(t * 3 + i) * 4, u);
+    }
+    dot(px, py, 0.8 + z * 1.4, (0.45 + 0.55 * Math.sin(t * (2 + hash(i + 5) * 5) + i)) * 0.85);
+  }
+  for (const [t0, cx, cy, k = 1] of bursts) {
+    const u = t - t0; if (u < 0 || u > 1.2) continue;
+    for (let i = 0; i < 90 * k; i++) {
+      const a = hash(i * 3.1 + t0) * 6.283, v = (250 + hash(i + t0 * 7) * 700) * k, dr = 1 - Math.exp(-u * 3.4);
+      dot(cx + Math.cos(a) * v * dr / 3.4, cy + Math.sin(a) * v * dr / 3.4 + 160 * u * u, 0.9 + hash(i + 9) * 1.6, 1 - u / 1.2);
+    }
+  }
+  g.globalCompositeOperation = "source-over";
+}
+
+// ---- moneda 3D (cara con $, canto con grosor) -------------------------------
+function coin(p, cx, cy, r, ry, rx = 0, rz = 0, face = "$") {
+  const w = div(p, { left: cx - r, top: cy - r, width: 2 * r, height: 2 * r, transform: `perspective(1200px) rotateX(${rx}deg) rotateY(${ry}deg) rotateZ(${rz}deg)` }, "a p3");
+  const th = Math.max(6, r * 0.16), layers = 7;
+  for (let i = 0; i < layers; i++) div(w, { left: 0, top: 0, width: 2 * r, height: 2 * r, borderRadius: "50%", background: "#8a6420", transform: `translateZ(${-th / 2 + (th * i) / (layers - 1)}px)` });
+  const side = (z, flip) => {
+    const f = div(w, { left: 0, top: 0, width: 2 * r, height: 2 * r, borderRadius: "50%", transform: `translateZ(${z}px) ${flip ? "rotateY(180deg)" : ""}`, backfaceVisibility: "hidden",
+      background: "radial-gradient(circle at 35% 30%, #fff5cc, #f0cf7c 30%, #c8963b 62%, #9c7128 100%)", boxShadow: `inset 0 0 0 ${r * 0.08}px #d9ab4f, inset 0 0 0 ${r * 0.12}px #8a6420` });
+    txt(f, face, { left: 0, top: 0, width: 2 * r, height: 2 * r, lineHeight: 2 * r + "px", textAlign: "center", fontSize: r * 1.15 + "px", color: "#8a6420", textShadow: "0 2px 0 #fff0c0" }, "a an");
+  };
+  side(th / 2, false); side(-th / 2, true);
+  return w;
+}
+function bill(p, cx, cy, w, rot, rx = 0) {
+  const b = div(p, { left: cx - w / 2, top: cy - w * 0.22, width: w, height: w * 0.44, borderRadius: 10, transform: `perspective(1000px) rotateX(${rx}deg) rotateZ(${rot}deg)`,
+    background: "linear-gradient(135deg, #2fbf8f, #0f7a5c 55%, #0b5e47)", boxShadow: "inset 0 0 0 6px rgba(255,255,255,0.25), 0 20px 30px rgba(0,0,0,0.45)" });
+  div(b, { left: w / 2 - w * 0.16, top: w * 0.22 - w * 0.16, width: w * 0.32, height: w * 0.32, borderRadius: "50%", border: `${w * 0.02}px solid rgba(255,255,255,0.6)`, boxSizing: "border-box" });
+  txt(b, "$", { left: 0, top: 0, width: w, height: w * 0.44, lineHeight: w * 0.44 + "px", textAlign: "center", fontSize: w * 0.22 + "px", color: "rgba(255,255,255,0.85)" }, "a an");
+  return b;
+}
+
+// ---- cámara: empujes por escena + deriva continua --------------------------
+function camera(t) {
+  const K = [[0, 1.0, 0], [3.9, 1.08, 0], [4.0, 1.07, -1.5], [7.9, 1.0, 1.2], [8.0, 1.06, 0], [11.9, 1.0, 0], [12.0, 1.04, 0.8], [15.9, 1.0, -0.8], [16.0, 1.08, 0], [20, 1.0, 0]];
+  let i = 0; while (i < K.length - 2 && t > K[i + 1][0]) i++;
+  const [t0, z0, r0] = K[i], [t1, z1, r1] = K[i + 1], u = ease(seg(t, t0, t1));
+  return { z: lerp(z0, z1, u) + 0.006 * Math.sin(t * 2.2), r: lerp(r0, r1, u) + 0.2 * Math.sin(t * 1.4), y: 6 * Math.sin(t * 1.6) };
+}
+
+// ============================================================ escenas ========
+const LW = 820; // ancho del logo
+function logoShine(wrap, w, u) { // destello que recorre el emblema, dentro de su silueta
+  if (u <= 0 || u >= 1) return;
+  const s = img(wrap, IMG.logo, 0, 0, w, w, { filter: "brightness(2.4) saturate(.5)", mixBlendMode: "screen" });
+  s.style.webkitMaskImage = s.style.maskImage = `url("${IMG.logo}"), linear-gradient(112deg, transparent ${u * 160 - 40}%, #000 ${u * 160 - 26}%, transparent ${u * 160 - 12}%)`;
+  s.style.webkitMaskSize = s.style.maskSize = "contain, 100% 100%"; s.style.webkitMaskRepeat = s.style.maskRepeat = "no-repeat"; s.style.webkitMaskPosition = s.style.maskPosition = "center";
+  s.style.webkitMaskComposite = "source-in"; s.style.maskComposite = "intersect";
+}
+// 1 · 0–4: el logo gira en 3D, un destello lo recorre; la frase entra por golpes; el logo voltea y se vuelve moneda
+function s1(c, t) {
+  bg(c, t, { em: ease(seg(t, 0.2, 1.2)), gold: 0.6 });
+  streak(c, t, 0.0, { y: 860, angle: -14, dur: 0.6 });
+  const up = ease(seg(t, 2.35, 2.75));                 // sube para dejar lugar a la frase
+  const flip = seg(t, 3.45, 3.7);                       // voltea: al llegar a 90° se vuelve moneda
+  const ry = t < 1.25 ? lerp(-95, 0, backOut(seg(t, 0.25, 1.25))) : flip * 90;
+  const k = lerp(1.25, 1, expoOut(seg(t, 0.25, 1.4))) * lerp(1, 0.62, up);
+  const cy = lerp(880, 560, up);
+  if (flip < 1 && t > 0.25) {
+    const wrap = div(c, { left: (W - LW) / 2, top: cy - LW / 2, width: LW, height: LW, transform: `perspective(1600px) rotateY(${ry}deg) scale(${k})` });
+    img(wrap, IMG.logo, 0, 0, LW, LW, { filter: "drop-shadow(0 18px 30px rgba(0,0,0,.85))" });
+    logoShine(wrap, LW, seg(t, 1.05, 1.6)); logoShine(wrap, LW, seg(t, 2.8, 3.3));
+  }
+  if (flip >= 1) { // la moneda termina de girar y se lanza a la cámara
+    const u = seg(t, 3.7, 4.0), r = lerp(150, 520, easeIn(u));
+    coin(c, 540, lerp(cy, 900, u), r, lerp(-90, 0, expoOut(seg(t, 3.7, 3.85))) + u * 160, 8);
+  }
+  const lines = [["ASESORÍA QUE", 2.5], ["IMPULSA TU", 2.75], ["FUTURO.", 3.0]];
+  lines.forEach(([s, t0], i) => {
+    const size = i === 2 ? 150 : 92, y = 900 + [0, 110, 230][i];
+    kin(c, s, { x: 40, y, w: W - 80, size, t, t0, sheenAt: t0 + 0.2, out: 3.45 + i * 0.04, ext: i === 2 ? "em" : "gold", color: i === 2 ? null : "#f7f3ea", depth: i === 2 ? 8 : 4 });
+  });
+  flash(c, t, 3.98, 0.9);
+  return [[0.7, 540, 880, 1.1], [3.98, 540, 900, 1.6]];
+}
+
+// 2 · 4–8: explosión, monedas que giran, billetes, el frasco se llena; «¡INICIA ENERO CON MÁS DINERO!»
+const JAR = { x: 300, y: 1150, w: 480, h: 560 };
+function jar(c, t, fill) {
+  const g = div(c, { left: JAR.x, top: JAR.y, width: JAR.w, height: JAR.h, transform: `scale(${lerp(0.5, 1, expoOut(seg(t, 4.1, 4.5)))})`, transformOrigin: "50% 100%" });
+  // monedas dentro: se apilan con el tiempo
+  const inner = div(g, { left: 40, top: 110, width: JAR.w - 80, height: JAR.h - 150, overflow: "hidden", borderRadius: "40px 40px 60px 60px" });
+  const rows = Math.floor(fill * 9);
+  for (let r = 0; r < rows; r++) for (let k = 0; k < 5; k++) {
+    const x = 20 + k * 78 + (r % 2) * 38 - 30, y = JAR.h - 210 - r * 38 + hash(r * 9 + k) * 8;
+    div(inner, { left: x, top: y, width: 96, height: 42, borderRadius: "50%", background: "radial-gradient(circle at 40% 35%, #fff2c2, #e8c26a 40%, #a87a2c 90%)", boxShadow: "0 4px 0 #7a561c" });
+  }
+  const s = div(g, { left: 0, top: 0, width: JAR.w, height: JAR.h });
+  s.innerHTML = `<svg width="${JAR.w}" height="${JAR.h}" viewBox="0 0 480 560"><defs><linearGradient id="gj" x1="0" x2="1"><stop offset="0" stop-color="rgba(255,255,255,.35)"/><stop offset=".25" stop-color="rgba(255,255,255,.05)"/><stop offset=".8" stop-color="rgba(255,255,255,.04)"/><stop offset="1" stop-color="rgba(255,255,255,.25)"/></linearGradient></defs>
+    <rect x="70" y="20" width="340" height="70" rx="18" fill="#c9973c" stroke="#f3d488" stroke-width="4"/>
+    <path d="M90 92 C40 120 30 160 30 210 L30 470 C30 520 70 548 120 548 L360 548 C410 548 450 520 450 470 L450 210 C450 160 440 120 390 92 Z" fill="url(#gj)" stroke="rgba(255,255,255,.7)" stroke-width="5"/>
+    <path d="M70 200 L70 460" stroke="rgba(255,255,255,.6)" stroke-width="10" stroke-linecap="round"/></svg>`;
+}
+function s2(c, t) {
+  bg(c, t, { em: 0.8, gold: 0.5 });
+  const fill = ease(seg(t, 4.4, 7.6));
+  // monedas en órbita y billetes que cruzan
+  for (let i = 0; i < 9; i++) {
+    const a = i / 9 * 6.283 + t * 0.9, rr = 380 + 60 * Math.sin(i * 2.1), z = Math.sin(a);
+    const cx = 540 + Math.cos(a) * rr, cy = 1080 + z * 120 + Math.sin(i + t) * 30, r = 46 + 22 * (z + 1);
+    const appear = expoOut(seg(t, 4.0 + i * 0.05, 4.4 + i * 0.05));
+    if (appear > 0.01) coin(c, lerp(540, cx, appear), lerp(900, cy, appear), r * appear, t * 360 * (0.8 + hash(i) * 0.6) + i * 40, 12, i * 13);
+  }
+  for (let i = 0; i < 5; i++) { // billetes
+    const t0 = 4.3 + i * 0.6, u = seg(t, t0, t0 + 1.8); if (u <= 0 || u >= 1) continue;
+    const x = lerp(i % 2 ? 1300 : -220, i % 2 ? -220 : 1300, u), y = 760 + i * 160 + Math.sin(u * 6) * 50;
+    bill(c, x, y, 300, (i % 2 ? -1 : 1) * (20 + u * 120), 30 * Math.sin(u * 7));
+  }
+  jar(c, t, fill);
+  // monedas que caen dentro del frasco
+  for (let i = 0; i < 10; i++) { const t0 = 4.5 + i * 0.3, u = seg(t, t0, t0 + 0.45); if (u <= 0 || u >= 1) continue; coin(c, 540 + (hash(i) - 0.5) * 200, lerp(700, 1350, u * u), 38, u * 720, 70); }
+  // texto
+  kin(c, "¡INICIA", { x: 40, y: 230, w: W - 80, size: 112, t, t0: 4.2, color: "#f7f3ea", depth: 4 });
+  // ENERO dentro de una cápsula esmeralda que crece
+  const pe = expoOut(seg(t, 4.6, 4.95));
+  if (pe > 0) {
+    const pw = 760 * pe;
+    div(c, { left: 540 - pw / 2, top: 372, width: pw, height: 190, borderRadius: 95, background: "linear-gradient(180deg, #1fc79a, #0b7a5e)", boxShadow: "inset 0 3px 0 rgba(255,255,255,.35), 0 0 0 4px rgba(233,196,110,.8), 0 24px 50px rgba(17,163,127,.45)" });
+  }
+  kin(c, "ENERO", { x: 40, y: 380, w: W - 80, size: 168, t, t0: 4.75, color: "#ffffff", depth: 0, stagger: 0.03, sheenAt: 5.0 });
+  kin(c, "CON MÁS", { x: 40, y: 590, w: W - 80, size: 104, t, t0: 5.25, color: "#f7f3ea", depth: 4 });
+  kin(c, "DINERO!", { x: 20, y: 710, w: W - 40, size: fit(["DINERO!"], W - 60, 200), t, t0: 5.75, stagger: 0.03, sheenAt: 6.1, depth: 9 });
+  // calendario ENERO que se dobla hacia la cámara
+  const cp = backOut(seg(t, 6.2, 6.7));
+  if (cp > 0) {
+    const cal = div(c, { left: 760, top: 1060, width: 240, height: 250, transform: `perspective(900px) rotateX(${(1 - cp) * 80}deg) rotateZ(8deg)`, transformOrigin: "50% 0%", borderRadius: 26, background: "#fff", boxShadow: "0 24px 40px rgba(0,0,0,.5)", overflow: "hidden" });
+    div(cal, { left: 0, top: 0, width: 240, height: 70, background: "linear-gradient(180deg, #1fc79a, #0b7a5e)" });
+    txt(cal, "ENERO", { left: 0, top: 10, width: 240, textAlign: "center", fontSize: "42px", color: "#fff" }, "a ar");
+    txt(cal, "1", { left: 0, top: 70, width: 240, height: 180, lineHeight: "180px", textAlign: "center", fontSize: "140px", color: "#0b3d33" }, "a an");
+  }
+  streak(c, t, 7.55, { y: 900, angle: 18, dur: 0.45, width: 520, color: "60,220,170" });
+  flash(c, t, 7.98, 0.7);
+  return [[4.0, 540, 900, 1.7], [5.75, 540, 820, 0.9], [7.5, 540, 1300, 1.0]];
+}
+
+// 3 · 8–12: la cifra en 3D con luz verde; los dígitos ruedan hasta su lugar; caen monedas alrededor
+function s3(c, t) {
+  bg(c, t, { em: 1.2, gold: 0.6 });
+  // haz de luz verde detrás de la cifra
+  const g = div(c, { left: -200, top: 560, width: W + 400, height: 700, background: `radial-gradient(50% 50% at 50% 50%, rgba(31,199,154,${0.55 + 0.1 * Math.sin(t * 6)}), rgba(11,122,94,.25) 45%, transparent 70%)`, mixBlendMode: "screen" });
+  const rays = div(c, { left: -460, top: 0, width: 2000, height: 2000, opacity: 0.35, transform: `rotate(${t * 8}deg)`, background: "repeating-conic-gradient(from 0deg at 50% 50%, rgba(233,196,110,.18) 0deg 3deg, transparent 3deg 14deg)", mixBlendMode: "screen" });
+  rays.style.webkitMaskImage = "radial-gradient(closest-side, #000 10%, transparent 70%)";
+  kin(c, "¡RETIRA DE TU AFORE", { x: 30, y: 300, w: W - 60, size: fit(["¡RETIRA DE TU AFORE"], W - 80, 80), t, t0: 8.05, color: "#f7f3ea", depth: 3, stagger: 0.012 });
+  kin(c, "POR DESEMPLEO!", { x: 30, y: 400, w: W - 60, size: fit(["¡RETIRA DE TU AFORE"], W - 80, 80), t, t0: 8.25, depth: 5, stagger: 0.014, sheenAt: 8.6 });
+  // HASTA en cápsula
+  const hp = backOut(seg(t, 8.55, 8.85));
+  if (hp > 0) { const hw = 360 * hp; const cap = div(c, { left: 540 - hw / 2, top: 600, width: hw, height: 96, borderRadius: 48, background: "linear-gradient(180deg, #1fc79a, #0b7a5e)", boxShadow: "0 0 0 3px rgba(233,196,110,.9)", overflow: "hidden" });
+    txt(cap, "HASTA", { left: 0, top: 14, width: hw, textAlign: "center", fontSize: "56px", color: "#fff", letterSpacing: "0.12em" }, "a ar"); }
+  // $35,193: cada dígito rueda hasta su valor (cinta de 0–9) con relieve 3D
+  const S = "$35,193", size = fit(["$35,193"], 960, 260, "an"), me = measure(S, size, "an"); let x = (W - me.total) / 2;
+  const tilt = lerp(35, 0, expoOut(seg(t, 8.7, 9.6)));
+  const num = div(c, { left: 0, top: 740, width: W, height: size * 1.3, transform: `perspective(1400px) rotateX(${tilt}deg) scale(${1 + 0.02 * Math.sin(t * 5)})`, transformOrigin: "50% 60%" }, "a p3");
+  [...S].forEach((ch, i) => {
+    const t0 = 8.75 + i * 0.09, u = expoOut(seg(t, t0, t0 + 0.55));
+    const col = div(num, { left: x, top: 0, width: me.w[i] + 8, height: size * 1.2, overflow: "hidden" });
+    if (u <= 0) { x += me.w[i]; return; }
+    if (/\d/.test(ch)) { // cinta de dígitos: termina exactamente en el dígito correcto
+      const d = +ch, spins = 10 + d, off = (1 - u) * spins;
+      for (let k = -1; k <= 1; k++) {
+        const v = ((Math.round(d - off) + k) % 10 + 10) % 10, fy = (Math.round(d - off) + k - (d - off)) * size * 1.12;
+        goldText(col, String(v), { x: 0, y: size * 0.04 + fy, w: me.w[i] + 8, size, fam: "an", align: "left", depth: 10, ext: "em", sheen: (t - 9.7 - i * 0.02) / 0.5 });
+      }
+    } else if (u > 0) goldText(col, ch, { x: 0, y: size * 0.04 + (1 - u) * size * 1.2, w: me.w[i] + 8, size, fam: "an", align: "left", depth: 10, ext: "em", sheen: (t - 9.7 - i * 0.02) / 0.5 });
+    x += me.w[i];
+  });
+  kin(c, "PESOS", { x: 40, y: 1080, w: W - 80, size: 78, t, t0: 9.7, color: "#f7f3ea", depth: 3, stagger: 0.04 });
+  // monedas cayendo alrededor del número
+  for (let i = 0; i < 14; i++) {
+    const t0 = 8.4 + hash(i + 2) * 3.0, u = seg(t, t0, t0 + 1.1); if (u <= 0 || u >= 1) continue;
+    const side = i % 2 ? 1 : -1, cx = 540 + side * (330 + hash(i) * 180), cy = lerp(-120, 2050, u);
+    coin(c, cx, cy, 34 + hash(i + 4) * 30, u * 900 + i * 30, 30, i * 20);
+  }
+  streak(c, t, 11.55, { y: 1000, angle: -20, dur: 0.45, width: 520 });
+  flash(c, t, 11.98, 0.6);
+  return [[9.6, 540, 880, 1.3], [8.6, 540, 650, 0.5]];
+}
+
+// 4 · 12–16: requisitos — tres tarjetas, cada una con su ícono animado
+const REQ = [
+  { lines: [["No haber realizado un retiro"], ["en los últimos ", "5 años", "."]], icon: "cal", t0: 12.5 },
+  { lines: [["No estar vigente en el ", "IMSS", "."]], icon: "imss", t0: 13.25 },
+  { lines: [["Haber cotizado mínimo ", "2 años", "."]], icon: "shield", t0: 14.0 },
+];
+function icon(p, kind, u, t, t0) {
+  const s = div(p, { left: 34, top: 34, width: 150, height: 150, borderRadius: "50%", background: "linear-gradient(180deg, #1fc79a, #0b5e47)", boxShadow: "inset 0 2px 0 rgba(255,255,255,.35), 0 0 0 3px rgba(233,196,110,.85)", transform: `scale(${backOut(u)}) rotate(${(1 - u) * -90}deg)` });
+  const d = ease(seg(t, t0 + 0.2, t0 + 0.6)), L = 300;
+  const st = `stroke="#fff" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"`;
+  const inner = {
+    cal: `<rect x="35" y="45" width="80" height="72" rx="10" ${st}/><path d="M35 68 H115 M55 33 V55 M95 33 V55" ${st}/><text x="75" y="108" text-anchor="middle" font-family="Archivo" font-weight="900" font-size="38" fill="#fff" opacity="${d}">5</text>`,
+    imss: `<circle cx="68" cy="58" r="20" ${st}/><path d="M34 118 C38 92 98 92 102 118" ${st}/><circle cx="108" cy="104" r="17" fill="#e5484d" opacity="${d}"/><path d="M101 97 L115 111 M115 97 L101 111" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity="${d}"/>`,
+    shield: `<path d="M75 28 L115 42 V75 C115 100 97 116 75 124 C53 116 35 100 35 75 V42 Z" ${st}/><path d="M57 76 L70 89 L95 62" stroke="${GOLDC}" stroke-width="9" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="${L}" stroke-dashoffset="${L * (1 - d)}"/>`,
+  }[kind];
+  s.innerHTML = `<svg width="150" height="150" viewBox="0 0 150 150">${inner}</svg>`;
+}
+function s4(c, t) {
+  bg(c, t, { em: 0.7, gold: 0.4 });
+  const tp = expoOut(seg(t, 12.05, 12.4));
+  const cap = div(c, { left: 540 - 300 * tp, top: 330, width: 600 * tp, height: 120, borderRadius: 60, background: "linear-gradient(180deg, #f8e1a0, #c9973c)", boxShadow: "0 18px 40px rgba(0,0,0,.5)", overflow: "hidden" });
+  txt(cap, "REQUISITOS", { left: 0, top: 22, width: 600 * tp, textAlign: "center", fontSize: "70px", color: "#0b2a23" }, "a ar");
+  REQ.forEach((q, i) => {
+    const u = expoOut(seg(t, q.t0, q.t0 + 0.45)), dir = i % 2 ? 1 : -1, y = 520 + i * 300;
+    if (u <= 0) return;
+    const card = div(c, { left: 60 + dir * (1 - u) * 900, top: y, width: W - 120, height: 260, borderRadius: 40, background: "linear-gradient(135deg, rgba(255,255,255,.96), rgba(240,246,243,.92))",
+      boxShadow: "0 30px 60px rgba(0,0,0,.45), inset 0 0 0 3px rgba(233,196,110,.9)", transform: `perspective(1200px) rotateY(${dir * (1 - u) * 25}deg)` });
+    icon(card, q.icon, seg(t, q.t0 + 0.1, q.t0 + 0.5), t, q.t0);
+    // texto (con la parte clave en verde, como en los pósters)
+    q.lines.forEach((parts, j) => {
+      const fs = Math.min(q.lines.length > 1 ? 50 : 52, fitUi(parts.join(""), 690)), ty = q.lines.length > 1 ? 66 + j * 66 : 98;
+      const m = div(card, { left: 220, top: ty, width: 760, height: fs * 1.3, overflow: "hidden" });
+      const line = div(m, { left: 0, top: (1 - expoOut(seg(t, q.t0 + 0.2 + j * 0.08, q.t0 + 0.5 + j * 0.08))) * fs * 1.3, whiteSpace: "nowrap", fontSize: fs + "px", lineHeight: fs * 1.3 + "px", color: "#0b2a23" }, "a ui");
+      parts.forEach((s, k) => { const sp = document.createElement("span"); sp.textContent = s; if (k === 1) { sp.style.color = "#0f8f6c"; sp.style.fontWeight = "800"; } line.appendChild(sp); });
+    });
+  });
+  streak(c, t, 15.55, { y: 960, angle: 16, dur: 0.45, width: 520 });
+  flash(c, t, 15.98, 0.8);
+  return REQ.map((q) => [q.t0 + 0.15, 120, 620 + REQ.indexOf(q) * 300, 0.45]);
+}
+
+// 5 · 16–20: el logo al centro, marco de partículas y el botón de WhatsApp que pulsa
+function s5(c, t) {
+  bg(c, t, { em: 1, gold: 1 });
+  const rays = div(c, { left: -460, top: -280, width: 2000, height: 2000, opacity: 0.5 * ease(seg(t, 16, 16.5)), transform: `rotate(${t * 6}deg)`, background: "repeating-conic-gradient(from 0deg at 50% 50%, rgba(233,196,110,.16) 0deg 4deg, transparent 4deg 15deg)", mixBlendMode: "screen" });
+  rays.style.webkitMaskImage = "radial-gradient(closest-side, #000 12%, transparent 72%)";
+  const k = lerp(0.7, 1, expoOut(seg(t, 16.0, 16.7))), ry = lerp(70, 0, expoOut(seg(t, 16.0, 16.8)));
+  const wrap = div(c, { left: (W - 780) / 2, top: 290, width: 780, height: 780, transform: `perspective(1600px) rotateY(${ry}deg) scale(${k * (1 + 0.012 * Math.sin(t * 3))})` });
+  img(wrap, IMG.logo, 0, 0, 780, 780, { filter: "drop-shadow(0 18px 30px rgba(0,0,0,.85))" });
+  logoShine(wrap, 780, seg(t, 16.6, 17.2)); logoShine(wrap, 780, seg(t, 18.6, 19.2));
+  // botón de WhatsApp: sube, se ilumina y pulsa suave
+  const b = backOut(seg(t, 16.9, 17.35)), pulse = 1 + 0.035 * Math.max(0, Math.sin((t - 17.4) * Math.PI * 2)) * (t > 17.4 ? 1 : 0);
+  if (b > 0) {
+    const bw = 900, bh = 230;
+    const btn = div(c, { left: (W - bw) / 2, top: 1230 + (1 - b) * 200, width: bw, height: bh, borderRadius: bh / 2, transform: `scale(${b * pulse})`,
+      background: "linear-gradient(180deg, #3ee07f, #17a74b 60%, #11853b)", boxShadow: `0 0 0 5px rgba(233,196,110,.95), 0 0 ${60 + 40 * (pulse - 1) * 28}px rgba(37,211,102,.55), 0 30px 60px rgba(0,0,0,.5), inset 0 4px 0 rgba(255,255,255,.4)` });
+    const ic = div(btn, { left: 40, top: 40, width: 150, height: 150 });
+    ic.innerHTML = `<svg width="150" height="150" viewBox="0 0 150 150"><path d="M75 14 C41 14 14 40 14 73 C14 85 18 96 24 105 L16 134 L46 126 C54 131 64 134 75 134 C109 134 136 107 136 74 C136 40 109 14 75 14 Z" fill="none" stroke="#fff" stroke-width="10"/>
+      <path d="M55 48 C50 50 46 56 48 64 C52 82 68 98 86 102 C94 104 100 100 102 95 L103 88 L90 82 L84 89 C74 85 66 77 62 67 L69 61 L63 48 Z" fill="#fff"/></svg>`;
+    ["¡CONTÁCTANOS", "POR WHATSAPP!"].forEach((s, i) => {
+      const fs = fit(["POR WHATSAPP!"], 640, 66);
+      const m = div(btn, { left: 210, top: 36 + i * 82, width: 660, height: 84, overflow: "hidden" });
+      txt(m, s, { left: 0, top: (1 - expoOut(seg(t, 17.05 + i * 0.1, 17.35 + i * 0.1))) * 84, fontSize: fs + "px", lineHeight: "84px", color: "#fff", textShadow: "0 3px 0 rgba(0,70,30,.5)", whiteSpace: "nowrap" }, "a ar");
+    });
+  }
+  return [[16.05, 540, 680, 1.5], [17.0, 540, 1345, 0.8]];
+}
+
+// ------------------------------------------------------------- seek ---------
+let ready = null;
+async function prepare() {
+  if (!ready) ready = (async () => {
+    await document.fonts.ready;
+    await Promise.all(['800 60px "Archivo"', '900 60px "Archivo"', '600 60px "Geist"', '800 60px "Geist"'].map((f) => document.fonts.load(f)));
+    await new Promise((r) => { const i = new Image(); i.onload = i.onerror = r; i.src = IMG.logo; });
+  })();
+  return ready;
+}
+async function seek(t) {
+  await prepare();
+  t = clamp(t, 0, TOTAL - 1e-4);
+  const c = document.getElementById("cam"); c.innerHTML = "";
+  const k = camera(t); c.style.transform = `translateY(${k.y}px) rotate(${k.r}deg) scale(${k.z})`;
+  let b = [];
+  if (t < 4) b = s1(c, t); else if (t < 8) b = s2(c, t); else if (t < 12) b = s3(c, t); else if (t < 16) b = s4(c, t); else b = s5(c, t);
+  particles(t, t < 0.4 ? seg(t, 0.1, 0.4) * 0.7 : 0.75, b, t > 16 ? seg(t, 16.1, 17.0) : 0);
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+}
+window.seek = seek; window.TOTAL = TOTAL;
+</script>
+</body>
+</html>
