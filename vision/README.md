@@ -60,15 +60,19 @@ del motor y credenciales RTSP. Ver `docs/BASE-DE-DATOS.md` §6.
 
 La `service_role` key no se usa ni en el frontend ni en el motor.
 
-## Desplegar (pendiente de aprobación)
+## Publicación
 
-Cloudflare Pages: directorio raíz `vision`, comando `npm run build`, salida
-`out`, variables del frontend y `NODE_VERSION=22`. `public/_headers` aplica
-CSP y cabeceras de seguridad.
+**https://smart-business-vision.netlify.app**: Netlify, plan gratuito, sitio
+estático. `netlify.toml` compila y ejecuta `scripts/revisar-secretos.mjs`
+antes de publicar. Las variables `NEXT_PUBLIC_*` están en Netlify, no en el
+repositorio. `wrangler.toml` queda listo por si después se usa Cloudflare
+Pages. `public/_headers` aplica CSP y las cabeceras de seguridad en ambos.
 
 ## Documentación
 
 - [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md): arquitectura, decisiones y contrato con el motor.
 - [`docs/BASE-DE-DATOS.md`](docs/BASE-DE-DATOS.md): crear y conectar el proyecto de Supabase, migraciones, RLS, usuario del motor, respaldo.
 - [`docs/AUDITORIA-SEGURIDAD-INTEGRACION.md`](docs/AUDITORIA-SEGURIDAD-INTEGRACION.md): auditoría previa a la Etapa 2 (seguridad, respaldo, modelos, conectividad).
-- [`docs/PENDIENTES.md`](docs/PENDIENTES.md): decisiones abiertas y siguientes etapas.
+- [`docs/FASE-1-ESTADO.md`](docs/FASE-1-ESTADO.md): estado de la Fase 1 por criterio de aceptación y bloqueos.
+- [`engine/README.md`](engine/README.md): motor de visión.
+- [`docs/PENDIENTES.md`](docs/PENDIENTES.md): decisiones abiertas.
