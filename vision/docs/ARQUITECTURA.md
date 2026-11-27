@@ -33,12 +33,14 @@ de cámaras. **No se modificó ninguna de esas apps.**
 ```
 iPhone (PWA)  ──HTTPS──►  Cloudflare Pages (archivos estáticos de vision/out)
      │
-     └──HTTPS (clave publishable + JWT de sesión)──►  Supabase
-                                                       ├─ Auth (correo/contraseña)
+     └──HTTPS (clave publishable + JWT de sesión)──►  Supabase PROPIO de Vision
+                                                       ├─ Auth (correo/contraseña, sin registro público)
                                                        └─ Postgres, esquema `vision` + RLS
 
-(Etapas 2+)  Motor de visión (Python) ──RTSP──► cámaras Tapo C100
-             └──HTTPS (service_role, solo en el servidor)──► Supabase: métricas y eventos
+(Etapas 2+)  Motor de visión (Python) ──RTSP──► 2 cámaras Tapo C100 (una por negocio)
+             └──PostgreSQL/TLS (usuario limitado `vision_engine`, solo en el servidor)──► métricas y eventos
+
+Proyectos de Good Barber y Finanzas: separados; Vision no los usa ni los lee.
 ```
 
 - **Next.js 16 + TypeScript con `output: "export"`**: el sitio es 100 %
@@ -47,7 +49,9 @@ iPhone (PWA)  ──HTTPS──►  Cloudflare Pages (archivos estáticos de vis
 - **Autenticación en el cliente** con `@supabase/supabase-js` (PKCE).
   Las rutas internas se protegen en la interfaz, pero la protección real es
   RLS: aunque alguien manipule el JavaScript, la base no le devuelve nada.
-- **Esquema propio `vision`** en Postgres, separado de `public`.
+- **Proyecto de Supabase independiente**, exclusivo de Vision (decisión del
+  propietario). El frontend se niega a usar los proyectos de Good Barber o
+  Finanzas. Esquema propio `vision`.
 - **Sin vídeo, sin capturas, sin credenciales de cámara** en la app o la base.
 
 ### Estructura de carpetas
@@ -86,24 +90,23 @@ cobro. La etiqueta **Manual** queda lista para el registro de servicios.
 
 ## 3. Evaluación de la arquitectura objetivo (sin crear nada)
 
-### Supabase (gratis)
+### Supabase (gratis) — proyecto independiente
 
-- **Límite de proyectos gratuitos**: el plan Free permite **2 proyectos
-  activos** por organización, y ya existen dos (Good Barber y Finanzas).
-  Un tercer proyecto gratuito no es posible sin pausar uno o pagar.
-- **Recomendación**: aplicar las migraciones en el proyecto **existente de
-  Good Barber**, dentro del esquema aislado `vision`. Ventajas: $0, la
-  cuenta de administrador actual puede reutilizarse, el registro público ya
-  está desactivado. Aislamiento: las tablas no se mezclan con `public` y los
-  barberos con cuenta en esa app **no ven nada** de `vision` (no tienen fila
-  en `vision.members`; está cubierto por las pruebas).
-- **Límites a vigilar**: 500 MB de base de datos → por eso se guardan
-  métricas **por hora** y eventos puntuales, nunca detecciones cuadro a
-  cuadro. Los proyectos gratuitos se pausan tras ~1 semana sin actividad; el
-  latido del motor evitaría eso cuando exista.
-- **Respaldo**: el workflow `backup-database.yml` actual solo respalda
-  `public`. Si se aprueba usar ese proyecto, hay que añadir `--schema=vision`
-  (pendiente; no se tocó el workflow de producción sin aprobación).
+- **Decisión del propietario:** proyecto nuevo, exclusivo para Vision. Se
+  descartó compartir el proyecto de Good Barber. La auditoría mostró que era
+  técnicamente aislable, pero con efectos cruzados en Auth y con riesgo para
+  la clave del motor.
+- **Límite de proyectos gratuitos:** 2 activos, sumando las organizaciones
+  donde el propietario es owner/admin; ya existen Good Barber y Finanzas. Al
+  crear el tercero hay que confirmar que el panel lo permite en el plan Free
+  **sin** pausar los otros ni pagar. Si no lo permite, se decide de nuevo.
+- **Límites a vigilar:** 500 MB de base de datos. Por eso se guardan métricas
+  **por hora** y eventos puntuales, nunca detecciones cuadro a cuadro. Los
+  proyectos gratuitos se pausan tras ~1 semana sin actividad; el latido del
+  motor lo evitará cuando exista.
+- **Respaldo:** independiente del de Good Barber (propuesta en
+  `BASE-DE-DATOS.md` §7).
+- Pasos para crearlo y conectarlo: `BASE-DE-DATOS.md` §3–4.
 
 ### Cloudflare Pages (gratis)
 
@@ -164,8 +167,13 @@ cámara.
 
 ## 4. Contrato para el motor de visión (Etapas 2–6)
 
-El motor escribe con la `service_role` key, que vive **solo** como variable
-de entorno del servidor. Escrituras previstas:
+El motor **no usa la `service_role`**. Se conecta con un usuario de
+PostgreSQL que hereda del rol `vision_engine`
+(`supabase/migrations/20261127120200_vision_rol_motor.sql`). Ese rol puede
+leer la configuración y escribir resultados, sin borrar nada, sin cambiar la
+configuración y sin acceso a usuarios ni a `auth`. La cadena de conexión
+vive **solo** como variable de entorno del servidor (`BASE-DE-DATOS.md` §6).
+Escrituras previstas:
 
 | Tabla | Cuándo |
 |---|---|

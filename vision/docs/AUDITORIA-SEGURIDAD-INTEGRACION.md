@@ -1,8 +1,8 @@
 # Auditoría de seguridad e integración — previa a la Etapa 2
 
-Fecha: 27 de noviembre de 2026 · Alcance: Smart Business Vision (`vision/`),
-app de Good Barber (raíz), Finanzas (`finanzas/`), cámaras, conectividad y
-motor de visión.
+Fecha: 27 de noviembre de 2026 (revisión 2: proyecto de Supabase
+independiente) · Alcance: Smart Business Vision (`vision/`), cámaras,
+conectividad y motor de visión.
 
 **Restricciones respetadas en esta auditoría:** no se modificó ninguna app
 existente, no se conectó nada a Supabase real, no se desplegó, no se crearon
@@ -12,155 +12,112 @@ recursos en la nube y no se activó ningún pago.
 
 ## 0. Resumen ejecutivo
 
-| Tema | Resultado | Bloquea Etapa 2 |
+**Decisión vigente del propietario:** Smart Business Vision usará un
+**proyecto de Supabase nuevo e independiente**. No usará el de Good Barber
+ni el de Finanzas.
+
+| Tema | Resultado | Bloquea la Etapa 2 |
 |---|---|---|
-| `vision` dentro del proyecto Supabase de Good Barber | **No modifica** esquema, datos, permisos ni Edge Functions de Good Barber (probado en PostgreSQL local con el esquema real del repo). Se revierte al 100 %. | No, pero requiere tu autorización |
-| Defecto encontrado en `vision` | Impedía **borrar en Auth** la cuenta del único propietario (que sería el admin de Good Barber). **Corregido** en la migración (nunca aplicada) y cubierto por pruebas. | Resuelto |
-| Efecto cruzado real | Toda cuenta **nueva** creada en ese proyecto recibe automáticamente un perfil «barbero» en Good Barber (por un trigger existente de Good Barber). | Se evita usando solo la cuenta de admin actual |
-| Clave del motor (`service_role`) | En un proyecto compartido daría al servidor de Oracle acceso total a **clientes y citas** de Good Barber. Se propone un rol de base de datos mínimo. | Sí: decisión de diseño |
-| Respaldo | El respaldo diario actual **no incluye** `vision`. Se probó el procedimiento de restauración correcto. | No |
-| Zona horaria | Durango → `America/Mexico_City` (UTC−6). Corregido en la documentación. | No |
-| Motor de visión | Candidatos con licencia permisiva y soporte ARM64 verificado: **YOLOX / NanoDet-Plus / PP-PicoDet + ONNX Runtime o ncnn + ByteTrack (supervision)**. Ultralytics YOLO es AGPL-3.0. | No; falta elegir |
-| Oracle Always Free | Hay reportes (no confirmados por Oracle) de que en 2026 el cupo ARM gratuito bajó de 4 OCPU/24 GB a **2 OCPU/12 GB**. Se planifica para el caso peor. | Pendiente de verificar al dar de alta |
-| Conectividad Izzi → Oracle | **No se puede determinar desde aquí.** Sin equipo en el local, solo es posible si hay IP pública (sin CGNAT) y reenvío de puertos. Aun así, el RTSP viajaría **sin cifrar** y en 2026 se publicaron fallas en el servicio RTSP de la C100. Ver §5. | **Sí: riesgo principal** |
+| Interferencia con Good Barber / Finanzas | **Eliminada por diseño:** proyectos distintos, sin Auth, base ni permisos compartidos. El frontend rechaza las URL de esos dos proyectos | No |
+| Límite del plan gratuito | Ya hay 2 proyectos gratuitos activos (Good Barber y Finanzas). Hay que confirmar, al crearlo, que el tercero sea Free sin pausar otros ni pagar | **Sí**, hasta confirmarlo |
+| Seguridad propia de Vision (RLS, roles, Auth) | Probada en PostgreSQL local: anon, cuenta ajena, viewer, admin, owner, motor y borrado desde Auth | No |
+| Credenciales del motor | Rol nuevo `vision_engine` con permisos mínimos. Ni la app ni el motor usan `service_role` | No |
+| Defecto corregido (revisión 1) | `protect_last_owner` bloqueaba el borrado en cascada desde Auth. Corregido y con prueba | Resuelto |
+| Respaldo | Propio de Vision, separado del de Good Barber. Restauración probada localmente | No (requiere autorización) |
+| Zona horaria | Durango → `America/Mexico_City` (UTC−6) | No |
+| Motor de visión | Candidatos Apache-2.0 con ARM64 verificado (§4) | No; falta elegir |
+| Oracle Always Free | Cupo ARM de 2026 sin confirmar; se planifica para 2 OCPU / 12 GB | Pendiente |
+| Conectividad izzi → Oracle | **Riesgo principal:** depende de CGNAT, de que el módem restrinja por IP de origen y de aceptar RTSP sin cifrar (§5) | **Sí** |
 
 ---
 
-## 1. Integración con Supabase de Good Barber
+## 1. Supabase: proyecto independiente
 
-### 1.1 Qué se auditó (solo lectura)
+### 1.1 Qué cambia respecto de la revisión 1
 
-| Componente | Archivos | Cómo usa la base |
-|---|---|---|
-| App de administración | `js/*.js`, `supabase-config.js` | Cliente `supabase-js` con esquema por defecto `public`; ninguna llamada a `.schema()` |
-| Web pública y reservas | `cliente/`, `reservar/` | Vistas `public_*` y RPC `book_appointment`, `public_available_slots` (rol `anon`) |
-| Esquema | `supabase/schema.sql` + 8 migraciones en `supabase/migrations/` | Todo en `public`; trigger `on_auth_user_created` en `auth.users`; políticas en `storage.objects` (bucket `media`) |
-| Edge Functions | `admin-create-barber`, `bootstrap-admin`, `send-appointment-push` | Solo tablas de `public` con `service_role`; `deleteUser` en caso de error |
-| Respaldo | `.github/workflows/backup-database.yml`, `BACKUP.md` | `pg_dump --schema=public --no-owner --no-privileges` cifrado |
-| Finanzas | `finanzas/` | **Otro proyecto Supabase** (`mwskrwkkiuifedatuvca`). `vision` no tiene ningún punto de contacto con él |
+En la revisión 1 se auditó instalar `vision` dentro del proyecto de Good
+Barber. Se comprobó en PostgreSQL local que no alteraba `public`, `auth` ni
+`storage`, pero aparecieron riesgos propios de compartir:
 
-### 1.2 Prueba de no interferencia (PostgreSQL local)
+- Toda cuenta nueva recibía un perfil «barbero» en Good Barber (H2).
+- La clave del motor habría dado acceso a clientes y citas (H3).
+- Auth, plantillas de correo y cupos eran compartidos (H4, H5).
 
-Script reproducible: `vision/supabase/tests/integracion/run.sh`. Carga el
-esquema **real** de Good Barber del repositorio (sin modificarlo), crea datos
-de prueba (admin, barbero, cliente, servicio) y compara instantáneas:
-volcado completo de `public` (estructura + datos + funciones + políticas +
-triggers), volcado de `auth` y `storage`, y una «sonda» que cuenta lo que ven
-`anon`, el barbero y el admin en cada tabla y vista de `public`.
+Con un **proyecto independiente esos riesgos desaparecen**:
 
-| Paso | Resultado |
+| Riesgo de la revisión 1 | Estado |
 |---|---|
-| Aplicar las migraciones de `vision` | `public` **idéntico** · visibilidad de anon/barbero/admin **idéntica** · `auth` y `storage` **idénticos** · sin triggers nuevos de usuario en `auth.users` |
-| Dar acceso a `vision` a la cuenta existente del admin | `public` **idéntico**; el barbero ve 0 datos de `vision`; el admin sigue viendo sus clientes |
-| Borrar en Auth la cuenta propietaria de `vision` | **Fallaba** (defecto) → corregido → ahora funciona y la membresía se borra en cascada |
-| `DROP SCHEMA vision CASCADE` | `public`, visibilidad, FK y triggers internos de `auth.users` vuelven **exactamente** al estado original |
-| Respaldo/restauración | Ver §2 |
+| H2 — perfil «barbero» automático para cuentas nuevas | **No aplica**: el proyecto de Vision no tiene el trigger de Good Barber |
+| H3 — `service_role` del motor con acceso a clientes y citas | **No aplica**; además el motor ya no usa `service_role` (§1.3) |
+| H4 — Auth, plantillas y límite de correos compartidos | **No aplica**: Auth propio |
+| H5 — 500 MB compartidos con Good Barber | **No aplica**: 500 MB propios |
+| Necesidad de modificar el respaldo de Good Barber | **No aplica**: respaldo propio (§2) |
+| H1 — borrado en Auth bloqueado por `protect_last_owner` | **Sigue siendo relevante y está corregido**: también afectaría al propio proyecto de Vision |
 
-Único cambio técnico fuera de `vision` (esperado y reversible): 3 llaves
-foráneas de tablas de `vision` hacia `auth.users` (`members.user_id`,
-`security_events.reviewed_by`, `service_logs.created_by`), que PostgreSQL
-implementa con triggers internos (2 → 8). No cambian el comportamiento de
-Auth salvo que, al borrar una cuenta, también se borra/limpia su fila en
-`vision`.
+La prueba de integración con el esquema de Good Barber
+(`supabase/tests/integracion/`) se **retiró**, porque ya no aplica. Su
+resultado (sin diferencias en `public`/`auth`/`storage`; reversión total)
+queda registrado en el historial de git, en el commit de la revisión 1.
 
-### 1.3 Hallazgos
+### 1.2 Protección contra conexiones equivocadas
 
-**H1 — Defecto (corregido): `vision` podía bloquear el borrado de cuentas.**
-El trigger `vision.protect_last_owner` impedía quitar al último propietario
-también cuando el borrado venía en cascada desde `auth.users`. En el proyecto
-compartido, eso habría hecho fallar el borrado de la cuenta de admin desde el
-panel de Supabase. Corrección en
-`supabase/migrations/20261127120000_vision_etapa1_base.sql`: los borrados en
-cascada (`pg_trigger_depth() > 1`) no se bloquean. Nuevas pruebas en
-`10_rls_tests.sql` y en el script de integración.
+`src/lib/env.ts` bloquea el arranque en cualquiera de estos casos (con
+pruebas unitarias):
 
-**H2 — Efecto cruzado (existente en Good Barber, no en `vision`).**
-`public.handle_new_auth_user()` crea un perfil `barber` activo para **cada**
-cuenta nueva de Auth. Si se crea una cuenta solo para `vision` en ese
-proyecto, ese usuario podría entrar a la app de Good Barber y ver (probado):
-catálogo de servicios, `settings` (nombre, dirección, teléfono, % de reparto
-por defecto), cortes destacados, carrusel y su propio perfil. **No** ve
-clientes, citas, registros de servicio ni cortes semanales.
-*Mitigación propuesta:* en esta fase, usar `vision` **solo con la cuenta de
-administrador que ya existe** (probado: cero cambios). Si más adelante hace
-falta otra cuenta, decidir entre desactivar su perfil en Good Barber
-(`profiles.active = false`, cambia un dato de Good Barber → requiere tu
-autorización) o un proyecto separado.
+- La URL es la de Good Barber (`sisgfnykjzovnaxylxyq`) o la de Finanzas
+  (`mwskrwkkiuifedatuvca`).
+- La clave es `service_role` o `sb_secret_…`.
+- Falta alguna variable.
 
-**H3 — Riesgo de diseño: la `service_role` del motor.**
-La `service_role` se salta todo el RLS del proyecto. Si el motor de visión
-(Oracle) la usara en el proyecto compartido y ese servidor se viera
-comprometido, quedarían expuestos los **clientes, teléfonos y citas** de Good
-Barber. *Propuesta:* un rol de PostgreSQL exclusivo, p. ej. `vision_engine`,
-con permisos solo de escritura en las tablas de resultados de `vision`, y
-conexión directa por el pooler de Supabase. La contraseña la definirías tú en
-el SQL Editor; nunca en el repositorio. (No implementado: requiere tu
-autorización y se diseñará en la Etapa 2.)
+### 1.3 Credenciales del motor: rol `vision_engine`
 
-**H4 — Configuración compartida de Auth.**
-Agregar la URL de la app a *Redirect URLs* no afecta a Good Barber, pero las
-plantillas de correo y el límite de envío de correos del proyecto se
-comparten: los correos de recuperación saldrían con la plantilla de Good
-Barber y consumirían el mismo cupo de envío.
+Nueva migración `20261127120200_vision_rol_motor.sql`. Crea el rol sin login
+`vision_engine`, con permisos y políticas RLS explícitas:
 
-**H5 — Cupos compartidos del plan gratuito.**
-500 MB de base por proyecto. Estimación de `vision` (no medida): ~3 MB/año de
-métricas por hora de 2 cámaras, ~10 MB/año de ocupación con ~6 estaciones y
-~30–40 MB/año de eventos de cruce si hubiera ~200 cruces diarios por negocio.
-Antes de aplicar hay que revisar el tamaño actual de la base de Good Barber
-(Dashboard → Database → tamaño) y fijar una retención para `vision_events`.
+- **Lee** la configuración: sitio, negocios, horarios, cámaras, estaciones y
+  líneas.
+- **Escribe** resultados: latido, salud de cámaras, métricas por hora, estado
+  en vivo y eventos. Los eventos son solo de inserción.
+- **No puede:** leer `members`, empleados ni servicios; leer `auth`; cambiar
+  la configuración; borrar filas; revisar eventos de seguridad; ejecutar
+  `list_members` ni `review_security_event`.
 
-**H6 — Proyecto separado no es $0.**
-Supabase permite 2 proyectos gratuitos **activos** sumando todas las
-organizaciones donde eres propietario o admin; ya existen Good Barber y
-Finanzas. Un tercero exigiría pausar uno o pagar.
+Lo prueba `10_rls_tests.sql` con un usuario que hereda del rol. El usuario
+con login lo crea el propietario en la Etapa 2, con una contraseña que nunca
+pasa por el repositorio (`BASE-DE-DATOS.md` §6). **Por verificar en el
+proyecto real:** que el pooler de Supabase acepte usuarios personalizados.
 
-**H7 — Revisión propia de la app `vision`.**
-Sin `innerHTML`/`dangerouslySetInnerHTML` ni `eval`; la sesión vive en el
-almacenamiento del navegador (normal en `supabase-js`), por lo que una CSP
-estricta es importante. La CSP necesita `'unsafe-inline'` en scripts por la
-exportación estática de Next.js. Mejora menor propuesta: `list_members`
-muestra los correos de los miembros también al rol «solo lectura»; puede
-limitarse a propietario/administrador.
+### 1.4 Hallazgos vigentes de la app
 
-### 1.4 Edge Functions y Finanzas
-
-- `admin-create-barber` / `bootstrap-admin`: solo `public.profiles`,
-  `public.barbers` y la RPC `promote_first_admin`; no leen esquemas ajenos. El
-  borrado de cuentas en caso de error ya no puede ser bloqueado por `vision`.
-- `send-appointment-push`: lee `notification_queue`, `push_subscriptions`,
-  `profiles` (admins activos), `settings` y `barbers`. Una cuenta de `vision`
-  no tiene suscripciones push ni es admin → sin efecto.
-- `finanzas/supabase/functions/anotar`: otro proyecto → sin relación.
-- Reservas públicas (`anon`): su visibilidad y todas las funciones de
-  `public` quedaron idénticas (volcado de `public` sin diferencias).
+- **H1 (corregido):** el borrado en cascada desde Auth ya no se bloquea.
+- **H7:** sin `innerHTML`/`dangerouslySetInnerHTML` ni `eval`. La sesión vive
+  en el almacenamiento del navegador, lo normal en `supabase-js`. La CSP
+  necesita `'unsafe-inline'` en scripts por la exportación estática.
+  Mejora menor propuesta: limitar `list_members` (correos) a
+  propietario/administrador.
+- **Nuevo, de configuración:** el proyecto nuevo trae `public` expuesto en
+  la Data API. Estará vacío, así que es inofensivo, pero puede quitarse de
+  *Exposed schemas* (`BASE-DE-DATOS.md` §3.6).
 
 ---
 
-## 2. Respaldo y recuperación
+## 2. Respaldo y recuperación (de Vision)
 
-| Comprobación (PostgreSQL local) | Resultado |
-|---|---|
-| ¿El workflow actual (`--schema=public`) respalda `vision`? | **No.** Hoy los datos de `vision` no quedarían respaldados |
-| ¿Respaldar `vision` cambia el respaldo de Good Barber? | No: son volcados independientes |
-| Restauración en un proyecto donde existen las cuentas de Auth: migración **base** de `vision` (sin datos iniciales) + datos del respaldo | Negocios, estaciones, miembros y horarios = **2/1/1/7**, igual al original; RLS y permisos funcionan; `anon` sigue sin acceso |
-
-Lecciones para el procedimiento:
-
-1. **Orden correcto:** primero `…_vision_etapa1_base.sql`, después un respaldo
-   **solo de datos** de `vision`. No ejecutar la migración de datos iniciales
-   antes de restaurar (crearía un segundo establecimiento).
-2. El workflow usa `--no-privileges`: los permisos no viajan en el respaldo;
-   la migración base los vuelve a crear (comprobado).
-3. Igual que Good Barber (`BACKUP.md`, caso B): si se pierde el proyecto
-   completo, las cuentas de Auth cambian de id y `vision.members` debe
-   volver a enlazarse por correo.
-4. **Propuesta (requiere autorización, modifica un archivo existente):** un
-   paso adicional en `backup-database.yml` que genere un **segundo artifact**
-   cifrado con `pg_dump --schema=vision --data-only`. Así el respaldo actual
-   de Good Barber no cambia en nada.
-5. Antes de aplicar `vision` en producción: ejecutar manualmente el respaldo
-   («Run workflow») y comprobar que el archivo se puede descifrar.
+- El respaldo actual del repositorio es de Good Barber y **no se modifica**.
+- Propuesta: workflow **separado**, `backup-vision.yml` (texto completo en
+  `BASE-DE-DATOS.md` §7). Usaría secretos propios y generaría un artifact
+  cifrado con `pg_dump --schema=vision --data-only`. **No se ha creado:**
+  requiere tu autorización y los secretos.
+- Ensayo de restauración (PostgreSQL local, ahora dentro de
+  `supabase/tests/run.sh`), en una base nueva con las mismas cuentas de Auth:
+  1. Se aplican todas las migraciones **excepto** las de datos iniciales.
+  2. Se restauran los datos del respaldo.
+  3. Resultado: **mismas filas en las 19 tablas**; RLS correcto (viewer ve 2
+     negocios) y `anon` sin acceso.
+- Si se pierde el proyecto completo, las cuentas de Auth cambian de id y
+  `vision.members` debe volver a enlazarse por correo.
+- Reversión total: `drop schema vision cascade; drop role vision_engine;` o
+  eliminar el proyecto. Las otras apps no se ven afectadas.
 
 ---
 
@@ -337,67 +294,55 @@ sola cámara, sin abrir ningún puerto.
 
 | Ámbito | Qué se probó | Con qué | Limitaciones |
 |---|---|---|---|
-| **PostgreSQL local** (16, desechable) | Migraciones de `vision` (2 veces, idempotencia); RLS para anon, cuenta ajena, viewer, admin y owner; validaciones; borrado en cascada desde Auth; **no interferencia con el esquema real de Good Barber**; reversión con `DROP SCHEMA`; respaldo y restauración | `supabase/tests/run.sh`, `supabase/tests/integracion/run.sh` | `auth`, `storage` y los roles de Supabase son **simulados** (`00_*stub*.sql`). Supabase usa otra versión de PostgreSQL y PostgREST. El esquema de Good Barber es el **del repositorio**; el de producción podría diferir si se cambió a mano |
+| **PostgreSQL local** (16, desechable) | Migraciones (2 veces, idempotencia); RLS para anon, cuenta ajena, viewer, admin y owner; validaciones; **rol del motor** (permitido y prohibido); borrado en cascada desde Auth; **respaldo y restauración** | `supabase/tests/run.sh` | `auth` y los roles de Supabase son **simulados** (`00_supabase_stub.sql`). Supabase usa otra versión de PostgreSQL y PostgREST |
+| Histórico (revisión 1) | No interferencia con el esquema real de Good Barber | Script retirado (ver historial de git) | Ya no aplica: proyecto independiente |
 | **Supabase simulado** (navegador) | Login correcto y erróneo, navegación, dashboard «Pendiente» y con datos de motor simulados, alta de estación con validación, horarios, cámaras | Playwright + Chromium emulando iPhone 14; respuestas REST/Auth falsas | No es Safari ni un iPhone real; no prueba RLS real vía API ni JWT reales |
-| **Pruebas unitarias** | Horarios, indicadores («nunca inventar»), validación, errores, detección de `service_role` en el frontend | Vitest (23 pruebas) | Lógica pura |
-| **No probado en servicios reales** | Supabase real (Data API con esquema `vision`, Auth, correos, PKCE), Cloudflare Pages, PWA instalada en iPhone, cámaras/RTSP, red izzi, Oracle, inferencia de modelos, rendimiento ARM | — | Todo pendiente de tu autorización |
+| **Pruebas unitarias** | Horarios, indicadores («nunca inventar»), validación, errores, rechazo de `service_role` y de los proyectos de Good Barber/Finanzas | Vitest (24 pruebas) | Lógica pura |
+| **No probado en servicios reales** | Proyecto real de Supabase (Data API con `vision`, Auth, correos, PKCE, pooler con usuario del motor, Security Advisor); Cloudflare Pages; PWA instalada en iPhone; cámaras/RTSP; red izzi; Oracle; inferencia; rendimiento ARM | — | Pendiente de que crees el proyecto y de tus autorizaciones |
 
 ---
 
 ## 7. Archivos implicados
 
-**Leídos, sin modificar:** `supabase/schema.sql`, `supabase/migrations/*.sql`
-(8), `supabase/functions/*/index.ts` (3), `js/*.js`, `supabase-config.js`,
-`finanzas/supabase/schema.sql`, `finanzas/supabase-config.js`,
-`finanzas/supabase/functions/anotar/index.ts`,
-`.github/workflows/backup-database.yml`, `BACKUP.md`.
+**Apps existentes:** ninguna modificada. Good Barber y Finanzas no se usan
+ni se leen en tiempo de ejecución.
 
-**Modificados en `vision/` en esta auditoría:**
+**Cambios en `vision/` (revisión 2):**
 
 | Archivo | Cambio |
 |---|---|
-| `supabase/migrations/20261127120000_vision_etapa1_base.sql` | Corrección H1 (cascada desde Auth) |
-| `supabase/tests/10_rls_tests.sql` | Prueba de regresión de H1 |
-| `docs/PENDIENTES.md` | Zona horaria: Durango → `America/Mexico_City` |
-| `docs/ARQUITECTURA.md` | Referencia a esta auditoría (Oracle 2026) |
+| `supabase/migrations/20261127120200_vision_rol_motor.sql` | **Nuevo:** rol `vision_engine` de permisos mínimos |
+| `supabase/tests/10_rls_tests.sql` | Pruebas del rol del motor |
+| `supabase/tests/run.sh` | Ensayo de respaldo y restauración |
+| `supabase/tests/integracion/` | **Eliminado** (era específico del proyecto compartido) |
+| `src/lib/env.ts`, `src/lib/domain/misc.test.ts` | Rechazo de las URL de Good Barber y Finanzas, con prueba |
+| `.env.example`, `README.md` | Proyecto propio; credenciales del motor fuera del frontend |
+| `docs/BASE-DE-DATOS.md` | Reescrito: crear, configurar y conectar el proyecto nuevo; usuario del motor; respaldo |
+| `docs/ARQUITECTURA.md`, `docs/PENDIENTES.md` | Proyecto independiente y motor sin `service_role` |
+| `docs/AUDITORIA-SEGURIDAD-INTEGRACION.md` | Este informe |
 
-**Nuevos:** `docs/AUDITORIA-SEGURIDAD-INTEGRACION.md` (este informe),
-`supabase/tests/integracion/run.sh`,
-`supabase/tests/integracion/00_stub_supabase_completo.sql`,
-`10_semilla_good_barber.sql`, `20_sonda.sql` y `21_ejecutar_sonda.sql`.
-
-**Se modificarían solo con tu autorización:**
-`.github/workflows/backup-database.yml` (segundo artifact de `vision`) y la
-configuración del proyecto Supabase de Good Barber (SQL, Exposed schemas,
-Redirect URLs).
+**Cambios de la revisión 1 que se conservan:** corrección H1 en
+`…_vision_etapa1_base.sql`; zona horaria Durango.
 
 ---
 
 ## 8. Decisiones que requieren tu autorización
 
-1. **Supabase — proyecto de Good Barber con esquema `vision`**, con estas
-   condiciones: (a) respaldo manual previo; (b) usar **solo la cuenta de
-   admin existente** (H2); (c) plan de reversión `DROP SCHEMA vision CASCADE`
-   + quitar `vision` de *Exposed schemas*. ¿Autorizas?
-2. **Rol mínimo para el motor (H3)** en lugar de `service_role`. ¿Autorizas
-   diseñarlo para la Etapa 2?
-3. **Respaldo de `vision`** como segundo artifact en `backup-database.yml`.
-   ¿Autorizas modificar ese archivo?
-4. **Candidatos de modelo:** NanoDet-Plus / YOLOX / PP-PicoDet (Apache-2.0)
+1. **Crear el proyecto de Supabase de Vision** (lo haces tú, `BASE-DE-DATOS.md`
+   §3). Confirma que quede en Free sin pausar ni pagar. Después envíame
+   **solo** la Project URL y la clave publishable.
+2. **Respaldo propio** (`backup-vision.yml` + 2 secretos de GitHub).
+   ¿Autorizas crearlo cuando exista el proyecto?
+3. **Candidatos de modelo:** NanoDet-Plus / YOLOX / PP-PicoDet (Apache-2.0)
    para medir en la Etapa 3, descartando AGPL/GPL y pesos no comerciales.
    ¿De acuerdo?
-5. **Oracle Always Free:** el alta pide tarjeta para verificar identidad;
-   los límites ARM de 2026 no están confirmados. ¿Autorizas el alta (sin
-   «upgrade»)? ¿O prefieres esperar a resolver la conectividad (§5) primero?
-   **Recomiendo esperar.**
-6. **Conectividad:** enviar la evidencia de §5.4. Si hay CGNAT sin IP pública
-   gratuita, tendrás que elegir entre: (a) aceptar el bloqueo y operar con
-   las alertas nativas de Tapo + la app administrativa; (b) relajar alguna
-   restricción (equipo en el local o costo de IP pública); o (c) otra
-   alternativa que propongas. **No abriré ningún puerto sin tu aprobación
-   explícita, por escrito, de la opción y sus riesgos.**
-7. **Cámaras:** ¿quieres que la app **impida** registrar más de una cámara por
+4. **Oracle Always Free:** recomiendo esperar a resolver la conectividad (§5).
+5. **Conectividad:** enviar la evidencia de §5.4. **No abriré ningún puerto
+   sin tu aprobación explícita, por escrito, de la opción y sus riesgos.**
+6. **Cámaras:** ¿quieres que la app **impida** registrar más de una cámara por
    negocio? Hoy permite agregar más desde Ajustes.
+7. **Mejora menor:** ¿limitar los correos de `list_members` a
+   propietario/administrador?
 
 ---
 

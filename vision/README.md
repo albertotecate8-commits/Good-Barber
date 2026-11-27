@@ -7,13 +7,15 @@ Panel de administración y análisis por cámaras para **Good Barber** y
 > indicadores se muestran como **Pendiente** o **Sin datos**. La app nunca
 > inventa cifras.
 
-Es una app independiente dentro del repositorio: no toca la app de Good
-Barber de la raíz ni `finanzas/`.
+Es una app independiente dentro del repositorio, con **su propio proyecto de
+Supabase** (Auth, base de datos, RLS). No usa, no lee y no modifica los
+proyectos de Good Barber ni de Finanzas; el frontend se niega a arrancar si
+se le configura la URL de cualquiera de esos dos proyectos.
 
 ## Stack
 
-Next.js 16 (exportación estática) · TypeScript · Supabase (Auth + Postgres
-con RLS, esquema `vision`) · Zod · Vitest. Sin dependencias de pago.
+Next.js 16 (exportación estática) · TypeScript · Supabase propio (Auth +
+Postgres con RLS, esquema `vision`) · Zod · Vitest. Sin dependencias de pago.
 
 ## Ejecutar en local
 
@@ -22,44 +24,49 @@ Requisitos: Node.js 20.9 o superior.
 ```bash
 cd vision
 npm install
-cp .env.example .env.local   # completa URL y clave publishable de Supabase
+cp .env.example .env.local   # URL y clave publishable del proyecto de Vision
 npm run dev                  # http://localhost:3000
 ```
 
 Sin `.env.local` la app arranca y muestra "Configuración requerida" (no
-finge ninguna conexión).
+finge ninguna conexión). Cómo crear y conectar el proyecto:
+[`docs/BASE-DE-DATOS.md`](docs/BASE-DE-DATOS.md).
 
 ## Comprobaciones
 
 ```bash
 npm run typecheck            # TypeScript estricto
-npm test                     # pruebas unitarias (horarios, indicadores, validación)
-bash supabase/tests/run.sh   # migraciones + RLS en un PostgreSQL local desechable
-bash supabase/tests/integracion/run.sh  # no interferencia con el esquema real de Good Barber
+npm test                     # pruebas unitarias (horarios, indicadores, validación, configuración)
+bash supabase/tests/run.sh   # migraciones + RLS + rol del motor + respaldo/restauración (PostgreSQL local)
 npm run build                # genera out/ (sitio estático)
 npm start                    # sirve out/ para probar el build
 ```
 
 ## Variables de entorno
 
-| Variable | Pública | Descripción |
-|---|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | Sí | URL del proyecto de Supabase |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Sí | Clave publishable/anon. La app se niega a usar una `service_role`/`sb_secret_` |
-| `NEXT_PUBLIC_SUPABASE_SCHEMA` | Sí | Esquema (por defecto `vision`) |
+**Frontend** (`vision/.env.local`, o en el hosting). Todas son públicas por diseño:
 
-La `service_role` key y las credenciales RTSP **nunca** van aquí: solo en el
-servidor del motor de visión (Etapa 2+).
+| Variable | Descripción |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto **de Vision** (`https://<ref>.supabase.co`) |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Clave publishable/anon de ese proyecto. La app rechaza una `service_role`/`sb_secret_` |
+| `NEXT_PUBLIC_SUPABASE_SCHEMA` | Esquema (por defecto `vision`) |
+
+**Motor de visión** (solo en el servidor de procesamiento, Etapa 2+; nunca
+en el repositorio ni en el frontend): cadena de conexión del usuario limitado
+del motor y credenciales RTSP. Ver `docs/BASE-DE-DATOS.md` §6.
+
+La `service_role` key no se usa ni en el frontend ni en el motor.
 
 ## Desplegar (pendiente de aprobación)
 
 Cloudflare Pages: directorio raíz `vision`, comando `npm run build`, salida
-`out`, variables de arriba y `NODE_VERSION=22`. `public/_headers` aplica CSP y
-cabeceras de seguridad.
+`out`, variables del frontend y `NODE_VERSION=22`. `public/_headers` aplica
+CSP y cabeceras de seguridad.
 
 ## Documentación
 
-- [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md): auditoría técnica, decisiones, riesgos (CGNAT, RTSP, licencias, Oracle).
-- [`docs/BASE-DE-DATOS.md`](docs/BASE-DE-DATOS.md): migraciones, RLS y cómo aplicarlas.
+- [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md): arquitectura, decisiones y contrato con el motor.
+- [`docs/BASE-DE-DATOS.md`](docs/BASE-DE-DATOS.md): crear y conectar el proyecto de Supabase, migraciones, RLS, usuario del motor, respaldo.
+- [`docs/AUDITORIA-SEGURIDAD-INTEGRACION.md`](docs/AUDITORIA-SEGURIDAD-INTEGRACION.md): auditoría previa a la Etapa 2 (seguridad, respaldo, modelos, conectividad).
 - [`docs/PENDIENTES.md`](docs/PENDIENTES.md): decisiones abiertas y siguientes etapas.
-- [`docs/AUDITORIA-SEGURIDAD-INTEGRACION.md`](docs/AUDITORIA-SEGURIDAD-INTEGRACION.md): auditoría previa a la Etapa 2 (integración con Good Barber, respaldo, modelos, conectividad).

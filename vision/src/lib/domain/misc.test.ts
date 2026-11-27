@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { addDaysISO, formatClock, formatDuration, localDateISO } from "./time";
 import { businessSchema, slugify, stationSchema } from "./validation";
 import { friendlyError } from "./errors";
-import { looksLikeServiceRole } from "../env";
+import { FORBIDDEN_PROJECTS, looksLikeServiceRole, projectRef } from "../env";
 
 describe("time", () => {
   it("fecha local según zona del sitio", () => {
@@ -45,5 +45,14 @@ describe("errores y claves", () => {
     expect(looksLikeServiceRole(`xx.${payload}.yy`)).toBe(true);
     expect(looksLikeServiceRole("sb_secret_abc")).toBe(true);
     expect(looksLikeServiceRole("sb_publishable_abc")).toBe(false);
+  });
+});
+
+describe("proyecto independiente", () => {
+  it("reconoce el ref del proyecto y bloquea los de Good Barber y Finanzas", () => {
+    expect(projectRef("https://abcdefghijklmnop.supabase.co")).toBe("abcdefghijklmnop");
+    expect(projectRef("https://evil.com/x.supabase.co")).toBe(null);
+    expect(FORBIDDEN_PROJECTS[projectRef("https://sisgfnykjzovnaxylxyq.supabase.co")!]).toBe("Good Barber");
+    expect(FORBIDDEN_PROJECTS[projectRef("https://mwskrwkkiuifedatuvca.supabase.co/")!]).toBe("Finanzas");
   });
 });

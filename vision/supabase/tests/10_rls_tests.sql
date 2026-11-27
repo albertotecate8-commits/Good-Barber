@@ -246,4 +246,90 @@ do $$ begin
   end if;
 end $$;
 
+-- ---------- Motor de visión: usuario con permisos mínimos (nunca service_role) ----------
+do $$ begin
+  if not exists (select 1 from pg_roles where rolname = 'vision_engine_prueba') then
+    create role vision_engine_prueba login in role vision_engine;
+  end if;
+end $$;
+
+do $$
+declare
+  v_gb uuid := (select id from vision.businesses where slug = 'good-barber');
+  v_cam uuid := (select id from vision.cameras where business_id = (select id from vision.businesses where slug = 'good-barber'));
+  v_n integer;
+begin
+  execute 'set local role vision_engine_prueba';
+  -- Lee la configuración que necesita
+  if (select count(*) from vision.cameras) <> 2 then raise exception 'FALLO: el motor no lee cámaras'; end if;
+  perform 1 from vision.business_hours limit 1;
+  -- Escribe resultados (incluye columnas identity y upsert)
+  insert into vision.engine_nodes (id, site_id, version, last_heartbeat_at)
+  select 'motor-prueba', id, '0.0', now() from vision.sites limit 1
+  on conflict (id) do update set last_heartbeat_at = excluded.last_heartbeat_at;
+  insert into vision.camera_health (camera_id, status, last_seen_at) values (v_cam, 'online', now())
+  on conflict (camera_id) do update set status = excluded.status, last_seen_at = excluded.last_seen_at;
+  insert into vision.camera_status_events (camera_id, status, occurred_at) values (v_cam, 'online', now());
+  insert into vision.vision_events (business_id, camera_id, event_type, occurred_at, track_ref, confidence)
+  values (v_gb, v_cam, 'line_entry', now(), 't-1', 0.9);
+  insert into vision.traffic_hourly (camera_id, business_id, hour_start, entries, observed_seconds)
+  values (v_cam, v_gb, '2026-11-28 18:00:00+00', 1, 600)
+  on conflict (camera_id, hour_start) do update set entries = vision.traffic_hourly.entries + 1;
+  insert into vision.security_events (business_id, camera_id, category, kind, occurred_at)
+  values (v_gb, v_cam, 'unconfirmed', 'after_hours_motion', now());
+  -- Prohibido: miembros, configuración, borrar, revisar eventos, auth
+  begin
+    perform 1 from vision.members;
+    raise exception 'FALLO: el motor lee members';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform vision.list_members((select id from vision.sites limit 1));
+    raise exception 'FALLO: el motor ejecuta list_members';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    update vision.businesses set name = 'X';
+    raise exception 'FALLO: el motor cambia la configuración';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    insert into vision.stations (business_id, name) values (v_gb, 'Motor');
+    raise exception 'FALLO: el motor crea estaciones';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    delete from vision.traffic_hourly;
+    raise exception 'FALLO: el motor borra métricas';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    update vision.security_events set status = 'dismissed';
+    raise exception 'FALLO: el motor revisa eventos de seguridad';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform vision.review_security_event(1, 'dismissed', null);
+    raise exception 'FALLO: el motor ejecuta review_security_event';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform 1 from auth.users;
+    raise exception 'FALLO: el motor lee auth.users';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform 1 from vision.employees;
+    raise exception 'FALLO: el motor lee empleados';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+
+-- Los usuarios de la app no heredan permisos del motor
+do $$ begin
+  if pg_has_role('authenticated', 'vision_engine', 'member') or pg_has_role('anon', 'vision_engine', 'member') then
+    raise exception 'FALLO: authenticated/anon heredan del motor';
+  end if;
+end $$;
+
 select 'RLS OK' as resultado;
