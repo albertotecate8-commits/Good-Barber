@@ -1,4 +1,4 @@
-# Cabeceras para Cloudflare Pages (se copian a out/ en el build).
+# Cabeceras HTTP (formato compatible con Netlify y Cloudflare Pages; se copian a out/ en el build).
 /*
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
@@ -11,6 +11,7 @@
   Cache-Control: no-cache
 
 /manifest.webmanifest
+  Content-Type: application/manifest+json
   Cache-Control: no-cache
 
 /_next/static/*

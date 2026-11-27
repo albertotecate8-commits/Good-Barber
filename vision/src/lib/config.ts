@@ -12,4 +12,4 @@ export const STATUS_THRESHOLDS = {
 export const TAPO_APP_STORE_URL = "https://apps.apple.com/mx/app/tp-link-tapo/id1472718009";
 
 export const APP_NAME = "Smart Business Vision";
-export const APP_VERSION = "0.1.0 · Etapa 1";
+export const APP_VERSION = "0.2.0 · Fase 1";

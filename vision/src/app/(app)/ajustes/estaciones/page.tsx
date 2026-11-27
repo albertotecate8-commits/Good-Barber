@@ -118,7 +118,7 @@ export default function EstacionesSettingsPage() {
 
       <Notice tone="info" title="Las zonas se dibujan sobre la imagen real">
         Cada estación necesita una zona dibujada sobre el encuadre de su cámara. El editor de zonas se habilitará cuando exista una
-        captura real de la cámara (Etapas 2 y 4). Mientras tanto, puedes dar de alta las estaciones que existen de verdad.
+        captura real de la cámara (Fase 1). Mientras tanto, puedes dar de alta las estaciones que existen de verdad.
       </Notice>
 
       {data.error ? (

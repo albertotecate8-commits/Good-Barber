@@ -24,7 +24,7 @@ export type ScheduleStatus =
 
 /**
  * Estado del horario comercial en un instante, en la zona del sitio.
- * Base para clasificar eventos "fuera de horario" (Etapa 6).
+ * Base para clasificar eventos "fuera de horario" (Fase 1).
  */
 export function scheduleStatus(
   hours: BusinessHoursRow[],

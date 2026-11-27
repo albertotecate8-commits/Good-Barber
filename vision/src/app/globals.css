@@ -902,3 +902,16 @@ input[type="time"].input { padding: 0 10px; }
 
 .toast-success { border-color: rgba(53, 199, 128, 0.45); }
 .toast-error { border-color: rgba(240, 85, 76, 0.55); }
+
+/* ---------------------------------------------------------- Netlify badge
+   En el plan gratuito, Netlify inserta un distintivo fijo abajo a la
+   derecha (#nl-badge-frame). En el iPhone tapaba la barra de navegación.
+   Se mantiene visible, pero por encima de la barra. */
+@media (max-width: 959px) {
+  #nl-badge-frame {
+    bottom: calc(var(--nav-h) + var(--safe-bottom) + 6px) !important;
+  }
+  .main {
+    padding-bottom: calc(var(--nav-h) + var(--safe-bottom) + 96px);
+  }
+}

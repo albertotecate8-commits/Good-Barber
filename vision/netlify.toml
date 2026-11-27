@@ -1,0 +1,14 @@
+# Netlify (plan gratuito) — sitio 100 % estático: sin Functions, Edge
+# Functions, Forms, Blobs ni ningún complemento de pago.
+[build]
+  command = "npm run build && npm run secrets:check"
+  publish = "out"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NEXT_TELEMETRY_DISABLED = "1"
+  # Estas variables son PÚBLICAS por diseño (URL y clave publishable de
+  # Supabase, incrustadas en el JavaScript del navegador). Se excluyen del
+  # escáner de secretos de Netlify solo por eso; nuestro propio revisor
+  # (scripts/revisar-secretos.mjs) sigue bloqueando cualquier clave real.
+  SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,NEXT_PUBLIC_SUPABASE_SCHEMA"

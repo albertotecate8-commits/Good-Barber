@@ -43,7 +43,7 @@ export function engineStatus(nodes: EngineNode[], now: Date): EngineStatus {
 export function describeEngine(status: EngineStatus, now: Date = new Date()): string {
   switch (status.kind) {
     case "never":
-      return "Motor de visión sin conectar. Los indicadores se activarán cuando se valide la conexión de las cámaras (Etapas 2–4).";
+      return "Motor de visión sin conectar. Los indicadores se activarán cuando se valide la conexión de las cámaras (Fase 1).";
     case "offline":
       return `Motor de visión desconectado · último latido ${formatRelative(status.lastHeartbeat, now)}.`;
     case "online":
@@ -201,7 +201,7 @@ export function cameraStatusIndicator(cameras: CameraOverview[], now: Date): Ind
   if (active.length === 0) return { state: "pending", reason: "No hay cámaras registradas." };
   const conns = active.map((c) => cameraConnection(c, now));
   if (conns.every((c) => c.kind === "untested")) {
-    return { state: "pending", reason: "Ninguna cámara se ha probado todavía (Etapa 2)." };
+    return { state: "pending", reason: "Ninguna cámara se ha conectado todavía (Fase 1)." };
   }
   const online = conns.filter((c) => c.kind === "online").length;
   return {
@@ -216,7 +216,7 @@ export function securityIndicator(engine: EngineStatus, openCount: number | null
   if (engine.kind === "never") {
     return {
       state: "pending",
-      reason: "La vigilancia propia llega en la Etapa 6. Mientras tanto, usa las alertas nativas de Tapo.",
+      reason: "La vigilancia propia se activa con el motor de visión (Fase 1). Mientras tanto, usa las alertas nativas de Tapo.",
     };
   }
   if (openCount === null) return { state: "no_data", reason: "No se pudo consultar." };

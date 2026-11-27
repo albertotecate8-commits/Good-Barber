@@ -74,7 +74,7 @@ export default function UsuariosSettingsPage() {
       <Notice tone="info" title="Cómo se agregan personas">
         El registro público está bloqueado. 1) El administrador técnico crea la cuenta (ver docs/BASE-DE-DATOS.md, «Cuentas»).
         2) Aquí, «Dar acceso» con su correo y su rol. Los usuarios de la app no son empleados: los empleados se registrarán aparte
-        (Etapa 7).
+        (Fase 2).
       </Notice>
       {!isOwner && <Notice tone="info">Solo el propietario puede administrar usuarios.</Notice>}
 

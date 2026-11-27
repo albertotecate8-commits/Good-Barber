@@ -157,7 +157,7 @@ export default function CamarasSettingsPage() {
         </a>
         <p className="muted small">
           La transmisión RTSP no se reproduce en el navegador. Las capturas periódicas se agregarán cuando exista una conexión de cámara
-          validada (Etapa 2).
+          validada (Fase 1).
         </p>
       </Section>
 
@@ -194,7 +194,7 @@ export default function CamarasSettingsPage() {
             <Field label="Ubicación (opcional)" hint="Por ejemplo: «Esquina sobre la entrada».">
               {(id) => <TextInput id={id} maxLength={200} value={draft.location_note} onChange={(e) => setDraft({ ...draft, location_note: e.target.value })} />}
             </Field>
-            <Field label="Perfil de transmisión para el análisis" hint="La baja resolución consume menos CPU y ancho de banda. Se confirmará en la auditoría RTSP (Etapa 2).">
+            <Field label="Perfil de transmisión para el análisis" hint="La baja resolución consume menos CPU y ancho de banda. Se confirmará en la auditoría RTSP (Fase 1).">
               {(id) => (
                 <Select id={id} value={draft.stream_profile} onChange={(e) => setDraft({ ...draft, stream_profile: e.target.value as Draft["stream_profile"] })}>
                   <option value="stream2">Baja resolución (stream2)</option>
